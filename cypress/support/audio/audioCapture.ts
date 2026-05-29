@@ -9,10 +9,17 @@
  * mp3 to its decoded AudioBuffer, then records the URL whenever a buffer is
  * started.
  *
- * Verified against the live demo on 2026-05-29: jsPsych preloads audio via
- * XMLHttpRequest (responseType "arraybuffer"), so both the fetch() and XHR paths
- * are tagged. After clicking through instructions, window.__currentAudioUrl
- * tracked heart-instruct1 -> heart-instruct2 exactly in step with the screens.
+ * Verified against the live demo on 2026-05-29: jsPsych preloads every clip via
+ * XMLHttpRequest with responseType "arraybuffer", reading xhr.response inside its
+ * own onload and decoding it synchronously. Two subtleties make this tricky and
+ * are handled below:
+ *   1. Ordering — jsPsych's onload runs before any 'load' listener we add in
+ *      send(), so we tag the buffer from an instance-level `response` getter,
+ *      which fires the moment jsPsych reads it (before the decode that follows).
+ *   2. Realms — the AUT runs in a separate frame from the Cypress spec, so its
+ *      buffers are not `instanceof` our ArrayBuffer; see isArrayBuffer().
+ * With both in place, window.__currentAudioUrl tracks the playing clip exactly
+ * in step with the screens.
  */
 
 export interface AudioWindow extends Window {
@@ -69,6 +76,13 @@ export function installAudioCapture(win: Window): void {
   const abToUrl = new WeakMap<ArrayBuffer, string>();
   const bufToUrl = new WeakMap<AudioBuffer, string>();
 
+  // Realm-safe ArrayBuffer check: the AUT runs in a separate frame from the
+  // spec, so the buffers it creates are NOT instanceof *our* ArrayBuffer.
+  // Comparing against the AUT window's constructor (with a tag-string fallback)
+  // is the only reliable test across realms.
+  const isArrayBuffer = (v: unknown): v is ArrayBuffer =>
+    v instanceof g.ArrayBuffer || Object.prototype.toString.call(v) === '[object ArrayBuffer]';
+
   const tag = (ab: ArrayBuffer, url: string | undefined): void => {
     if (url && MP3_RE.test(url)) {
       abToUrl.set(ab, url);
@@ -81,7 +95,7 @@ export function installAudioCapture(win: Window): void {
     const origArrayBuffer = responseProto.arrayBuffer;
     responseProto.arrayBuffer = function patchedArrayBuffer(this: Response): Promise<ArrayBuffer> {
       const url = this.url;
-      return origArrayBuffer.call(this).then((ab) => {
+      return origArrayBuffer.call(this).then((ab: ArrayBuffer) => {
         tag(ab, url);
         return ab;
       });
@@ -89,8 +103,25 @@ export function installAudioCapture(win: Window): void {
   }
 
   // XMLHttpRequest path: jsPsych's audio preloader uses XHR with an arraybuffer
-  // response. Remember the URL on open(), then tag the response on load.
+  // response. Remember the URL on open(). The buffer must be tagged *before*
+  // jsPsych decodes it, but jsPsych's own onload (registered at setup) runs
+  // before any 'load' listener we add in send(), and it reads xhr.response and
+  // calls decodeAudioData synchronously. So instead of a load listener we shadow
+  // the instance's `response` getter: the buffer is tagged the moment jsPsych
+  // reads it, guaranteeing the tag is in place before the decode that follows.
   const xhrProto = g.XMLHttpRequest?.prototype;
+  // `response` is an accessor on XMLHttpRequest.prototype; find its getter.
+  const responseGetter = ((): ((this: XMLHttpRequest) => unknown) | undefined => {
+    let proto: object | null = xhrProto ?? null;
+    while (proto) {
+      const desc = Object.getOwnPropertyDescriptor(proto, 'response');
+      if (desc?.get) {
+        return desc.get as (this: XMLHttpRequest) => unknown;
+      }
+      proto = Object.getPrototypeOf(proto) as object | null;
+    }
+    return undefined;
+  })();
   if (xhrProto) {
     // open() is overloaded; pin a single call signature so .call type-checks.
     const origOpen: (
@@ -109,6 +140,19 @@ export function installAudioCapture(win: Window): void {
       password?: string | null,
     ): void {
       this.__mp3Url = String(url);
+      // Shadow `response` on this instance so the buffer is tagged on first read.
+      if (responseGetter && MP3_RE.test(this.__mp3Url)) {
+        Object.defineProperty(this, 'response', {
+          configurable: true,
+          get(this: XhrWithUrl): unknown {
+            const value = responseGetter.call(this);
+            if (isArrayBuffer(value)) {
+              tag(value, this.__mp3Url);
+            }
+            return value;
+          },
+        });
+      }
       origOpen.call(this, method, url, async, username ?? null, password ?? null);
     };
 
@@ -117,8 +161,10 @@ export function installAudioCapture(win: Window): void {
       this: XhrWithUrl,
       body?: Document | XMLHttpRequestBodyInit | null,
     ): void {
+      // Fallback for any code path that reads the buffer without going through
+      // the shadowed getter (harmless duplicate tagging is idempotent).
       this.addEventListener('load', () => {
-        if (this.response instanceof ArrayBuffer) {
+        if (isArrayBuffer(this.response)) {
           tag(this.response, this.__mp3Url);
         }
       });

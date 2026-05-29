@@ -1,6 +1,18 @@
-import * as NodeID3 from 'node-id3';
+import NodeID3 from 'node-id3';
 
 import type { AudioSource, Mp3Tags } from '../support/tasks/types';
+
+// node-id3 is CommonJS; under the ts-node/esm loader Cypress uses, a namespace
+// import (`import * as`) does not expose `.read`, so we use the default import
+// and describe just the frames we read. See backfill_audio_transcripts.ts.
+interface UserDefinedTextFrame {
+  description?: string;
+  value?: string;
+}
+interface Id3Tags {
+  title?: string;
+  userDefinedText?: UserDefinedTextFrame[];
+}
 
 /**
  * Node-side reader for LEVANTE narration mp3s. Fetches a file and pulls the
@@ -54,7 +66,7 @@ export async function readMp3Tags(url: string): Promise<Mp3Tags> {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
     const buf = Buffer.from(await res.arrayBuffer());
-    const tags = NodeID3.read(buf);
+    const tags = NodeID3.read(buf) as unknown as Id3Tags;
 
     const byDescription = new Map<string, string>();
     for (const entry of tags.userDefinedText ?? []) {

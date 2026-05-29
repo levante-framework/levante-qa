@@ -38,6 +38,12 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
     });
     cy.wrap(null).then(() => {
       expect(records.length, 'recorded at least one VLM response').to.be.greaterThan(0);
+      const withAudio = records.filter((r) => r.audioTranscript);
+      cy.log(`audio transcripts captured: ${withAudio.length} / ${records.length} records`);
+      // End-to-end check of the audio pipeline (capture monkeypatch -> play log ->
+      // ID3 reader -> transcript). At least one instruction screen must surface a
+      // transcript, otherwise the audio channel is silently broken.
+      expect(withAudio.length, 'captured at least one narration transcript').to.be.greaterThan(0);
     });
   }
 
@@ -70,10 +76,35 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
 
       // Instructions / fixation: advance deterministically (no model call). The
       // VLM is benchmarked on response trials, not on dismissing instructions.
+      // Narration plays here, so this is also where we exercise the audio
+      // pipeline end-to-end: give the clip a moment to start, read it from the
+      // play log, and log a record. Consuming it here also keeps the following
+      // (silent) response trial from mis-attributing this instruction clip.
       if (isInstructionScreen(win)) {
-        cy.actOnTrial('CONTINUE');
-        cy.wait(250);
-        step(i + 1);
+        cy.wait(400);
+        currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+          if (audio.transcript) {
+            records.push(
+              parseTrialRecord({
+                timestamp: new Date().toISOString(),
+                task: TASK,
+                step: i,
+                block: 'instructions',
+                shape: null,
+                side: null,
+                congruency: null,
+                action: 'CONTINUE',
+                oracle: false,
+                provider,
+                audioTranscript: audio.transcript,
+                audioSource: audio.source,
+              }),
+            );
+          }
+          cy.actOnTrial('CONTINUE');
+          cy.wait(250);
+          step(i + 1);
+        });
         return;
       }
 
