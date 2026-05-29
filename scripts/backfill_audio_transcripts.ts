@@ -179,7 +179,10 @@ function hasTranscript(tags: Tags): boolean {
 }
 
 async function readTagsRange(url: string): Promise<Tags | null> {
-  const res = await fetch(url, { headers: { Range: `bytes=0-${RANGE_BYTES - 1}` } });
+  // Cache-bust: GCS' public edge can serve a stale copy of a just-re-uploaded
+  // object, which would look like a missing transcript on a verification scan.
+  const fresh = `${url}?cb=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const res = await fetch(fresh, { headers: { Range: `bytes=0-${RANGE_BYTES - 1}` } });
   if (!res.ok && res.status !== 206) return null;
   const buf = Buffer.from(await res.arrayBuffer());
   return NodeID3.read(buf) as unknown as Tags;
