@@ -15,19 +15,12 @@ import type { Mp3Tags } from '../../support/tasks/types';
  * locale. Reads the task's asset manifest (window.__mediaAssets) and checks each
  * audio file's tags via the readMp3Tags node task.
  *
- * Known upstream gaps are quarantined below so this stays green on existing
- * content debt while still failing loud on any NEW untagged narration. As assets
- * are fixed in the bucket, remove them from the quarantine list.
- *
- * Quarantined as of 2026-05-29 (en-US): generated from "Existing audio" with no
- * transcript frames — file upstream so the narration script is backfilled.
+ * If an upstream gap appears that can't be fixed immediately, quarantine its
+ * item id here so this stays green on known debt while still failing loud on any
+ * NEW untagged narration. The H&F en-US gaps found on 2026-05-29 were backfilled
+ * (see scripts/backfill_audio_transcripts.ts), so the list is currently empty.
  */
-const KNOWN_MISSING_TRANSCRIPTS: ReadonlySet<string> = new Set([
-  'hearts-and-flowers-end',
-  'hearts-and-flowers-instruct2',
-  'hearts-and-flowers-instruct3',
-  'hearts-and-flowers-instruct-touchscreen',
-]);
+const KNOWN_MISSING_TRANSCRIPTS: ReadonlySet<string> = new Set<string>([]);
 
 describe('Hearts & Flowers — audio content QA', () => {
   it('every narration asset has a transcript tag', () => {
