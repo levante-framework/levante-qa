@@ -1,36 +1,42 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import type { Action, VLMRequest } from '../../support/tasks/types';
 import { parseAction } from './index';
 
-const DEFAULT_MODEL = 'gemini-1.5-pro';
+// Current vision-capable default (the legacy gemini-1.5 family is deprecated).
+// Override per run with GEMINI_MODEL, e.g. gemini-2.5-pro or gemini-3-flash-preview.
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
-let client: GoogleGenerativeAI | null = null;
+let client: GoogleGenAI | null = null;
 
-function getClient(): GoogleGenerativeAI {
+function getClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not set.');
   }
   if (!client) {
-    client = new GoogleGenerativeAI(apiKey);
+    client = new GoogleGenAI({ apiKey });
   }
   return client;
 }
 
 export async function askGemini(req: VLMRequest): Promise<Action> {
-  const modelName = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
-  const model = getClient().getGenerativeModel({
-    model: modelName,
-    generationConfig: { temperature: 0, maxOutputTokens: 8 },
+  const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
+  const response = await getClient().models.generateContent({
+    model,
+    contents: [
+      { text: 'Which action? Reply with one word.' },
+      { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
+    ],
+    config: {
+      systemInstruction: req.systemPrompt,
+      temperature: 0,
+      maxOutputTokens: 32,
+      // Disable "thinking" so the single-word answer isn't starved of tokens
+      // and latency stays representative. Supported on 2.5-flash; pro models
+      // may ignore it, which is fine — parseAction tolerates longer output.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   });
 
-  // The pinned SDK version exposes no systemInstruction field, so the shared
-  // system prompt is prepended to the user content instead.
-  const result = await model.generateContent([
-    { text: `${req.systemPrompt}\n\nWhich action? Reply with one word.` },
-    { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
-  ]);
-
-  const raw = result.response.text();
-  return parseAction(raw);
+  return parseAction(response.text ?? '');
 }

@@ -26,13 +26,17 @@ export default defineConfig({
     supportFile: 'cypress/support/e2e.ts',
     defaultCommandTimeout: 10000,
     setupNodeEvents(on, config) {
+      // Resolve the active provider once. A CLI override (`--env provider=...`)
+      // takes precedence over VLM_PROVIDER in .env; both the dispatch and the
+      // spec label use this same value so logs never disagree with what ran.
+      const provider = String(config.env.provider ?? process.env.VLM_PROVIDER ?? 'openai');
+
       on('task', {
         /**
-         * Dispatches a screenshot to the configured VLM provider and returns
-         * the chosen action plus the wall-clock latency of the provider call.
+         * Dispatches a screenshot to the resolved VLM provider and returns the
+         * chosen action plus the wall-clock latency of the provider call.
          */
         async askVLM(req: VLMRequest): Promise<VLMResult> {
-          const provider = process.env.VLM_PROVIDER ?? 'openai';
           const start = Date.now();
           const action = await dispatchVLM(provider, req);
           const latencyMs = Date.now() - start;
@@ -54,8 +58,8 @@ export default defineConfig({
         },
       });
 
-      // Surface the active provider to specs via Cypress.env('provider').
-      config.env.provider = process.env.VLM_PROVIDER ?? config.env.provider ?? 'openai';
+      // Surface the resolved provider to specs via Cypress.env('provider').
+      config.env.provider = provider;
 
       // Allow overriding the task target with BASE_URL (e.g. a local dev server).
       if (process.env.BASE_URL) {
