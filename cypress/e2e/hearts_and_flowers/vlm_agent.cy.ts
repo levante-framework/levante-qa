@@ -4,6 +4,7 @@ import {
   buildUrl,
   congruency,
   readStimulus,
+  resetBlockTracker,
   type TaskWindow,
 } from '../../support/tasks/heartsAndFlowers';
 import { parseTrialRecord, type TrialRecord } from '../../support/tasks/types';
@@ -92,6 +93,7 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
   }
 
   it('drives the task via the configured VLM provider', () => {
+    resetBlockTracker();
     cy.visit(buildUrl());
     step(0);
   });

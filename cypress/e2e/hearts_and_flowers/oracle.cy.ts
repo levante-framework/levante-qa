@@ -4,6 +4,7 @@ import {
   congruency,
   correctAction,
   readStimulus,
+  resetBlockTracker,
   type TaskWindow,
 } from '../../support/tasks/heartsAndFlowers';
 import { parseTrialRecord, type BlockType, type TrialRecord } from '../../support/tasks/types';
@@ -89,6 +90,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
   }
 
   it('completes all blocks at 100% accuracy', () => {
+    resetBlockTracker();
     cy.visit(buildUrl());
     step(0);
   });
