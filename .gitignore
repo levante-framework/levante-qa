@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.log
+
+# Secrets
+.env
+.env.local
+
+# Cypress artifacts
+cypress/videos/
+cypress/screenshots/
+cypress/logs/
+cypress/downloads/
+
+# Scoring output
+results/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo

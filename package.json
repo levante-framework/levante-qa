@@ -1,0 +1,37 @@
+{
+  "name": "levante-qa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "QA / regression and VLM-agent benchmarking for LEVANTE core tasks using Cypress.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "cy:run:oracle": "cypress run --spec 'cypress/e2e/**/oracle.cy.ts'",
+    "cy:run:vlm": "cypress run --spec 'cypress/e2e/**/vlm_agent.cy.ts'",
+    "score": "tsx scripts/score.ts",
+    "summarize": "tsx scripts/summarize_runs.ts",
+    "lint": "eslint . --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "cypress": "^13.7.1",
+    "eslint": "^8.57.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.1",
+    "@google/generative-ai": "^0.5.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.33.0",
+    "zod": "^3.22.4"
+  }
+}

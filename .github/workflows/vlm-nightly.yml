@@ -1,0 +1,82 @@
+name: VLM nightly
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'Single provider to run (leave blank to run the full matrix)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - openai
+          - anthropic
+          - gemini
+  schedule:
+    # 07:00 UTC nightly.
+    - cron: '0 7 * * *'
+
+jobs:
+  vlm:
+    name: VLM agent (${{ matrix.provider }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [openai, anthropic, gemini]
+    env:
+      VLM_PROVIDER: ${{ matrix.provider }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Skip provider not selected
+        id: gate
+        run: |
+          SELECTED="${{ github.event.inputs.provider }}"
+          if [ -n "$SELECTED" ] && [ "$SELECTED" != "${{ matrix.provider }}" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run VLM specs
+        if: steps.gate.outputs.run == 'true'
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          command: pnpm cy:run:vlm --env provider=${{ matrix.provider }}
+
+      - name: Score runs
+        if: steps.gate.outputs.run == 'true'
+        run: pnpm score
+
+      - name: Upload trial logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vlm-logs-${{ matrix.provider }}
+          path: cypress/logs
+          if-no-files-found: ignore
+
+      - name: Upload scores
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vlm-results-${{ matrix.provider }}
+          path: results
+          if-no-files-found: ignore
