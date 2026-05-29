@@ -53,10 +53,12 @@ export const STIMULUS_HOLDER = '.haf-stimulus-holder';
 export const STIMULUS_CONTAINER = '.haf-stimulus-container';
 export const FEEDBACK_CONTAINER = '.haf-cr-container';
 
-// The stimulus image carries a generic alt; shape comes from its `src`
-// (heart.webp / flower.webp). Side comes from the wrapper class .stimulus-left /
-// .stimulus-right (bounding box vs viewport center as a fallback).
-export const STIMULUS_IMG = '[alt="heart or flower"]';
+// The stimulus image carries a generic alt; shape comes from its `src` FILENAME
+// (heart.webp / flower.webp). NB: the path contains "hearts-and-flowers", so the
+// shape must be parsed from the basename only, not the whole URL. Side comes from
+// the container's .stimulus-left / .stimulus-right wrapper. Scope the image to
+// the stimulus container so a preloaded/offscreen asset is never picked up.
+export const STIMULUS_IMG = '.haf-stimulus-container [alt="heart or flower"]';
 export const STIMULUS_LEFT_WRAP = '.stimulus-left';
 export const STIMULUS_RIGHT_WRAP = '.stimulus-right';
 
@@ -208,16 +210,21 @@ function classifyBlock(shape: Shape): Exclude<BlockType, 'instructions'> {
 }
 
 function shapeFromImg(img: HTMLImageElement): Shape {
-  // The alt text is generic ("heart or flower"); the filename in src is the
-  // reliable signal (.../hearts-and-flowers/heart.webp | flower.webp).
-  return coerceShape(img.getAttribute('src') ?? '');
+  // The alt text is generic ("heart or flower") and the URL path contains
+  // "hearts-and-flowers", so parse the shape from the FILENAME only — otherwise
+  // every flower URL would also match "heart".
+  const src = img.getAttribute('src') ?? '';
+  const filename = src.split('/').pop() ?? '';
+  return coerceShape(filename);
 }
 
-function sideFromImg(img: HTMLImageElement, win: TaskWindow): Side {
-  // Preferred: the wrapper element class (.stimulus-left / .stimulus-right).
-  if (img.closest(STIMULUS_LEFT_WRAP)) return 'left';
-  if (img.closest(STIMULUS_RIGHT_WRAP)) return 'right';
+function sideFromDom(win: TaskWindow, img: HTMLImageElement | null): Side {
+  // Preferred: which wrapper the container is rendering (matches core-tasks).
+  const container = win.document.querySelector(STIMULUS_CONTAINER);
+  if (container?.querySelector(STIMULUS_LEFT_WRAP)) return 'left';
+  if (container?.querySelector(STIMULUS_RIGHT_WRAP)) return 'right';
   // Fallback: bounding box center vs viewport center.
+  if (!img) return null;
   const rect = img.getBoundingClientRect();
   if (rect.width === 0) return null;
   const center = rect.left + rect.width / 2;
@@ -275,7 +282,7 @@ export function readStimulus(win: TaskWindow): StimulusState {
 
   const img = doc.querySelector(STIMULUS_IMG) as HTMLImageElement | null;
   const domShape: Shape = img ? shapeFromImg(img) : null;
-  const domSide: Side = img ? sideFromImg(img, win) : null;
+  const domSide: Side = sideFromDom(win, img);
 
   const fromJs = readFromJsPsych(win);
   const shape = fromJs?.shape ?? domShape;
