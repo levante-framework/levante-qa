@@ -87,10 +87,18 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
       const oracleAction = oracleAgent.decide(win);
 
       const screenshotName = `vlm_step_${String(i).padStart(4, '0')}`;
-      cy.screenshot(screenshotName, { capture: 'viewport', overwrite: true });
-      const path = `cypress/screenshots/${Cypress.spec.relative}/${screenshotName}.png`;
+      // Capture the path Cypress actually writes to (its screenshot folder
+      // naming is version/spec dependent), rather than reconstructing it.
+      let shotPath = '';
+      cy.screenshot(screenshotName, {
+        capture: 'viewport',
+        overwrite: true,
+        onAfterScreenshot(_doc, props) {
+          shotPath = props.path;
+        },
+      });
 
-      cy.readFile(path, 'base64').then((pngBase64: string) => {
+      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
         vlmAgent.decide(pngBase64).then((decision) => {
           const modelAction = decision.action;
 
