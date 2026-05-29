@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type { Action, VLMRequest } from '../../support/tasks/types';
-import { parseAction } from './index';
+import { buildUserText, parseAction } from './index';
 
 const DEFAULT_MODEL = 'gpt-4o';
 
@@ -28,7 +28,7 @@ export async function askOpenAI(req: VLMRequest): Promise<Action> {
       {
         role: 'user',
         content: [
-          { type: 'text', text: 'Which action? Reply with one word.' },
+          { type: 'text', text: buildUserText(req.transcript) },
           {
             type: 'image_url',
             image_url: { url: `data:image/png;base64,${req.pngBase64}` },

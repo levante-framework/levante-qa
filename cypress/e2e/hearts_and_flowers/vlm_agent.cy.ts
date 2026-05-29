@@ -11,6 +11,8 @@ import {
   resetBlockTracker,
   type TaskWindow,
 } from '../../support/tasks/heartsAndFlowers';
+import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
+import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { parseTrialRecord, type TrialRecord } from '../../support/tasks/types';
 
 const MAX_STEPS = 1200;
@@ -82,53 +84,57 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
       }
 
       // Response trial: capture state + oracle decision (for cross-check only),
-      // then hand the screenshot to the model.
+      // then hand the screenshot — and any narration transcript — to the model.
       const state = readStimulus(win);
       const oracleAction = oracleAgent.decide(win);
 
-      const screenshotName = `vlm_step_${String(i).padStart(4, '0')}`;
-      // Capture the path Cypress actually writes to (its screenshot folder
-      // naming is version/spec dependent), rather than reconstructing it.
-      let shotPath = '';
-      cy.screenshot(screenshotName, {
-        capture: 'viewport',
-        overwrite: true,
-        onAfterScreenshot(_doc, props) {
-          shotPath = props.path;
-        },
-      });
+      currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+        const screenshotName = `vlm_step_${String(i).padStart(4, '0')}`;
+        // Capture the path Cypress actually writes to (its screenshot folder
+        // naming is version/spec dependent), rather than reconstructing it.
+        let shotPath = '';
+        cy.screenshot(screenshotName, {
+          capture: 'viewport',
+          overwrite: true,
+          onAfterScreenshot(_doc, props) {
+            shotPath = props.path;
+          },
+        });
 
-      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
-        vlmAgent.decide(pngBase64).then((decision) => {
-          const modelAction = decision.action;
+        cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+          vlmAgent.decide(pngBase64, audio.transcript).then((decision) => {
+            const modelAction = decision.action;
 
-          records.push(
-            parseTrialRecord({
-              timestamp: new Date().toISOString(),
-              task: TASK,
-              step: i,
-              block: state.blockType,
-              shape: state.shape,
-              side: state.side,
-              congruency:
-                state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
-              action: modelAction,
-              // "correct" here means the model matched the deterministic oracle;
-              // this is logged for analysis and never gates the test.
-              correct: modelAction === oracleAction,
-              rtMs: decision.latencyMs,
-              oracle: false,
-              provider,
-              modelAction,
-              oracleAction,
-              latencyMs: decision.latencyMs,
-              timedOut: decision.latencyMs > TIMEOUT_MS,
-            }),
-          );
+            records.push(
+              parseTrialRecord({
+                timestamp: new Date().toISOString(),
+                task: TASK,
+                step: i,
+                block: state.blockType,
+                shape: state.shape,
+                side: state.side,
+                congruency:
+                  state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
+                action: modelAction,
+                // "correct" here means the model matched the deterministic oracle;
+                // this is logged for analysis and never gates the test.
+                correct: modelAction === oracleAction,
+                rtMs: decision.latencyMs,
+                oracle: false,
+                provider,
+                modelAction,
+                oracleAction,
+                latencyMs: decision.latencyMs,
+                timedOut: decision.latencyMs > TIMEOUT_MS,
+                audioTranscript: audio.transcript,
+                audioSource: audio.source,
+              }),
+            );
 
-          cy.actOnTrial(modelAction);
-          cy.wait(150);
-          step(i + 1);
+            cy.actOnTrial(modelAction);
+            cy.wait(150);
+            step(i + 1);
+          });
         });
       });
     });
@@ -136,7 +142,8 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
 
   it('drives the task via the configured VLM provider', () => {
     resetBlockTracker();
-    cy.visit(buildUrl());
+    resetAudioCapture();
+    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
     // Wait for the app to load, then dismiss the fullscreen prompt.
     cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
     step(0);

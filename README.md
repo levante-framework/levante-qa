@@ -94,18 +94,33 @@ Two agent paths share the same task model (selectors, stimulus parser, response 
 - The **oracle** never calls a model; it reads stimulus state (preferring `window.jsPsych`, falling back to DOM heuristics) and applies the task rule. It asserts perfect play.
 - The **VLM agent** only sees a screenshot. The oracle's decision is computed alongside for logging/cross-check but **does not gate** the VLM test.
 
+## Audio channel (narration transcripts)
+
+LEVANTE narration is pre-recorded and the canonical script is embedded in each `.mp3`'s **ID3 tags**, so we read it directly instead of running speech-to-text. This gives a deterministic, offline, zero-cost "audio channel" that is by construction what a child hears.
+
+- **Where the text lives:** the spoken script is in an ID3v2 **`TXXX` (user-defined text) frame**, not `USLT`/`TIT2` (`TIT2` is just the asset id; `COMM` is voice metadata). Precedence, highest first: `original_translation_text` (clean source) → `text` → `audio_enhanced_text`. Emotion/TTS markup like `[happy]` is stripped. See `cypress/support/tasks/types.ts` (`AudioSource`).
+- **Which clip is playing:** the task preloads all audio and plays it via the Web Audio API, so a network intercept can't tell what's playing *now*. `cypress/support/audio/audioCapture.ts` installs a small `onBeforeLoad` monkeypatch that links each fetched mp3 → decoded buffer → `AudioBufferSourceNode.start()`, exposing `window.__currentAudioUrl` and an ordered `__audioPlayLog`.
+- **Reading the tags:** `cypress/plugins/id3Reader.ts` fetches + parses tags node-side (via `node-id3`, cached by URL) and is exposed as the `readMp3Tags` cy.task. `cypress/support/audio/audioOracle.ts` attributes the current screen's narration to each trial.
+- **Locale** is encoded in the URL path (`audio/<locale>/<file>.mp3`); we read the exact URL the page requested, so no locale parameter is needed.
+- Each `TrialRecord` gains `audioTranscript` and `audioSource`. The VLM prompt receives the transcript as an extra text line alongside the screenshot.
+
+**Content QA (free side-effect):** `audio_assets.cy.ts` reads the task's full asset manifest (`window.__mediaAssets`) and asserts every *narration* asset has a non-empty transcript (non-speech cues like `coin`/`select`/`nullAudio` are exempt). Known upstream gaps are quarantined in that spec so it fails loud only on **new** untagged narration.
+
 ## Layout
 
 ```
 cypress/
-  e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts
+  e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts
   support/
     tasks/                  heartsAndFlowers.ts (task model), types.ts (zod schemas)
     agents/                 oracleAgent.ts, vlmAgent.ts
+    audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     e2e.ts, commands.ts
-  plugins/vlmClients/       index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
+  plugins/
+    vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
+    id3Reader.ts            node-side fetch + node-id3 parse + cache
 scripts/                    score.ts, summarize_runs.ts
-.github/workflows/          qa.yml (oracle on PR), vlm-nightly.yml (scheduled matrix)
+.github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 
 ## Conventions
@@ -124,5 +139,5 @@ scripts/                    score.ts, summarize_runs.ts
 
 ## CI
 
-- **`qa.yml`** — on push/PR: install, typecheck, run the oracle specs headless, upload `cypress/logs` (and screenshots on failure).
+- **`qa.yml`** — on push/PR: install, typecheck, run the oracle specs and the audio content-QA headless, upload `cypress/logs` (and screenshots on failure).
 - **`vlm-nightly.yml`** — `workflow_dispatch` + nightly cron. Matrix over `[openai, anthropic, gemini]`, reading `*_API_KEY` from repo secrets. Runs the VLM specs, then `pnpm score`, and uploads logs + `results/`.

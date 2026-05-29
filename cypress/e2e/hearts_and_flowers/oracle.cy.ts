@@ -11,6 +11,12 @@ import {
   resetBlockTracker,
   type TaskWindow,
 } from '../../support/tasks/heartsAndFlowers';
+import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
+import {
+  currentAudioTranscript,
+  resetAudioCapture,
+  type CurrentAudio,
+} from '../../support/audio/audioOracle';
 import { parseTrialRecord, type BlockType, type TrialRecord } from '../../support/tasks/types';
 
 // Safety cap on loop iterations. The loop normally exits on task completion well
@@ -51,7 +57,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
     });
   }
 
-  function recordContinue(step: number): void {
+  function recordContinue(step: number, audio: CurrentAudio): void {
     records.push(
       parseTrialRecord({
         timestamp: new Date().toISOString(),
@@ -62,6 +68,8 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
         side: null,
         action: 'CONTINUE',
         oracle: true,
+        audioTranscript: audio.transcript,
+        audioSource: audio.source,
       }),
     );
   }
@@ -97,12 +105,15 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
         return;
       }
 
-      // 3. Instructions / fixation: advance with the continue button.
+      // 3. Instructions / fixation: advance with the continue button. Capture the
+      //    narration transcript that plays on this screen before advancing.
       if (isInstructionScreen(win)) {
-        recordContinue(i);
-        cy.actOnTrial('CONTINUE');
-        cy.wait(250);
-        step(i + 1);
+        currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+          recordContinue(i, audio);
+          cy.actOnTrial('CONTINUE');
+          cy.wait(250);
+          step(i + 1);
+        });
         return;
       }
 
@@ -120,30 +131,35 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
         ? correctAction(state.shape, state.side, state.blockType)
         : null;
 
-      records.push(
-        parseTrialRecord({
-          timestamp: new Date().toISOString(),
-          task: TASK,
-          step: i,
-          block: state.blockType,
-          shape: state.shape,
-          side: state.side,
-          congruency: state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
-          action,
-          correct: isResponse ? action === expected : null,
-          oracle: true,
-        }),
-      );
+      currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+        records.push(
+          parseTrialRecord({
+            timestamp: new Date().toISOString(),
+            task: TASK,
+            step: i,
+            block: state.blockType,
+            shape: state.shape,
+            side: state.side,
+            congruency: state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
+            action,
+            correct: isResponse ? action === expected : null,
+            oracle: true,
+            audioTranscript: audio.transcript,
+            audioSource: audio.source,
+          }),
+        );
 
-      cy.actOnTrial(action);
-      cy.wait(150);
-      step(i + 1);
+        cy.actOnTrial(action);
+        cy.wait(150);
+        step(i + 1);
+      });
     });
   }
 
   it('completes all blocks at 100% accuracy', () => {
     resetBlockTracker();
-    cy.visit(buildUrl());
+    resetAudioCapture();
+    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
     // Wait for the app to load, then dismiss the fullscreen prompt. This also
     // guarantees the jsPsych timeline has started before the loop treats an
     // empty content root as "finished".

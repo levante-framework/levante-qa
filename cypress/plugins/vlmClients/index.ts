@@ -20,6 +20,20 @@ const CLIENTS: Record<string, VLMClient> = {
 };
 
 /**
+ * Build the user-turn text. When a narration transcript is present it is added
+ * as an explicit "audio channel", mirroring what a multimodal agent with ears
+ * would hear — without the noise floor of a real speech-to-text step.
+ */
+export function buildUserText(transcript?: string | null): string {
+  const base = 'Which action? Reply with one word.';
+  const text = transcript?.trim();
+  if (text) {
+    return `${base}\nNarration currently played aloud: "${text}"`;
+  }
+  return base;
+}
+
+/**
  * Parse a raw model text response into a normalized Action. Defaults to
  * 'CONTINUE' when the model is unclear, which is the safe no-progress action on
  * non-trial screens.

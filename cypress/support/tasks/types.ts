@@ -24,6 +24,27 @@ export const CongruencySchema = z.enum(['congruent', 'incongruent']);
 export type Congruency = z.infer<typeof CongruencySchema>;
 
 /**
+ * Where a trial's audio transcript came from. LEVANTE narration mp3s carry the
+ * canonical script in an ID3v2 TXXX (user-defined text) frame, NOT in USLT/TIT2
+ * (TIT2 is just the asset id and COMM is voice metadata — verified against the
+ * live dev bucket on 2026-05-29). Precedence, highest first:
+ *   1. TXXX:original_translation_text — the clean source script (no TTS markup).
+ *   2. TXXX:text                      — the text actually fed to the TTS engine
+ *                                       (may contain emotion cues like "[happy]").
+ *   3. TXXX:audio_enhanced_text       — last-resort enhanced variant.
+ * 'missing' means the mp3 had none of those frames; 'error' means the fetch or
+ * parse failed.
+ */
+export const AudioSourceSchema = z.enum([
+  'id3:original_translation_text',
+  'id3:text',
+  'id3:audio_enhanced_text',
+  'missing',
+  'error',
+]);
+export type AudioSource = z.infer<typeof AudioSourceSchema>;
+
+/**
  * A single trial as observed and acted upon by an agent. The same schema is
  * used for both the deterministic oracle and the VLM agent; fields specific to
  * the VLM path (latencyMs, modelAction, oracleAction, timedOut) are optional.
@@ -40,6 +61,11 @@ export const TrialRecordSchema = z.object({
   correct: z.boolean().nullable().default(null),
   rtMs: z.number().nonnegative().nullable().default(null),
   oracle: z.boolean(),
+  // Audio channel: the canonical narration script that played on this screen,
+  // read from the mp3's ID3 tags. Null when no new narration started on the
+  // screen (e.g. a silent response trial) or capture is unavailable.
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
   // VLM-only fields.
   provider: z.string().nullable().default(null),
   modelAction: ActionSchema.nullable().default(null),
@@ -81,11 +107,31 @@ export function parseTrialRecord(input: unknown): TrialRecord {
 export interface VLMRequest {
   pngBase64: string;
   systemPrompt: string;
+  // The narration transcript that played on the current screen, if any. Given
+  // to the model as a text "audio channel" alongside the screenshot.
+  transcript?: string | null;
 }
 
 export interface VLMResult {
   action: Action;
   latencyMs: number;
   provider: string;
+}
+
+/**
+ * Result of reading an mp3's ID3 tags, returned by the readMp3Tags cypress task.
+ * Shared between the node-side reader and the browser-side audio helpers so the
+ * browser bundle never imports node-only code.
+ */
+export interface Mp3Tags {
+  url: string;
+  transcript: string | null;
+  source: AudioSource;
+  /** ID3 TIT2 — the asset id (e.g. "heart-instruct1"), not the spoken text. */
+  title: string | null;
+  /** ID3 TXXX:lang_code (e.g. "en-US"), when present. */
+  language: string | null;
+  /** Populated only when source === 'error'. */
+  error?: string;
 }
 

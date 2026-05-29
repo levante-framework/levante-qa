@@ -33,6 +33,12 @@ jobs:
           install: false
           command: pnpm cy:run:oracle
 
+      - name: Run audio content QA
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          command: pnpm cy:run:audio
+
       - name: Upload trial logs
         if: always()
         uses: actions/upload-artifact@v4

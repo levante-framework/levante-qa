@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Action, VLMRequest } from '../../support/tasks/types';
-import { parseAction } from './index';
+import { buildUserText, parseAction } from './index';
 
 const DEFAULT_MODEL = 'claude-3-5-sonnet-latest';
 
@@ -32,7 +32,7 @@ export async function askAnthropic(req: VLMRequest): Promise<Action> {
             type: 'image',
             source: { type: 'base64', media_type: 'image/png', data: req.pngBase64 },
           },
-          { type: 'text', text: 'Which action? Reply with one word.' },
+          { type: 'text', text: buildUserText(req.transcript) },
         ],
       },
     ],

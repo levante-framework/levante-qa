@@ -5,6 +5,8 @@ import * as dotenv from 'dotenv';
 
 import { askVLM as dispatchVLM } from './cypress/plugins/vlmClients';
 import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
+import { readMp3Tags } from './cypress/plugins/id3Reader';
+import type { Mp3Tags } from './cypress/support/tasks/types';
 
 dotenv.config();
 
@@ -41,6 +43,14 @@ export default defineConfig({
           const action = await dispatchVLM(provider, req);
           const latencyMs = Date.now() - start;
           return { action, latencyMs, provider };
+        },
+
+        /**
+         * Fetches an mp3 and returns its parsed ID3 tags, including the canonical
+         * narration transcript. Results are cached by URL inside the reader.
+         */
+        async readMp3Tags(url: string): Promise<Mp3Tags> {
+          return readMp3Tags(url);
         },
 
         /**

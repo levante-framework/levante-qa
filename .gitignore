@@ -2,6 +2,10 @@ node_modules/
 dist/
 *.log
 
+# This repo uses pnpm; ignore npm/yarn lockfiles to avoid lockfile drift.
+package-lock.json
+yarn.lock
+
 # Secrets
 .env
 .env.local

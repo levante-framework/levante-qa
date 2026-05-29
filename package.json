@@ -13,6 +13,7 @@
     "cy:run": "cypress run",
     "cy:run:oracle": "cypress run --spec 'cypress/e2e/**/oracle.cy.ts'",
     "cy:run:vlm": "cypress run --spec 'cypress/e2e/**/vlm_agent.cy.ts'",
+    "cy:run:audio": "cypress run --spec 'cypress/e2e/**/audio_assets.cy.ts'",
     "score": "tsx scripts/score.ts",
     "summarize": "tsx scripts/summarize_runs.ts",
     "lint": "eslint . --ext .ts",
@@ -31,6 +32,7 @@
     "@anthropic-ai/sdk": "^0.20.1",
     "@google/genai": "^2.6.0",
     "dotenv": "^16.4.5",
+    "node-id3": "^0.2.9",
     "openai": "^4.33.0",
     "zod": "^3.22.4"
   }

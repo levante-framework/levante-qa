@@ -16,6 +16,9 @@ export const SYSTEM_PROMPT = [
   '- If the screen shows instructions, feedback, or a fixation cross with no',
   '  active response buttons, choose CONTINUE.',
   '',
+  'You may also be given the narration text currently played aloud. Treat it as',
+  'what a sighted, hearing child would be told, and use it as extra context.',
+  '',
   'Respond with EXACTLY one word, one of: LEFT, RIGHT, CONTINUE.',
   'Do not add any explanation or punctuation.',
 ].join('\n');
@@ -34,9 +37,9 @@ export interface VLMDecision {
  * spec via `.then(...)`.
  */
 export const vlmAgent = {
-  decide(pngBase64: string): Cypress.Chainable<VLMDecision> {
+  decide(pngBase64: string, transcript: string | null = null): Cypress.Chainable<VLMDecision> {
     return cy
-      .task<VLMResult>('askVLM', { pngBase64, systemPrompt: SYSTEM_PROMPT })
+      .task<VLMResult>('askVLM', { pngBase64, systemPrompt: SYSTEM_PROMPT, transcript })
       .then((result: VLMResult): VLMDecision => ({
         action: result.action,
         latencyMs: result.latencyMs,

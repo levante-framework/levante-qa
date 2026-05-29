@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { Action, VLMRequest } from '../../support/tasks/types';
-import { parseAction } from './index';
+import { buildUserText, parseAction } from './index';
 
 // Current vision-capable default (the legacy gemini-1.5 family is deprecated).
 // Override per run with GEMINI_MODEL, e.g. gemini-2.5-pro or gemini-3-flash-preview.
@@ -24,7 +24,7 @@ export async function askGemini(req: VLMRequest): Promise<Action> {
   const response = await getClient().models.generateContent({
     model,
     contents: [
-      { text: 'Which action? Reply with one word.' },
+      { text: buildUserText(req.transcript) },
       { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
     ],
     config: {
