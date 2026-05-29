@@ -3,19 +3,27 @@ import {
   buildUrl,
   congruency,
   correctAction,
+  isComplete,
+  isFeedback,
+  isInstructionScreen,
+  isStimulusReady,
   readStimulus,
   resetBlockTracker,
   type TaskWindow,
 } from '../../support/tasks/heartsAndFlowers';
 import { parseTrialRecord, type BlockType, type TrialRecord } from '../../support/tasks/types';
 
-const MAX_STEPS = 400;
-const COMPLETE_TEXT = /You've completed the game/i;
+// Safety cap on loop iterations. The loop normally exits on task completion well
+// before this; it only guards against an unexpected stall.
+const MAX_STEPS = 1200;
 const TASK = 'hearts-and-flowers';
 
 describe('Hearts & Flowers — oracle (deterministic)', () => {
   const records: TrialRecord[] = [];
   let gameComplete = false;
+  // Flips true once a non-empty task screen has been seen, so that an empty
+  // content root during initial load is not mistaken for task completion.
+  let started = false;
 
   function finalize(): void {
     const ts = Date.now();
@@ -28,7 +36,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
     const blocksObserved = new Set<BlockType>(records.map((r) => r.block));
 
     cy.wrap(null).then(() => {
-      expect(gameComplete, 'game reached completion screen').to.equal(true);
+      expect(gameComplete, 'task reached the completion screen').to.equal(true);
 
       const correctCount = responses.filter((r) => r.correct === true).length;
       const accuracy = responses.length > 0 ? correctCount / responses.length : 0;
@@ -43,55 +51,103 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
     });
   }
 
+  function recordContinue(step: number): void {
+    records.push(
+      parseTrialRecord({
+        timestamp: new Date().toISOString(),
+        task: TASK,
+        step,
+        block: 'instructions',
+        shape: null,
+        side: null,
+        action: 'CONTINUE',
+        oracle: true,
+      }),
+    );
+  }
+
   function step(i: number): void {
     if (i >= MAX_STEPS) {
       finalize();
       return;
     }
 
-    cy.get('body').then(($body) => {
-      if (COMPLETE_TEXT.test($body.text())) {
+    cy.window().then((w) => {
+      const win = w as unknown as TaskWindow;
+
+      // 1. Done? (timeline emptied, or task-finished screen). An empty root seen
+      //    before the task has started just means it is still loading.
+      if (isComplete(win)) {
+        if (!started) {
+          cy.wait(150);
+          step(i + 1);
+          return;
+        }
         gameComplete = true;
         finalize();
         return;
       }
+      started = true;
 
-      cy.window().then((w) => {
-        const win = w as unknown as TaskWindow;
-        const state = readStimulus(win);
-        const action = oracleAgent.decide(win);
-
-        const isResponse = action === 'LEFT' || action === 'RIGHT';
-        const expected = isResponse
-          ? correctAction(state.shape, state.side, state.blockType)
-          : null;
-
-        records.push(
-          parseTrialRecord({
-            timestamp: new Date().toISOString(),
-            task: TASK,
-            step: i,
-            block: state.blockType,
-            shape: state.shape,
-            side: state.side,
-            congruency: state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
-            action,
-            correct: isResponse ? action === expected : null,
-            rtMs: null,
-            oracle: true,
-          }),
-        );
-
-        cy.actOnTrial(action);
+      // 2. Feedback showing or stimulus not yet rendered: let it settle and
+      //    re-check, without logging or clicking (avoids phantom trials).
+      if (isFeedback(win)) {
         cy.wait(150);
         step(i + 1);
-      });
+        return;
+      }
+
+      // 3. Instructions / fixation: advance with the continue button.
+      if (isInstructionScreen(win)) {
+        recordContinue(i);
+        cy.actOnTrial('CONTINUE');
+        cy.wait(250);
+        step(i + 1);
+        return;
+      }
+
+      // 4. Response trial: wait for the stimulus image to render, then act.
+      if (!isStimulusReady(win)) {
+        cy.wait(100);
+        step(i + 1);
+        return;
+      }
+
+      const state = readStimulus(win);
+      const action = oracleAgent.decide(win);
+      const isResponse = action === 'LEFT' || action === 'RIGHT';
+      const expected = isResponse
+        ? correctAction(state.shape, state.side, state.blockType)
+        : null;
+
+      records.push(
+        parseTrialRecord({
+          timestamp: new Date().toISOString(),
+          task: TASK,
+          step: i,
+          block: state.blockType,
+          shape: state.shape,
+          side: state.side,
+          congruency: state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
+          action,
+          correct: isResponse ? action === expected : null,
+          oracle: true,
+        }),
+      );
+
+      cy.actOnTrial(action);
+      cy.wait(150);
+      step(i + 1);
     });
   }
 
   it('completes all blocks at 100% accuracy', () => {
     resetBlockTracker();
     cy.visit(buildUrl());
+    // Wait for the app to load, then dismiss the fullscreen prompt. This also
+    // guarantees the jsPsych timeline has started before the loop treats an
+    // empty content root as "finished".
+    cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });
