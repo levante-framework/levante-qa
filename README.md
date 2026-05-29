@@ -106,6 +106,8 @@ LEVANTE narration is pre-recorded and the canonical script is embedded in each `
 
 **Content QA (free side-effect):** `audio_assets.cy.ts` reads the task's full asset manifest (`window.__mediaAssets`) and asserts every *narration* asset has a non-empty transcript (non-speech cues like `coin`/`select`/`nullAudio` are exempt). Known upstream gaps are quarantined in that spec so it fails loud only on **new** untagged narration.
 
+**Backfilling missing tags:** `scripts/backfill_audio_transcripts.ts` repairs assets in the bucket that are missing transcript frames. It scans every item-bank audio file, looks up the canonical text from the audio-generation source of truth (`levante_translations/.../item_bank_translations.csv`, keyed by `item_id` + locale), writes the TXXX frames, and re-uploads via `gsutil`. Dry run by default; pass `--apply` to write (and `--locale=`/`--task=`/`--limit=` to scope).
+
 ## Layout
 
 ```
