@@ -76,6 +76,15 @@ export default defineConfig({
       // Surface the resolved provider to specs via Cypress.env('provider').
       config.env.provider = provider;
 
+      // Surface dashboard-launch settings (.env) to specs via Cypress.env(...).
+      // LAUNCH=dashboard switches specs from the standalone demo to logging in
+      // to the -dev dashboard and starting the assigned task.
+      for (const key of ['LAUNCH', 'DASHBOARD_URL', 'PARTICIPANT_USER', 'PARTICIPANT_PASS']) {
+        if (process.env[key] !== undefined) {
+          config.env[key] = process.env[key];
+        }
+      }
+
       // Allow overriding the task target with BASE_URL (e.g. a local dev server).
       if (process.env.BASE_URL) {
         config.baseUrl = process.env.BASE_URL;

@@ -22,6 +22,7 @@ import {
   resetAudioCapture,
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
+import { launchTask } from '../../support/launch';
 
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 import {
@@ -383,7 +384,7 @@ describe('EGMA math — oracle (deterministic)', () => {
 
   it('completes the task at 100% accuracy', () => {
     resetAudioCapture();
-    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
+    launchTask({ taskId: 'egma-math', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
     step(0);
   });

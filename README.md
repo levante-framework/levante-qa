@@ -51,6 +51,49 @@ BASE_URL=http://localhost:8080 pnpm cy:run:oracle
 
 `URL_BASE` and `DEFAULT_PARAMS` live in `cypress/support/tasks/heartsAndFlowers.ts`.
 
+## Launching from the dashboard (`-dev`)
+
+By default specs hit the standalone demo. Set `LAUNCH=dashboard` to instead log
+in to the `-dev` dashboard as a real participant and start the task from the
+assignment home — exercising the same launch path real users take (Firebase
+auth, assignment sync, the core-tasks launcher). The switch is centralized in
+`cypress/support/launch.ts` (`launchTask`), so every spec uses it transparently.
+
+```bash
+LAUNCH=dashboard PARTICIPANT_USER=qa-participant@levante.test PARTICIPANT_PASS=... \
+  pnpm cy:run:egma:oracle
+```
+
+Relevant `.env` keys (passed through by `cypress.config.ts`):
+
+```
+LAUNCH=dashboard                                  # opt in; anything else uses the demo
+DASHBOARD_URL=https://hs-levante-admin-dev.web.app
+PARTICIPANT_USER=qa-participant@levante.test
+PARTICIPANT_PASS=...
+```
+
+### Provisioning the QA participant + assignment
+
+The dashboard only shows tasks a participant is actually assigned. A bootstrap
+script provisions a dedicated, self-contained test setup on `hs-levante-admin-dev`
+(idempotent — safe to re-run): it creates the **`qa-tests`** site, a participant
+with a known username/password, and a **"QA All Tasks"** assignment containing
+all core tasks (English variants, opens today, closes in 90 days), then
+materializes the participant's `assignments` doc the home reads.
+
+It lives alongside the sibling site-bootstrap scripts in `levante-support`
+(which already has `firebase-admin` and the `-dev` service-account credential):
+
+```bash
+cd ../levante-support
+node scripts/e2e-init/setup-qa-site.mjs        # uses VITE_FIREBASE_PROJECT=DEV + .env credential
+# prints PARTICIPANT_USER / PARTICIPANT_PASS to copy into levante-qa/.env
+```
+
+`cypress/e2e/dashboard_launch.cy.ts` is a smoke test for this path (self-skips
+unless `LAUNCH=dashboard` and `PARTICIPANT_USER` are set).
+
 ## Architecture
 
 Two agent paths share the same task model (selectors, stimulus parser, response rule, scoring) and the same trial-logging pipeline:

@@ -14,6 +14,7 @@ import {
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
 import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { parseTrialRecord, type TrialRecord } from '../../support/tasks/types';
+import { launchTask } from '../../support/launch';
 
 const MAX_STEPS = 1200;
 const TASK = 'hearts-and-flowers';
@@ -174,7 +175,7 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
   it('drives the task via the configured VLM provider', () => {
     resetBlockTracker();
     resetAudioCapture();
-    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
+    launchTask({ taskId: 'hearts-and-flowers', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     // Wait for the app to load, then dismiss the fullscreen prompt.
     cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
     step(0);

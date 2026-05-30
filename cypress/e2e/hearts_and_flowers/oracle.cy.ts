@@ -18,6 +18,7 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { parseTrialRecord, type BlockType, type TrialRecord } from '../../support/tasks/types';
+import { launchTask } from '../../support/launch';
 
 // Safety cap on loop iterations. The loop normally exits on task completion well
 // before this; it only guards against an unexpected stall.
@@ -159,7 +160,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
   it('completes all blocks at 100% accuracy', () => {
     resetBlockTracker();
     resetAudioCapture();
-    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
+    launchTask({ taskId: 'hearts-and-flowers', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     // Wait for the app to load, then dismiss the fullscreen prompt. This also
     // guarantees the jsPsych timeline has started before the loop treats an
     // empty content root as "finished".

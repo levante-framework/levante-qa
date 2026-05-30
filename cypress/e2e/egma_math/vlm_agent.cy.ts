@@ -23,6 +23,7 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { parseEgmaTrialRecord, type EgmaItemType, type EgmaTrialRecord } from '../../support/tasks/types';
+import { launchTask } from '../../support/launch';
 
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 
@@ -294,7 +295,7 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
 
   it('drives the task via the configured VLM provider', () => {
     resetAudioCapture();
-    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
+    launchTask({ taskId: 'egma-math', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
     step(0);
   });
