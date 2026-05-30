@@ -33,6 +33,9 @@ const LIVE_LOG = 'cypress/logs/_egma_vlm_live.jsonl';
 const MAX_STEPS = 4500;
 const TASK = 'egma-math';
 const TIMEOUT_MS = 8000;
+// Normalized number-line placement error (fraction of the line length) within
+// which a placement counts as correct — same threshold the oracle uses.
+const NUMBER_LINE_TOLERANCE = 0.02;
 const PROMPT_POLLS = 12;
 // After this many consecutive frames showing the same item we just answered we
 // treat it as a gated practice re-presentation (a wrong VLM answer that won't
@@ -201,8 +204,9 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
   }
 
   function handleSlider(i: number, win: TaskWindow): void {
-    // Number-line placement is not a VLM-choice task; advance it deterministically
-    // (excluded from the accuracy metric) so the benchmark can complete.
+    // Number-line items: the VLM sees the line + target and decides the value to
+    // place; we set the slider there and score by proximity to the true target
+    // (normalized error), mirroring the oracle's metric.
     const stim = readStimulusText(win);
     if (stim === lastSliderKey) {
       cy.wait(120, { log: false });
@@ -211,24 +215,75 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
     }
     cy.wait(200, { log: false });
     cy.window({ log: false }).then((w2) => {
-      const plan = solveNumberLine(w2 as unknown as TaskWindow, stim);
+      const w2win = w2 as unknown as TaskWindow;
+      const plan = solveNumberLine(w2win, stim);
       lastSliderKey = stim;
-      logRecord({
-        timestamp: new Date().toISOString(),
-        task: TASK,
-        step: i,
-        itemType: 'number-line',
-        promptText: stim || null,
-        correctValue: plan ? String(plan.target) : null,
-        chosenValue: plan ? String(plan.value) : null,
-        oracle: false,
-        provider,
+
+      // No parseable target/range: advance without a score so the run completes.
+      if (!plan) {
+        logRecord({
+          timestamp: new Date().toISOString(),
+          task: TASK,
+          step: i,
+          itemType: 'number-line',
+          promptText: stim || null,
+          oracle: false,
+          provider,
+        });
+        cy.continueEgma();
+        cy.wait(200, { log: false });
+        step(i + 1);
+        return;
+      }
+
+      const screenshotName = `vlm_egma_step_${String(i).padStart(4, '0')}`;
+      let shotPath = '';
+      cy.screenshot(screenshotName, {
+        capture: 'viewport',
+        overwrite: true,
+        onAfterScreenshot(_doc, props) {
+          shotPath = props.path;
+        },
       });
-      if (plan) cy.placeSlider(plan.value);
-      cy.wait(150, { log: false });
-      cy.continueEgma();
-      cy.wait(200, { log: false });
-      step(i + 1);
+
+      const instruction =
+        `This is a number-line item. The line runs from ${plan.min} on the left to ` +
+        `${plan.max} on the right. Reply with ONLY the number the marker should be placed at.`;
+
+      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+        egmaVlmAgent.decide(pngBase64, null, instruction).then((decision) => {
+          // Place the VLM's value (clamped to the line); if unparseable, place the
+          // true target so the run advances, but score it as max error.
+          const placed =
+            decision.value === null ? plan.target : Math.min(plan.max, Math.max(plan.min, decision.value));
+          const error =
+            decision.value === null ? 1 : Math.abs(placed - plan.target) / (plan.max - plan.min);
+
+          logRecord({
+            timestamp: new Date().toISOString(),
+            task: TASK,
+            step: i,
+            itemType: 'number-line',
+            promptText: stim || null,
+            correctValue: String(plan.target),
+            chosenValue: String(placed),
+            correct: error <= NUMBER_LINE_TOLERANCE,
+            numberLineError: error,
+            rtMs: decision.latencyMs,
+            oracle: false,
+            provider,
+            modelRaw: decision.raw,
+            latencyMs: decision.latencyMs,
+            timedOut: decision.latencyMs > TIMEOUT_MS,
+          });
+
+          cy.placeSlider(placed);
+          cy.wait(150, { log: false });
+          cy.continueEgma();
+          cy.wait(200, { log: false });
+          step(i + 1);
+        });
+      });
     });
   }
 

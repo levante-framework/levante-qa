@@ -19,6 +19,9 @@ export const SYSTEM_PROMPT = [
   '  number that belongs in the blank.',
   '- Fraction arithmetic: fractions like 1/5 + 1/5 are shown. Answer with a fraction',
   '  in the form a/b (e.g. 2/5). Do not reduce unless a reduced choice is the match.',
+  '- Number line: a horizontal line with labeled endpoints (e.g. 0 on the left and',
+  '  1 or 100 on the right) and a target number is shown. Answer with the single',
+  '  number the marker should be placed at — normally the target number itself.',
   '',
   'Respond with ONLY the number or fraction (digits, an optional decimal point or',
   'minus sign, or a single "/" for fractions). Do not add words, units, or punctuation.',
@@ -54,13 +57,17 @@ export function parseNumber(raw: string): number | null {
  * and returns the parsed numeric answer plus the provider-call latency.
  */
 export const egmaVlmAgent = {
-  decide(pngBase64: string, transcript: string | null = null): Cypress.Chainable<EgmaVlmDecision> {
+  decide(
+    pngBase64: string,
+    transcript: string | null = null,
+    userText = 'Reply with ONLY the number you would tap. No words.',
+  ): Cypress.Chainable<EgmaVlmDecision> {
     return cy
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
         transcript,
-        userText: 'Reply with ONLY the number you would tap. No words.',
+        userText,
       })
       .then((result: VLMResult): EgmaVlmDecision => ({
         value: parseNumber(result.raw),
