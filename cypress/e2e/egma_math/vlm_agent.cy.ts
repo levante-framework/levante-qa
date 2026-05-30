@@ -3,6 +3,7 @@ import {
   buildUrl,
   choiceIndexForValue,
   classifyItem,
+  fractionChoiceIndexForValue,
   isComplete,
   isFractionItem,
   isInstructionScreen,
@@ -143,11 +144,17 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
 
       cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
         egmaVlmAgent.decide(pngBase64, audio.transcript).then((decision) => {
-          const vlmIndex = choiceIndexForValue(choices, decision.value);
+          // Fractions render as MathML; match the VLM's rational answer against
+          // the choices' <mfrac> values rather than their ambiguous textContent.
+          const vlmIndex = fraction
+            ? fractionChoiceIndexForValue(win, decision.value)
+            : choiceIndexForValue(choices, decision.value);
           const correct =
             oracleSol === null
               ? null
-              : decision.value !== null && decision.value === Number(oracleSol.value);
+              : fraction
+                ? vlmIndex >= 0 && vlmIndex === oracleSol.index
+                : decision.value !== null && decision.value === Number(oracleSol.value);
 
           logRecord({
             timestamp: new Date().toISOString(),

@@ -17,9 +17,11 @@ export const SYSTEM_PROMPT = [
   '- Arithmetic: an expression like "2+3", "12-4", or "1x5" is shown. Answer the result.',
   '- Missing number: a sequence with a blank like "5, 10, 15, _" is shown. Answer the',
   '  number that belongs in the blank.',
+  '- Fraction arithmetic: fractions like 1/5 + 1/5 are shown. Answer with a fraction',
+  '  in the form a/b (e.g. 2/5). Do not reduce unless a reduced choice is the match.',
   '',
-  'Respond with ONLY the number (digits, optionally a decimal point or minus sign).',
-  'Do not add words, units, or punctuation.',
+  'Respond with ONLY the number or fraction (digits, an optional decimal point or',
+  'minus sign, or a single "/" for fractions). Do not add words, units, or punctuation.',
 ].join('\n');
 
 export interface EgmaVlmDecision {
@@ -30,8 +32,18 @@ export interface EgmaVlmDecision {
   latencyMs: number;
 }
 
-/** Extract the first signed/decimal number from raw model text. */
+/**
+ * Numeric value of the model's answer. Handles fraction notation ("2/5" -> 0.4)
+ * so EGMA fraction items can be matched against MathML choice values, and falls
+ * back to the first signed/decimal number for integer/decimal answers.
+ */
 export function parseNumber(raw: string): number | null {
+  const frac = raw.match(/(-?\d+)\s*\/\s*(\d+)/);
+  if (frac) {
+    const n = Number(frac[1]);
+    const d = Number(frac[2]);
+    if (d !== 0 && !Number.isNaN(n) && !Number.isNaN(d)) return n / d;
+  }
   const m = raw.match(/-?\d+(?:\.\d+)?/);
   return m ? Number(m[0]) : null;
 }

@@ -418,6 +418,18 @@ export function solveFractionItem(win: TaskWindow): Solution | null {
   return { index, value: (choiceEls[index].textContent ?? '').trim() };
 }
 
+/** Find the choice index whose MathML fraction value equals `value` (e.g. a
+ * VLM's fractional answer "2/5" parsed to 0.4), or -1. Used to map a VLM reply
+ * to a fraction choice button, since their textContent ("25") is ambiguous. */
+export function fractionChoiceIndexForValue(win: TaskWindow, value: number | null): number {
+  if (value === null) return -1;
+  const choiceEls = Array.from(win.document.querySelectorAll(CHOICE_BUTTON));
+  return choiceEls.findIndex((el) => {
+    const v = mathmlValue(el);
+    return v !== null && Math.abs(v - value) < FRACTION_EPS;
+  });
+}
+
 // --- Scoring ---------------------------------------------------------------
 
 function mean(values: number[]): number | null {
