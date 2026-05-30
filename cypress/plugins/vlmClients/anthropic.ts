@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { Action, VLMRequest } from '../../support/tasks/types';
-import { buildUserText, parseAction } from './index';
+import type { VLMRequest } from '../../support/tasks/types';
+import { buildUserText } from './index';
 
 const DEFAULT_MODEL = 'claude-3-5-sonnet-latest';
 
@@ -17,11 +17,11 @@ function getClient(): Anthropic {
   return client;
 }
 
-export async function askAnthropic(req: VLMRequest): Promise<Action> {
+export async function askAnthropic(req: VLMRequest): Promise<string> {
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
   const response = await getClient().messages.create({
     model,
-    max_tokens: 8,
+    max_tokens: 16,
     temperature: 0,
     system: req.systemPrompt,
     messages: [
@@ -32,13 +32,12 @@ export async function askAnthropic(req: VLMRequest): Promise<Action> {
             type: 'image',
             source: { type: 'base64', media_type: 'image/png', data: req.pngBase64 },
           },
-          { type: 'text', text: buildUserText(req.transcript) },
+          { type: 'text', text: buildUserText(req.transcript, req.userText) },
         ],
       },
     ],
   });
 
   const block = response.content.find((c) => c.type === 'text');
-  const raw = block && block.type === 'text' ? block.text : '';
-  return parseAction(raw);
+  return block && block.type === 'text' ? block.text : '';
 }

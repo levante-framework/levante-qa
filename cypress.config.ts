@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import * as dotenv from 'dotenv';
 
-import { askVLM as dispatchVLM } from './cypress/plugins/vlmClients';
+import { askVLM as dispatchVLM, parseAction } from './cypress/plugins/vlmClients';
 import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
 import type { Mp3Tags } from './cypress/support/tasks/types';
@@ -27,6 +27,10 @@ export default defineConfig({
     specPattern: 'cypress/e2e/**/*.cy.ts',
     supportFile: 'cypress/support/e2e.ts',
     defaultCommandTimeout: 10000,
+    // The EGMA oracle drives ~250 items in a single spec; keep the runner's
+    // memory flat over the long command chain (snapshots are not needed in CI).
+    experimentalMemoryManagement: true,
+    numTestsKeptInMemory: 0,
     setupNodeEvents(on, config) {
       // Resolve the active provider once. A CLI override (`--env provider=...`)
       // takes precedence over VLM_PROVIDER in .env; both the dispatch and the
@@ -36,13 +40,14 @@ export default defineConfig({
       on('task', {
         /**
          * Dispatches a screenshot to the resolved VLM provider and returns the
-         * chosen action plus the wall-clock latency of the provider call.
+         * raw model text, a normalized H&F action, and the wall-clock latency of
+         * the provider call. Tasks whose answer isn't an action (EGMA) read `raw`.
          */
         async askVLM(req: VLMRequest): Promise<VLMResult> {
           const start = Date.now();
-          const action = await dispatchVLM(provider, req);
+          const raw = await dispatchVLM(provider, req);
           const latencyMs = Date.now() - start;
-          return { action, latencyMs, provider };
+          return { action: parseAction(raw), raw, latencyMs, provider };
         },
 
         /**

@@ -75,6 +75,82 @@ export const TrialRecordSchema = z.object({
 });
 export type TrialRecord = z.infer<typeof TrialRecordSchema>;
 
+// --- EGMA math -------------------------------------------------------------
+
+/**
+ * EGMA item families exercised by the hosted demo. The question is delivered by
+ * narration (there is no on-screen prompt text), which is why audio support is a
+ * prerequisite for this task:
+ *   - number-identification: "Choose the N" — the target N is ONLY in the audio.
+ *   - number-comparison:     "Which is larger/smaller?" — direction is in the
+ *                            audio; the operands are the two on-screen choices.
+ * 'instructions' covers section/intro/feedback screens; 'unknown' is a guard for
+ * any item type the demo timeline adds later.
+ */
+export const EgmaItemTypeSchema = z.enum([
+  'number-identification',
+  'number-comparison',
+  'missing-number',
+  'arithmetic',
+  'fraction',
+  'number-line',
+  'instructions',
+  'unknown',
+]);
+export type EgmaItemType = z.infer<typeof EgmaItemTypeSchema>;
+
+/**
+ * A single EGMA trial. The answer is expressed as the chosen option's VALUE
+ * (the number on the button) plus its index, so oracle and VLM records are
+ * directly comparable regardless of choice ordering.
+ */
+export const EgmaTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: EgmaItemTypeSchema,
+  // The narration that defined the item (the only place the question exists).
+  promptText: z.string().nullable().default(null),
+  choices: z.array(z.string()).default([]),
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  // The value the deterministic solver considers correct (null on instructions).
+  correctValue: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  // Number-line only: fractional placement error |placed - target| / range, in
+  // [0, 1]. Null for non-slider items.
+  numberLineError: z.number().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type EgmaTrialRecord = z.infer<typeof EgmaTrialRecordSchema>;
+
+export function parseEgmaTrialRecord(input: unknown): EgmaTrialRecord {
+  return EgmaTrialRecordSchema.parse(input);
+}
+
+export const EgmaSummaryStatsSchema = z.object({
+  nTrials: z.number().int().nonnegative(),
+  // Exact accuracy over the multiple-choice item types (number-line excluded;
+  // it is proximity-scored, see accNumberLineProximity).
+  accChoice: z.number().nullable(),
+  accByType: z.record(z.string(), z.number().nullable()),
+  // Mean fractional error of number-line placements (0 = perfect). Null when no
+  // number-line items were seen.
+  numberLineMeanError: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  itemTypesObserved: z.array(EgmaItemTypeSchema),
+});
+export type EgmaSummaryStats = z.infer<typeof EgmaSummaryStatsSchema>;
+
 /**
  * Aggregate statistics produced by scoreTrials for one run.
  */
@@ -110,10 +186,18 @@ export interface VLMRequest {
   // The narration transcript that played on the current screen, if any. Given
   // to the model as a text "audio channel" alongside the screenshot.
   transcript?: string | null;
+  // Overrides the default user-turn instruction. Tasks whose answer is not a
+  // LEFT/RIGHT/CONTINUE action (e.g. EGMA, where the model replies with a number)
+  // pass their own instruction here.
+  userText?: string | null;
 }
 
 export interface VLMResult {
+  // Normalized Hearts & Flowers action (LEFT/RIGHT/CONTINUE). Always present for
+  // back-compat; tasks with non-action answers should read `raw` instead.
   action: Action;
+  // The raw model text, so non-action tasks (EGMA) can parse their own answer.
+  raw: string;
   latencyMs: number;
   provider: string;
 }

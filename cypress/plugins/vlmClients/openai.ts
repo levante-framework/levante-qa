@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import type { Action, VLMRequest } from '../../support/tasks/types';
-import { buildUserText, parseAction } from './index';
+import type { VLMRequest } from '../../support/tasks/types';
+import { buildUserText } from './index';
 
 const DEFAULT_MODEL = 'gpt-4o';
 
@@ -17,18 +17,18 @@ function getClient(): OpenAI {
   return client;
 }
 
-export async function askOpenAI(req: VLMRequest): Promise<Action> {
+export async function askOpenAI(req: VLMRequest): Promise<string> {
   const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
   const response = await getClient().chat.completions.create({
     model,
-    max_tokens: 8,
+    max_tokens: 16,
     temperature: 0,
     messages: [
       { role: 'system', content: req.systemPrompt },
       {
         role: 'user',
         content: [
-          { type: 'text', text: buildUserText(req.transcript) },
+          { type: 'text', text: buildUserText(req.transcript, req.userText) },
           {
             type: 'image_url',
             image_url: { url: `data:image/png;base64,${req.pngBase64}` },
@@ -39,5 +39,5 @@ export async function askOpenAI(req: VLMRequest): Promise<Action> {
   });
 
   const raw = response.choices[0]?.message?.content ?? '';
-  return parseAction(typeof raw === 'string' ? raw : '');
+  return typeof raw === 'string' ? raw : '';
 }

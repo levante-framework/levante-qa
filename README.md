@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing).
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-The first task implemented is **Hearts & Flowers**; others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Two tasks are implemented today — **Hearts & Flowers** and **EGMA math** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -25,9 +25,13 @@ cp .env.example .env   # fill in OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API
 pnpm cy:run:vlm -- --env provider=openai
 
 # Score logs into results/summary.csv, then aggregate across runs
-pnpm score
+pnpm score          # Hearts & Flowers
+pnpm score:egma     # EGMA math
 pnpm summarize
 ```
+
+Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle` and
+`pnpm cy:run:egma:vlm -- --env provider=gemini`.
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -108,20 +112,62 @@ LEVANTE narration is pre-recorded and the canonical script is embedded in each `
 
 **Backfilling missing tags:** `scripts/backfill_audio_transcripts.ts` repairs assets in the bucket that are missing transcript frames. It scans every item-bank audio file, looks up the canonical text from the audio-generation source of truth (`levante_translations/.../item_bank_translations.csv`, keyed by `item_id` + locale), writes the TXXX frames, and re-uploads via `gsutil`. Dry run by default; pass `--apply` to write (and `--locale=`/`--task=`/`--limit=` to scope).
 
+## EGMA math
+
+EGMA (Early Grade Math Assessment) is the second task. Its model lives in
+`cypress/support/tasks/egmaMath.ts` and it leans heavily on the [audio
+channel](#audio-channel-narration-transcripts): unlike H&F, several item types
+carry the question **only in the narration**, so the audio pipeline is a hard
+prerequisite, not a nicety.
+
+Seven item types are detected and handled, classified **screen-first then
+audio** (`classifyItem`) and solved deterministically (`solveItem` /
+`solveNumberLine`):
+
+| Item type            | Question source        | Oracle strategy                              |
+| -------------------- | ---------------------- | -------------------------------------------- |
+| number-identification| narration "Choose the N"| tap the choice equal to N                   |
+| number-comparison    | narration / silent     | tap the larger value (smaller if asked)      |
+| missing-number       | on-screen sequence     | infer the blank from the common step         |
+| arithmetic (+ − ×)   | on-screen expression   | evaluate the expression                      |
+| number-line          | on-screen slider       | read target + range, place the slider        |
+
+The first four are multiple-choice and asserted at **exact 100%**. The
+number-line is a slider, so it is **proximity-scored**: the oracle reads the
+target and the input's range and places the slider, and the run asserts the mean
+fractional placement error stays under tolerance (it is excluded from the exact
+accuracy metric). Instruction/section screens are advanced via their `OK`
+button.
+
+The oracle drives ~250 items in one spec; `experimentalMemoryManagement` +
+`numTestsKeptInMemory: 0` (in `cypress.config.ts`) and `{ log: false }` on the
+hot-path commands keep the runner's memory flat over the long command chain. The
+oracle only polls audio for number-identification (the one audio-only type) and
+solves every visual item straight from the screen, which keeps the run brisk.
+
+The VLM spec (`egma_math/vlm_agent.cy.ts`) hands each multiple-choice item's
+screenshot + transcript to the model, which replies with a single number; that
+is mapped to a choice and scored against the deterministic answer. Because EGMA
+**gates** practice items (a wrong answer re-presents the same item), the spec
+force-advances with the deterministic answer if an item persists, so a weak model
+still completes the run while its original answer is the one scored. The
+number-line is advanced deterministically and excluded from VLM accuracy.
+
 ## Layout
 
 ```
 cypress/
   e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts
+  e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
   support/
-    tasks/                  heartsAndFlowers.ts (task model), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
-scripts/                    score.ts, summarize_runs.ts
+scripts/                    score.ts, score_egma.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 

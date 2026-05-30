@@ -8,10 +8,12 @@ export type { VLMRequest, VLMResult };
 
 /**
  * A VLM provider client: takes a screenshot + system prompt and returns the
- * chosen Action. Adding a new provider is a single file that exports a function
- * of this shape, plus one line in the dispatch table below.
+ * RAW model text. Normalization (e.g. into a Hearts & Flowers Action, or an
+ * EGMA number) is the caller's job, so the same clients serve every task.
+ * Adding a new provider is a single file that exports a function of this shape,
+ * plus one line in the dispatch table below.
  */
-export type VLMClient = (req: VLMRequest) => Promise<Action>;
+export type VLMClient = (req: VLMRequest) => Promise<string>;
 
 const CLIENTS: Record<string, VLMClient> = {
   openai: askOpenAI,
@@ -24,8 +26,8 @@ const CLIENTS: Record<string, VLMClient> = {
  * as an explicit "audio channel", mirroring what a multimodal agent with ears
  * would hear — without the noise floor of a real speech-to-text step.
  */
-export function buildUserText(transcript?: string | null): string {
-  const base = 'Which action? Reply with one word.';
+export function buildUserText(transcript?: string | null, instruction?: string | null): string {
+  const base = instruction?.trim() || 'Which action? Reply with one word.';
   const text = transcript?.trim();
   if (text) {
     return `${base}\nNarration currently played aloud: "${text}"`;
@@ -47,10 +49,10 @@ export function parseAction(raw: string): Action {
 }
 
 /**
- * Dispatch a request to the configured provider. Latency is measured by the
- * caller (the askVLM cypress task) around this call only.
+ * Dispatch a request to the configured provider, returning the raw model text.
+ * Latency is measured by the caller (the askVLM cypress task) around this call.
  */
-export async function askVLM(provider: string, req: VLMRequest): Promise<Action> {
+export async function askVLM(provider: string, req: VLMRequest): Promise<string> {
   const client = CLIENTS[provider];
   if (!client) {
     throw new Error(

@@ -1,0 +1,390 @@
+import {
+  buildUrl,
+  classifyItem,
+  isComplete,
+  isFractionItem,
+  isInstructionScreen,
+  isItemReady,
+  isSliderScreen,
+  readChoices,
+  readStimulusText,
+  scoreTrials,
+  solveFractionItem,
+  solveItem,
+  solveNumberLine,
+  RESPONSE_ROW,
+  SLIDER,
+  type TaskWindow,
+} from '../../support/tasks/egmaMath';
+import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
+import {
+  currentAudioTranscript,
+  resetAudioCapture,
+  type CurrentAudio,
+} from '../../support/audio/audioOracle';
+
+const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
+import {
+  parseEgmaTrialRecord,
+  type EgmaItemType,
+  type EgmaTrialRecord,
+} from '../../support/tasks/types';
+
+// Safety cap on loop iterations. The task is long (~90+ items across 7 sections)
+// so this is generous; the loop normally exits on the completion screen first.
+// The full task is ~320 items across 7 sections, and feedback/transition frames
+// mean ~10 loop iterations per item, so the cap is generous. The loop exits
+// early on real completion (sustained empty content); this only guards a stall.
+const MAX_STEPS = 4500;
+const TASK = 'egma-math';
+// Polls for the item's narration to start before solving. Audio-only types
+// (number identification, comparison) carry the question only in the clip.
+const PROMPT_POLLS = 12;
+// A placement whose target falls within the slider's range is exact; a larger
+// fractional error would indicate the input scale != the number-line scale.
+const NUMBER_LINE_TOLERANCE = 0.02;
+// After this many consecutive frames showing the same item we just answered, we
+// treat it as a gated practice re-presentation (a wrong answer that won't
+// advance) rather than transient feedback, and cycle to another choice so the
+// run can complete. Must exceed the longest feedback animation.
+const GATE_PERSIST = 18;
+
+// Live, append-as-you-go log so a stalled/killed run still yields the records
+// captured so far (useful for diagnosing where the task got stuck).
+const LIVE_LOG = 'cypress/logs/_egma_oracle_live.jsonl';
+// Full-DOM dumps of items the deterministic solver could not answer, so new/odd
+// item formats can be diagnosed without a live debugging session.
+const UNSOLVED_LOG = 'cypress/logs/_egma_unsolved_dom.jsonl';
+
+describe('EGMA math — oracle (deterministic)', () => {
+  const records: EgmaTrialRecord[] = [];
+  let taskComplete = false;
+  let started = false;
+  // EGMA empties .jspsych-content for a beat when moving between sections, so a
+  // single empty frame is NOT completion — require sustained emptiness.
+  let emptyStreak = 0;
+  const EMPTY_DONE = 20; // ~4s at 200ms/poll
+  // While the same item lingers (feedback "Good job!" frames after a response)
+  // we wait instead of re-acting. Choice items key on their choices; slider
+  // items on their stimulus.
+  // Gate-escape bookkeeping: the key of the item we last acted on, how many
+  // consecutive frames it has persisted, and which choice indices we have tried
+  // for it (so a gated practice item can be escaped by cycling choices).
+  let actedKey = '';
+  let sameKeyFrames = 0;
+  let triedIndices = new Set<number>();
+  let lastSliderKey = '';
+  let sliderDumped = false;
+
+  /** Record a trial: keep it in memory and append it to the live log. */
+  function logRecord(input: Parameters<typeof parseEgmaTrialRecord>[0]): void {
+    const rec = parseEgmaTrialRecord(input);
+    records.push(rec);
+    cy.task('writeJsonl', { path: LIVE_LOG, records: [rec] }, { log: false });
+  }
+
+  function finalize(): void {
+    const ts = Date.now();
+    cy.task('writeJsonl', { path: `cypress/logs/oracle_egma_${ts}.jsonl`, records });
+
+    const stats = scoreTrials(records);
+    const typesObserved = new Set<EgmaItemType>(records.map((r) => r.itemType));
+    const withAudio = records.filter((r) => r.audioTranscript);
+
+    cy.wrap(null).then(() => {
+      expect(taskComplete, 'task reached the completion screen').to.equal(true);
+      expect(stats.nTrials, 'recorded response items').to.be.greaterThan(0);
+
+      // Exact accuracy on every multiple-choice item type.
+      expect(stats.accChoice, 'oracle accuracy on multiple-choice items').to.equal(1.0);
+
+      // Number line is proximity-scored: placements must sit within tolerance.
+      if (typesObserved.has('number-line')) {
+        expect(
+          stats.numberLineMeanError ?? 1,
+          'number-line mean placement error',
+        ).to.be.lessThan(NUMBER_LINE_TOLERANCE);
+      }
+
+      // Audio is a hard prerequisite: number identification has no on-screen text.
+      expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
+
+      // The signature audio-driven and visual types must all have been exercised.
+      expect(typesObserved.has('number-identification'), 'number-identification observed').to.equal(
+        true,
+      );
+      expect(typesObserved.has('number-comparison'), 'number-comparison observed').to.equal(true);
+      expect(typesObserved.has('arithmetic'), 'arithmetic observed').to.equal(true);
+      expect(typesObserved.has('fraction'), 'fraction observed').to.equal(true);
+    });
+  }
+
+  /** Poll the play log until this item's narration has started (or we give up). */
+  function readPrompt(win: AudioWindow, attempts: number, cb: (audio: CurrentAudio) => void): void {
+    currentAudioTranscript(win).then((audio) => {
+      if (audio.url || attempts <= 0) {
+        cb(audio);
+        return;
+      }
+      cy.wait(120, { log: false });
+      readPrompt(win, attempts - 1, cb);
+    });
+  }
+
+  function handleChoiceItem(i: number, win: TaskWindow): void {
+    const choices = readChoices(win);
+    const stim = readStimulusText(win);
+    const choicesKey = `${stim}::${choices.join('|')}`;
+
+    // Same item still showing after we answered it: usually transient feedback,
+    // but if it persists it is a gated practice re-presentation (our answer was
+    // wrong and the task won't advance). Wait through feedback; once it crosses
+    // GATE_PERSIST, cycle to an untried choice so the long run can complete.
+    if (choicesKey === actedKey) {
+      sameKeyFrames += 1;
+      if (sameKeyFrames < GATE_PERSIST) {
+        cy.wait(120, { log: false });
+        step(i + 1);
+        return;
+      }
+      const next = choices.findIndex((_c, ix) => !triedIndices.has(ix));
+      if (next < 0) {
+        // Exhausted every choice and none advanced; give up escaping and let the
+        // completion guard / MAX_STEPS handle it.
+        cy.wait(120, { log: false });
+        step(i + 1);
+        return;
+      }
+      triedIndices.add(next);
+      sameKeyFrames = 0;
+      cy.chooseOption(next);
+      cy.wait(200, { log: false });
+      step(i + 1);
+      return;
+    }
+
+    // Only number identification needs the audio (its target is narrated and not
+    // on screen). Visual types (arithmetic, sequences) and comparison are solved
+    // from the screen, so we skip the audio poll for a big speedup.
+    const screenType = classifyItem(null, stim, choices);
+    const needsAudio = screenType === 'unknown' || screenType === 'number-identification';
+
+    const solveAndAct = (audio: CurrentAudio): void => {
+      // Fraction items render operands/choices as MathML <mfrac>; their text
+      // collapses ambiguously ("1/5" -> "15"), so they get a dedicated solver.
+      const fraction = isFractionItem(win);
+      const itemType: EgmaItemType = fraction
+        ? 'fraction'
+        : classifyItem(audio.transcript, stim, choices);
+      const solution = fraction
+        ? solveFractionItem(win)
+        : solveItem(itemType, audio.transcript, choices, stim);
+      const index = solution ? solution.index : 0; // fall back to advance; flagged wrong
+      const recordType: EgmaItemType =
+        itemType === 'instructions' ? 'unknown' : itemType;
+
+      // Diagnostic: capture the DOM of anything we could not solve, so unknown
+      // formats (e.g. a new mixed section) can be fixed from the artifact.
+      if (!solution) {
+        const stimEl = win.document.querySelector('.lev-stimulus-container');
+        const rowEl = win.document.querySelector('.lev-response-row');
+        cy.task(
+          'writeJsonl',
+          {
+            path: UNSOLVED_LOG,
+            records: [
+              {
+                step: i,
+                screenType,
+                itemType,
+                stim,
+                transcript: audio.transcript,
+                choices,
+                stimHtml: stimEl?.outerHTML ?? null,
+                rowHtml: rowEl?.outerHTML?.slice(0, 4000) ?? null,
+              },
+            ],
+          },
+          { log: false },
+        );
+      }
+
+      logRecord({
+        timestamp: new Date().toISOString(),
+        task: TASK,
+        step: i,
+        itemType: recordType,
+        promptText: audio.transcript ?? (stim || null),
+        choices,
+        chosenIndex: index,
+        chosenValue: choices[index] ?? null,
+        correctValue: solution ? solution.value : null,
+        correct: solution !== null,
+        oracle: true,
+        audioTranscript: audio.transcript,
+        audioSource: audio.source,
+      });
+
+      actedKey = choicesKey;
+      sameKeyFrames = 0;
+      triedIndices = new Set<number>([index]);
+      cy.chooseOption(index);
+      cy.wait(150, { log: false });
+      step(i + 1);
+    };
+
+    if (needsAudio) {
+      cy.wait(250, { log: false });
+      readPrompt(win as unknown as AudioWindow, PROMPT_POLLS, solveAndAct);
+    } else {
+      solveAndAct(NO_AUDIO);
+    }
+  }
+
+  function handleSlider(i: number, win: TaskWindow): void {
+    const stim = readStimulusText(win);
+    if (stim === lastSliderKey) {
+      cy.wait(120, { log: false });
+      step(i + 1);
+      return;
+    }
+
+    // One-time diagnostic: dump the slider markup so the input scale vs. the
+    // number-line scale can be verified if a placement ever lands off.
+    if (!sliderDumped) {
+      sliderDumped = true;
+      const slider = win.document.querySelector(SLIDER) as HTMLInputElement | null;
+      const html = win.document.querySelector(RESPONSE_ROW)?.outerHTML ?? '';
+      cy.task('writeJsonl', {
+        path: 'cypress/logs/_egma_slider_dom.json',
+        records: [
+          { stim, min: slider?.min, max: slider?.max, step: slider?.step, value: slider?.value, html },
+        ],
+      });
+    }
+
+    // The target is in the stimulus ("...mark the number. N"), not the audio, so
+    // we solve from the screen and skip the audio poll for speed.
+    cy.wait(200, { log: false });
+    cy.window({ log: false }).then((w2) => {
+      const w2win = w2 as unknown as TaskWindow;
+      const plan = solveNumberLine(w2win, stim);
+      lastSliderKey = stim;
+
+      if (!plan) {
+        logRecord({
+          timestamp: new Date().toISOString(),
+          task: TASK,
+          step: i,
+          itemType: 'number-line',
+          promptText: stim || null,
+          correct: false,
+          oracle: true,
+        });
+        cy.continueEgma();
+        cy.wait(200, { log: false });
+        step(i + 1);
+        return;
+      }
+
+      const error = Math.abs(plan.value - plan.target) / (plan.max - plan.min);
+      logRecord({
+        timestamp: new Date().toISOString(),
+        task: TASK,
+        step: i,
+        itemType: 'number-line',
+        promptText: stim || null,
+        correctValue: String(plan.target),
+        chosenValue: String(plan.value),
+        correct: error <= NUMBER_LINE_TOLERANCE,
+        numberLineError: error,
+        oracle: true,
+      });
+
+      cy.placeSlider(plan.value);
+      cy.wait(150, { log: false });
+      cy.continueEgma();
+      cy.wait(200, { log: false });
+      step(i + 1);
+    });
+  }
+
+  function step(i: number): void {
+    if (i >= MAX_STEPS) {
+      finalize();
+      return;
+    }
+
+    cy.window({ log: false }).then((w) => {
+      const win = w as unknown as TaskWindow;
+
+      // 1. Done? Empty before the task starts is just loading; between sections
+      //    it is transient, so require sustained emptiness.
+      if (isComplete(win)) {
+        if (!started) {
+          cy.wait(150, { log: false });
+          step(i + 1);
+          return;
+        }
+        emptyStreak += 1;
+        if (emptyStreak >= EMPTY_DONE) {
+          taskComplete = true;
+          finalize();
+          return;
+        }
+        cy.wait(200, { log: false });
+        step(i + 1);
+        return;
+      }
+      started = true;
+      emptyStreak = 0;
+
+      // 2. Number-line slider (checked before instructions: it also shows a
+      //    .primary submit button).
+      if (isSliderScreen(win)) {
+        handleSlider(i, win);
+        return;
+      }
+
+      // 3. Multiple-choice response item.
+      if (isItemReady(win)) {
+        handleChoiceItem(i, win);
+        return;
+      }
+
+      // 4. Instruction / section screen: capture its narration, then advance.
+      if (isInstructionScreen(win)) {
+        currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+          if (audio.transcript) {
+            logRecord({
+              timestamp: new Date().toISOString(),
+              task: TASK,
+              step: i,
+              itemType: 'instructions',
+              promptText: audio.transcript,
+              oracle: true,
+              audioTranscript: audio.transcript,
+              audioSource: audio.source,
+            });
+          }
+          cy.continueEgma();
+          cy.wait(180, { log: false });
+          step(i + 1);
+        });
+        return;
+      }
+
+      // 5. Transition / loading frame: wait WITHOUT consuming audio so the next
+      //    item's narration is not prematurely attributed.
+      cy.wait(120, { log: false });
+      step(i + 1);
+    });
+  }
+
+  it('completes the task at 100% accuracy', () => {
+    resetAudioCapture();
+    cy.visit(buildUrl(), { onBeforeLoad: installAudioCapture });
+    cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
+    step(0);
+  });
+});

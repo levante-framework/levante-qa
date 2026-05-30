@@ -14,7 +14,10 @@
     "cy:run:oracle": "cypress run --spec 'cypress/e2e/**/oracle.cy.ts'",
     "cy:run:vlm": "cypress run --spec 'cypress/e2e/**/vlm_agent.cy.ts'",
     "cy:run:audio": "cypress run --spec 'cypress/e2e/**/audio_assets.cy.ts'",
+    "cy:run:egma:oracle": "cypress run --spec 'cypress/e2e/egma_math/oracle.cy.ts'",
+    "cy:run:egma:vlm": "cypress run --spec 'cypress/e2e/egma_math/vlm_agent.cy.ts'",
     "score": "tsx scripts/score.ts",
+    "score:egma": "tsx scripts/score_egma.ts",
     "summarize": "tsx scripts/summarize_runs.ts",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit"

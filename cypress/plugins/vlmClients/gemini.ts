@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
-import type { Action, VLMRequest } from '../../support/tasks/types';
-import { buildUserText, parseAction } from './index';
+import type { VLMRequest } from '../../support/tasks/types';
+import { buildUserText } from './index';
 
 // Current vision-capable default (the legacy gemini-1.5 family is deprecated).
 // Override per run with GEMINI_MODEL, e.g. gemini-2.5-pro or gemini-3-flash-preview.
@@ -19,24 +19,24 @@ function getClient(): GoogleGenAI {
   return client;
 }
 
-export async function askGemini(req: VLMRequest): Promise<Action> {
+export async function askGemini(req: VLMRequest): Promise<string> {
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
   const response = await getClient().models.generateContent({
     model,
     contents: [
-      { text: buildUserText(req.transcript) },
+      { text: buildUserText(req.transcript, req.userText) },
       { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
     ],
     config: {
       systemInstruction: req.systemPrompt,
       temperature: 0,
       maxOutputTokens: 32,
-      // Disable "thinking" so the single-word answer isn't starved of tokens
-      // and latency stays representative. Supported on 2.5-flash; pro models
-      // may ignore it, which is fine — parseAction tolerates longer output.
+      // Disable "thinking" so the short answer isn't starved of tokens and
+      // latency stays representative. Supported on 2.5-flash; pro models may
+      // ignore it, which is fine — the callers' parsers tolerate longer output.
       thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
-  return parseAction(response.text ?? '');
+  return response.text ?? '';
 }
