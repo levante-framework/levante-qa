@@ -4,7 +4,7 @@ QA / regression and VLM-agent benchmarking for [LEVANTE](https://github.com/leva
 
 This repo serves two purposes:
 
-1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing).
+1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
 Two tasks are implemented today — **Hearts & Flowers** and **EGMA math** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
@@ -141,6 +141,43 @@ Two agent paths share the same task model (selectors, stimulus parser, response 
 - The **oracle** never calls a model; it reads stimulus state (preferring `window.jsPsych`, falling back to DOM heuristics) and applies the task rule. It asserts perfect play.
 - The **VLM agent** only sees a screenshot. The oracle's decision is computed alongside for logging/cross-check but **does not gate** the VLM test.
 
+## How correctness is validated
+
+A "100% accuracy" assertion is only meaningful if "correct" is grounded in
+something other than the agent's own logic. We use the strongest ground truth
+each task exposes.
+
+**The app's own answer key (preferred).** When core-tasks runs under Cypress it
+marks the correct response in the DOM — `aria-label="correct"` / a `.correct`
+class on the right button (see core-tasks `afcStimulus.ts`). This is the task's
+own answer key, and we read it via `appKeyedCorrectIndex()` in
+`cypress/support/tasks/egmaMath.ts`.
+
+- **EGMA oracle** is therefore a genuine **differential test**: it computes its
+  answer independently (MathML fraction parsing, arithmetic, sequence inference,
+  …) *and* reads the app's keyed index, then asserts the two agree on every
+  multiple-choice item. Disagreements are written to
+  `cypress/logs/_egma_key_mismatch.jsonl` (with the item's DOM) and **fail the
+  run**. "100% accuracy" now means "our answer matched the task's key on every
+  item", not merely "we produced an answer". The oracle still *acts* on its own
+  computed choice, never the key, so the independence is real.
+  > This already caught a content bug: the item `37 − 24` keys `12` as correct
+  > (the answer is `13`). The mismatch log flags it automatically.
+- **EGMA VLM** is scored against the same app key (not against our solver), so
+  the benchmark doesn't silently inherit a solver bug. Each record carries the
+  model's choice, the app's `keyedIndex`/`keyedValue`, and `correct`.
+
+**Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
+`aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
+build, so there is nothing to read at runtime. Instead, H&F correctness rests on
+our `correctAction()` faithfully reimplementing the task's own rule,
+core-tasks `getCorrectInputSide()` (heart → same side, flower → opposite). That
+equivalence is pinned by a pure-logic spec,
+`cypress/e2e/hearts_and_flowers/rule_equivalence.cy.ts`, which asserts the two
+agree for every shape × side × block combination and fails instantly if
+core-tasks ever changes the rule (no browser/network needed). The H&F VLM is
+then scored against the oracle's decision, inheriting that guarantee.
+
 ## Audio channel (narration transcripts)
 
 LEVANTE narration is pre-recorded and the canonical script is embedded in each `.mp3`'s **ID3 tags**, so we read it directly instead of running speech-to-text. This gives a deterministic, offline, zero-cost "audio channel" that is by construction what a child hears.
@@ -173,14 +210,18 @@ audio** (`classifyItem`) and solved deterministically (`solveItem` /
 | number-comparison    | narration / silent     | tap the larger value (smaller if asked)      |
 | missing-number       | on-screen sequence     | infer the blank from the common step         |
 | arithmetic (+ − ×)   | on-screen expression   | evaluate the expression                      |
+| fraction             | on-screen MathML       | parse `<mfrac>` operands, compute the value  |
 | number-line          | on-screen slider       | read target + range, place the slider        |
 
-The first four are multiple-choice and asserted at **exact 100%**. The
-number-line is a slider, so it is **proximity-scored**: the oracle reads the
-target and the input's range and places the slider, and the run asserts the mean
-fractional placement error stays under tolerance (it is excluded from the exact
-accuracy metric). Instruction/section screens are advanced via their `OK`
-button.
+The first four are multiple-choice and asserted at **exact 100%**, cross-checked
+against the task's own answer key (see [How correctness is
+validated](#how-correctness-is-validated)) — so the assertion means "our
+computed answer matched the task's key on every item", and any disagreement
+fails the run with a logged artifact. The number-line is a slider, so it is
+**proximity-scored**: the oracle reads the target and the input's range and
+places the slider, and the run asserts the mean fractional placement error stays
+under tolerance (it is excluded from the exact accuracy metric).
+Instruction/section screens are advanced via their `OK` button.
 
 The oracle drives ~250 items in one spec; `experimentalMemoryManagement` +
 `numTestsKeptInMemory: 0` (in `cypress.config.ts`) and `{ log: false }` on the
@@ -189,29 +230,43 @@ oracle only polls audio for number-identification (the one audio-only type) and
 solves every visual item straight from the screen, which keeps the run brisk.
 
 The VLM spec (`egma_math/vlm_agent.cy.ts`) hands each multiple-choice item's
-screenshot + transcript to the model, which replies with a single number; that
-is mapped to a choice and scored against the deterministic answer. Because EGMA
-**gates** practice items (a wrong answer re-presents the same item), the spec
-force-advances with the deterministic answer if an item persists, so a weak model
-still completes the run while its original answer is the one scored. The
-number-line is advanced deterministically and excluded from VLM accuracy.
+screenshot + transcript to the model, which replies with a single number (or an
+`a/b` fraction); that is mapped to a choice and scored against the task's own
+answer key (falling back to the deterministic solver only for untagged types).
+Because EGMA **gates** practice items (a wrong answer re-presents the same item),
+the spec force-advances with the deterministic answer if an item persists, so a
+weak model still completes the run while its original answer is the one scored.
+The number-line is **VLM-driven**: the model is shown the line with its labeled
+endpoints and decides where to place the marker; the placement is proximity-
+scored by normalized error (same tolerance as the oracle), not auto-advanced.
 
 ## Layout
 
 ```
 cypress/
-  e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts
+  e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts, rule_equivalence.cy.ts
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
+  e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
     tasks/                  heartsAndFlowers.ts, egmaMath.ts (task models), types.ts (zod schemas)
     agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
+    launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
 scripts/                    score.ts, score_egma.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
+```
+
+Diagnostic logs written during a run (git-ignored):
+
+```
+cypress/logs/_egma_oracle_live.jsonl     append-as-you-go oracle trial log
+cypress/logs/_egma_vlm_live.jsonl        append-as-you-go VLM trial log
+cypress/logs/_egma_key_mismatch.jsonl    items where our answer ≠ the task's answer key
+cypress/logs/_egma_unsolved_dom.jsonl    DOM dumps of items the solver could not answer
 ```
 
 ## Conventions
@@ -226,7 +281,8 @@ scripts/                    score.ts, score_egma.ts, summarize_runs.ts
 1. Create `cypress/support/tasks/<task>.ts` exporting: `URL_BASE`, `DEFAULT_PARAMS`, selectors (with `TODO(selectors)`), `readStimulus`, `correctAction`, any task-specific congruency/condition helpers, and `scoreTrials`.
 2. Reuse `cypress/support/tasks/types.ts` (extend the schemas if the task needs extra fields).
 3. Add sibling specs `cypress/e2e/<task>/oracle.cy.ts` and `cypress/e2e/<task>/vlm_agent.cy.ts` modeled on the Hearts & Flowers pair.
-4. The `cy:run:oracle` / `cy:run:vlm` globs and both workflows pick up the new specs automatically.
+4. Ground "correct" in real truth (see [How correctness is validated](#how-correctness-is-validated)): if the task marks its answer in the DOM under Cypress, have the oracle assert its computed answer matches that key and score the VLM against it; if not, pin the rule to core-tasks with a pure-logic equivalence spec like `rule_equivalence.cy.ts`.
+5. The `cy:run:oracle` / `cy:run:vlm` globs and both workflows pick up the new specs automatically.
 
 ## CI
 

@@ -1,5 +1,6 @@
 import egmaVlmAgent from '../../support/agents/egmaVlmAgent';
 import {
+  appKeyedCorrectIndex,
   buildUrl,
   choiceIndexForValue,
   classifyItem,
@@ -153,8 +154,16 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
           const vlmIndex = fraction
             ? fractionChoiceIndexForValue(win, decision.value)
             : choiceIndexForValue(choices, decision.value);
-          const correct =
-            oracleSol === null
+
+          // Ground truth: prefer the task's OWN answer key (the choice the app
+          // marks correct under Cypress) so the benchmark doesn't depend on our
+          // solver being right. Fall back to the deterministic solver only where
+          // no marker is present (untagged types).
+          const keyedIndex = appKeyedCorrectIndex(win);
+          const hasKey = keyedIndex >= 0;
+          const correct = hasKey
+            ? vlmIndex >= 0 && vlmIndex === keyedIndex
+            : oracleSol === null
               ? null
               : fraction
                 ? vlmIndex >= 0 && vlmIndex === oracleSol.index
@@ -171,6 +180,8 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
             chosenValue: vlmIndex >= 0 ? choices[vlmIndex] : null,
             correctValue: oracleSol ? oracleSol.value : null,
             correct,
+            keyedIndex: hasKey ? keyedIndex : null,
+            keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
             rtMs: decision.latencyMs,
             oracle: false,
             provider,

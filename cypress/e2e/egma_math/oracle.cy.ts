@@ -240,6 +240,8 @@ describe('EGMA math — oracle (deterministic)', () => {
         keyedChecks += 1;
         if (index !== keyedIndex) {
           keyMismatches += 1;
+          const stimEl = win.document.querySelector('.lev-stimulus-container');
+          const rowEl = win.document.querySelector('.lev-response-row');
           cy.task(
             'writeJsonl',
             {
@@ -255,6 +257,9 @@ describe('EGMA math — oracle (deterministic)', () => {
                   computedValue: choices[index] ?? null,
                   keyedIndex,
                   keyedValue: choices[keyedIndex] ?? null,
+                  // Raw DOM so the operands/answer key can be confirmed offline.
+                  stimHtml: stimEl?.outerHTML ?? null,
+                  rowHtml: rowEl?.outerHTML?.slice(0, 4000) ?? null,
                 },
               ],
             },
@@ -274,6 +279,8 @@ describe('EGMA math — oracle (deterministic)', () => {
         chosenValue: choices[index] ?? null,
         correctValue: solution ? solution.value : null,
         correct,
+        keyedIndex: hasKey ? keyedIndex : null,
+        keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
         oracle: true,
         audioTranscript: audio.transcript,
         audioSource: audio.source,

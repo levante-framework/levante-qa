@@ -117,6 +117,14 @@ export const EgmaTrialRecordSchema = z.object({
   // The value the deterministic solver considers correct (null on instructions).
   correctValue: z.string().nullable().default(null),
   correct: z.boolean().nullable().default(null),
+  // The task's OWN answer key for this item: the index/value of the choice the
+  // app marks correct (.correct / aria-label="correct", emitted only under
+  // Cypress — see core-tasks afcStimulus.ts). Null when no marker is present
+  // (instructions, number-line, untagged types). This is ground truth, used to
+  // cross-check the oracle's solver and to score the VLM against the app rather
+  // than against our own solver.
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
   // Number-line only: fractional placement error |placed - target| / range, in
   // [0, 1]. Null for non-slider items.
   numberLineError: z.number().nullable().default(null),
