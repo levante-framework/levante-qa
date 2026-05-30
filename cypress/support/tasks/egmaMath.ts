@@ -107,6 +107,27 @@ export function readChoices(win: TaskWindow): string[] {
   );
 }
 
+/**
+ * Index of the choice the task itself marks as correct, or -1 if no marker is
+ * present. When core-tasks runs under Cypress it tags the correct response with
+ * a `.correct` class (and `aria-label="correct"` for math) — see
+ * core-tasks afcStimulus.ts. This is the app's own answer key, used to
+ * cross-check (not drive) the deterministic solver, turning the oracle into a
+ * differential test: agreement confirms both; a mismatch flags a real bug in
+ * either the task key or our solver. Returns -1 on instruction screens / item
+ * types that carry no marker, where we fall back to the solver alone.
+ */
+const CORRECT_MARKER = '[aria-label="correct"], .correct';
+export function appKeyedCorrectIndex(win: TaskWindow): number {
+  const buttons = Array.from(win.document.querySelectorAll(CHOICE_BUTTON));
+  return buttons.findIndex((b) => {
+    if (b.matches(CORRECT_MARKER) || b.querySelector(CORRECT_MARKER)) return true;
+    // The marker can sit on the button's wrapper rather than the <button> itself.
+    const wrap = b.closest('.jspsych-html-multi-response-button');
+    return !!wrap && (wrap.matches(CORRECT_MARKER) || !!wrap.querySelector(CORRECT_MARKER));
+  });
+}
+
 /** The on-screen stimulus text (e.g. "2+3", "5, 10, 15, _"), whitespace-collapsed.
  * EGMA's visual item types put the whole question here; audio-only types (number
  * identification, comparison) leave it effectively empty. */

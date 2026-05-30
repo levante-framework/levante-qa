@@ -1,4 +1,5 @@
 import {
+  appKeyedCorrectIndex,
   buildUrl,
   classifyItem,
   isComplete,
@@ -56,6 +57,10 @@ const LIVE_LOG = 'cypress/logs/_egma_oracle_live.jsonl';
 // Full-DOM dumps of items the deterministic solver could not answer, so new/odd
 // item formats can be diagnosed without a live debugging session.
 const UNSOLVED_LOG = 'cypress/logs/_egma_unsolved_dom.jsonl';
+// Items where our computed answer disagreed with the task's own embedded answer
+// key (the `.correct`/`aria-label=correct` marker rendered under Cypress). Each
+// entry is a real bug to investigate — in the task's key or in our solver.
+const MISMATCH_LOG = 'cypress/logs/_egma_key_mismatch.jsonl';
 
 describe('EGMA math — oracle (deterministic)', () => {
   const records: EgmaTrialRecord[] = [];
@@ -76,6 +81,10 @@ describe('EGMA math — oracle (deterministic)', () => {
   let triedIndices = new Set<number>();
   let lastSliderKey = '';
   let sliderDumped = false;
+  // Differential cross-check tallies: how many items exposed the app's answer
+  // key, and how many of those disagreed with our computed answer.
+  let keyedChecks = 0;
+  let keyMismatches = 0;
 
   /** Record a trial: keep it in memory and append it to the live log. */
   function logRecord(input: Parameters<typeof parseEgmaTrialRecord>[0]): void {
@@ -95,6 +104,13 @@ describe('EGMA math — oracle (deterministic)', () => {
     cy.wrap(null).then(() => {
       expect(taskComplete, 'task reached the completion screen').to.equal(true);
       expect(stats.nTrials, 'recorded response items').to.be.greaterThan(0);
+
+      // Differential guarantee: where the task exposed its own answer key, our
+      // independently computed answer must have matched it on every item. A
+      // mismatch is a genuine defect (task key or solver) — see MISMATCH_LOG.
+      cy.log(`answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es)`);
+      expect(keyedChecks, "task exposed its answer key (so the cross-check ran)").to.be.greaterThan(0);
+      expect(keyMismatches, `computed answers disagreeing with the task's key (see ${MISMATCH_LOG})`).to.equal(0);
 
       // Exact accuracy on every multiple-choice item type.
       expect(stats.accChoice, 'oracle accuracy on multiple-choice items').to.equal(1.0);
@@ -210,6 +226,43 @@ describe('EGMA math — oracle (deterministic)', () => {
         );
       }
 
+      // Differential cross-check: when the task exposes its own answer key
+      // (under Cypress it marks the correct button), require our independently
+      // computed choice to match it. Agreement = both confirmed; a mismatch is a
+      // real bug (in the task key or our solver) — log it and let finalize fail.
+      // We still ACT on our own computed index, never the key, so the oracle is
+      // genuinely independent. Where no key is present (instructions / untagged
+      // types) we fall back to "did the solver produce an answer".
+      const keyedIndex = appKeyedCorrectIndex(win);
+      const hasKey = keyedIndex >= 0;
+      const correct = hasKey ? solution !== null && index === keyedIndex : solution !== null;
+      if (hasKey) {
+        keyedChecks += 1;
+        if (index !== keyedIndex) {
+          keyMismatches += 1;
+          cy.task(
+            'writeJsonl',
+            {
+              path: MISMATCH_LOG,
+              records: [
+                {
+                  step: i,
+                  itemType: recordType,
+                  stim,
+                  transcript: audio.transcript,
+                  choices,
+                  computedIndex: index,
+                  computedValue: choices[index] ?? null,
+                  keyedIndex,
+                  keyedValue: choices[keyedIndex] ?? null,
+                },
+              ],
+            },
+            { log: false },
+          );
+        }
+      }
+
       logRecord({
         timestamp: new Date().toISOString(),
         task: TASK,
@@ -220,7 +273,7 @@ describe('EGMA math — oracle (deterministic)', () => {
         chosenIndex: index,
         chosenValue: choices[index] ?? null,
         correctValue: solution ? solution.value : null,
-        correct: solution !== null,
+        correct,
         oracle: true,
         audioTranscript: audio.transcript,
         audioSource: audio.source,
