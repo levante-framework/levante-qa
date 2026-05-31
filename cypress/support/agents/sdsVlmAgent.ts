@@ -58,6 +58,7 @@ export const sdsVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'same_different',
         transcript: instruction,
         userText,
       })

@@ -209,6 +209,7 @@ async function finalizeRun(run) {
     provider: run.meta.provider,
     ageYears: run.meta.ageYears,
     ageMonths: run.meta.ageMonths,
+    persona: !!run.meta.persona,
     status: run.status,
     accuracy: run.accuracy,
     nTrials: run.nTrials,
@@ -239,6 +240,13 @@ function spawnCypress(run) {
   env.QA_RUN_ID = run.runId;
   if (run.meta.agent === 'vlm' && run.meta.provider) {
     env.VLM_PROVIDER = run.meta.provider;
+  }
+  // Child-age persona (VLM only): make the model answer as a typical child of
+  // the run's age would. Defaults the persona age to the participant's age.
+  if (run.meta.agent === 'vlm' && run.meta.persona) {
+    env.QA_PERSONA = 'child';
+    env.QA_PERSONA_AGE_YEARS = String(run.meta.ageYears);
+    env.QA_PERSONA_AGE_MONTHS = String(run.meta.ageMonths);
   }
 
   const args = [
@@ -406,11 +414,13 @@ const server = http.createServer(async (req, res) => {
         const provider = agent === 'vlm' ? String(p.provider || VLM_PROVIDERS[0]) : null;
         const ageYears = Number.isFinite(Number(p.ageYears)) ? Math.max(0, Math.floor(Number(p.ageYears))) : 8;
         const ageMonths = Number.isFinite(Number(p.ageMonths)) ? Math.max(0, Math.floor(Number(p.ageMonths))) : 0;
+        const persona = agent === 'vlm' && p.persona === true;
         const runId = startRun({
           task: task.id,
           taskLabel: task.label,
           agent,
           provider,
+          persona,
           ageYears,
           ageMonths,
           spec: agent === 'vlm' ? task.vlmSpec : task.oracleSpec,

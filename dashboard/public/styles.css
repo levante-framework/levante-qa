@@ -198,6 +198,37 @@ input[type='number']:focus {
   color: var(--muted);
 }
 
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 9px 0;
+}
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+  min-width: 0;
+  accent-color: var(--cyan);
+}
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: rgba(0, 160, 222, 0.16);
+  color: var(--cyan-2);
+}
+
 .btn {
   padding: 11px 22px;
   border: none;

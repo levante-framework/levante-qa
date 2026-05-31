@@ -25,6 +25,7 @@ function scopeLogPath(p: string): string {
 
 import { askVLM as dispatchVLM, parseAction } from './cypress/plugins/vlmClients';
 import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
+import { makeChildPersonaPrompt } from './cypress/support/persona/childPersona';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
 import { solveMentalRotation } from './cypress/plugins/mentalRotationSolver';
 import type {
@@ -38,6 +39,46 @@ dotenv.config();
 interface WriteJsonlArgs {
   path: string;
   records: unknown[];
+}
+
+/**
+ * Optional child-age persona for VLM runs. When `QA_PERSONA=child` (set by the
+ * dashboard or a manual run) a persona preamble — grounded in real LEVANTE
+ * accuracy-by-age data — is prepended to each task's system prompt so the model
+ * answers as a typical child of the target age would. Off by default; the oracle
+ * is never affected.
+ */
+const PERSONA_ON = String(process.env.QA_PERSONA ?? '').toLowerCase() === 'child';
+const PERSONA_AGE_YEARS = Number(process.env.QA_PERSONA_AGE_YEARS ?? '');
+const PERSONA_AGE_MONTHS = Number(process.env.QA_PERSONA_AGE_MONTHS ?? '0');
+let personaLogged = false;
+
+function applyPersona(req: VLMRequest): VLMRequest {
+  if (!PERSONA_ON || !Number.isFinite(PERSONA_AGE_YEARS)) return req;
+  const ageMonths = Number.isFinite(PERSONA_AGE_MONTHS) ? PERSONA_AGE_MONTHS : 0;
+  const preamble = makeChildPersonaPrompt(PERSONA_AGE_YEARS, ageMonths, req.taskId ?? undefined);
+  if (!personaLogged) {
+    personaLogged = true;
+    try {
+      const path = scopeLogPath(`cypress/logs/_${req.taskId ?? 'task'}_persona.jsonl`);
+      const dir = dirname(path);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      appendFileSync(
+        path,
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          taskId: req.taskId ?? null,
+          ageYears: PERSONA_AGE_YEARS,
+          ageMonths,
+          preamble,
+        }) + '\n',
+        'utf-8',
+      );
+    } catch {
+      // Logging the persona is best-effort; never fail a run over it.
+    }
+  }
+  return { ...req, systemPrompt: `${preamble}\n\n${req.systemPrompt}` };
 }
 
 export default defineConfig({
@@ -69,8 +110,9 @@ export default defineConfig({
          * the provider call. Tasks whose answer isn't an action (EGMA) read `raw`.
          */
         async askVLM(req: VLMRequest): Promise<VLMResult> {
+          const personaReq = applyPersona(req);
           const start = Date.now();
-          const raw = await dispatchVLM(provider, req);
+          const raw = await dispatchVLM(provider, personaReq);
           const latencyMs = Date.now() - start;
           return { action: parseAction(raw), raw, latencyMs, provider };
         },

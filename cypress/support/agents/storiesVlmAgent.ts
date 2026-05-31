@@ -69,6 +69,7 @@ export const storiesVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'stories',
         transcript: transcript || null,
         userText,
       })

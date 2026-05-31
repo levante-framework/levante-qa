@@ -55,6 +55,7 @@ export const vocabVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'vocab',
         transcript,
         userText,
       })

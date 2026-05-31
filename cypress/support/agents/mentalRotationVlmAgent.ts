@@ -52,6 +52,7 @@ export const mentalRotationVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'mental_rotation',
         transcript,
         userText,
       })

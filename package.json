@@ -39,6 +39,7 @@
     "score:trog": "tsx scripts/score_trog.ts",
     "score:memory": "tsx scripts/score_memory.ts",
     "summarize": "tsx scripts/summarize_runs.ts",
+    "persona:sync": "node scripts/sync_persona.mjs",
     "dashboard": "node dashboard/server.mjs",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit"

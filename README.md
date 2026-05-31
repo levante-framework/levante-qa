@@ -144,6 +144,41 @@ The provisioner is a self-contained Admin-SDK script, kept swappable for the
 admin-callable path (`createUsers` + `upsertAdministration`) without touching
 the dashboard.
 
+## Child-age VLM persona (optional)
+
+VLM runs can optionally ask the model to answer **as a typical child of a target
+age would** — calibrated to real LEVANTE accuracy-by-age data — so the benchmark
+measures developmental plausibility rather than raw model capability. Off by
+default; the oracle is never affected.
+
+```bash
+QA_PERSONA=child QA_PERSONA_AGE_YEARS=6 QA_PERSONA_AGE_MONTHS=0 \
+  pnpm cy:run:trog:vlm -- --env provider=gemini
+```
+
+When enabled, the `askVLM` node task (`cypress.config.ts`) prepends a persona
+preamble to the task's existing system prompt — so every provider and task gets
+it with no per-agent code. The preamble is built by
+`cypress/support/persona/childPersona.ts` from two **shared artifacts**:
+
+- `cypress/support/persona/age_task_accuracy.json` — per-task mean accuracy by
+  age, the empirical "difficulty" target.
+- `cypress/support/persona/persona_template.txt` — the prompt wording.
+
+These are the **single source of truth shared with `levante-bench`** (canonical
+copies in `levante-bench/shared/persona/`, generated from
+`data/responses/v1/trials.csv` by `scripts/build_age_accuracy_profile.py`). Pull
+the latest into this repo with:
+
+```bash
+pnpm persona:sync          # copies from ../levante-bench (override LEVANTE_BENCH_DIR)
+```
+
+The applied persona (age + preamble) is logged once per run to
+`cypress/logs/_<task>_persona.jsonl`. In the dashboard, a VLM-only "Child
+persona" toggle sets `QA_PERSONA*` for the run (persona age defaults to the
+participant's age) and is shown on run cards and in the Results table.
+
 ## Architecture
 
 Two agent paths share the same task model (selectors, stimulus parser, response rule, scoring) and the same trial-logging pipeline:
@@ -597,12 +632,13 @@ cypress/
     agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts, matrixReasoningVlmAgent.ts, trogVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
+    persona/                childPersona.ts (age-persona prompt builder), age_task_accuracy.json + persona_template.txt (shared with levante-bench)
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
     mentalRotationSolver.ts node-side pixel rotation/mirror solver (authentic MR oracle)
-scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, score_matrix.ts, summarize_runs.ts
+scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, score_matrix.ts, summarize_runs.ts, sync_persona.mjs
 dashboard/                  server.mjs (run orchestration backend), catalog.mjs (task→spec map)
   public/                   index.html, app.js, styles.css (Pitwall-styled UI: Launch + Results tabs)
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)

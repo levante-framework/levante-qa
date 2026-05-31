@@ -33,7 +33,6 @@
     state.agent = seg.dataset.agent;
     document.querySelectorAll('#agentToggle .seg').forEach((s) => s.classList.remove('active'));
     seg.classList.add('active');
-    $('#providerField').hidden = state.agent !== 'vlm' || !currentTaskHasVlm();
     syncVlmAvailability();
   });
 
@@ -52,7 +51,9 @@
       document.querySelectorAll('#agentToggle .seg').forEach((s) => s.classList.remove('active'));
       document.querySelector('#agentToggle .seg[data-agent="oracle"]').classList.add('active');
     }
-    $('#providerField').hidden = state.agent !== 'vlm' || !hasVlm;
+    const showVlmFields = state.agent === 'vlm' && hasVlm;
+    $('#providerField').hidden = !showVlmFields;
+    $('#personaField').hidden = !showVlmFields;
   }
 
   $('#taskSelect').addEventListener('change', syncVlmAvailability);
@@ -97,6 +98,7 @@
       taskId: $('#taskSelect').value,
       agent: state.agent,
       provider: $('#providerSelect').value,
+      persona: state.agent === 'vlm' && $('#personaToggle').checked,
       ageYears: Number($('#ageYears').value),
       ageMonths: Number($('#ageMonths').value),
     };
@@ -159,6 +161,7 @@
     if (!card) return;
     card.className = `run-card is-${s.status}`;
     const m = s.meta || {};
+    const personaTag = m.persona ? '<span class="tag">persona</span>' : '';
     const agentLabel = m.agent === 'vlm' ? `VLM · ${m.provider || ''}` : 'Oracle';
     const acc = s.accuracy == null ? '—' : `${(s.accuracy * 100).toFixed(1)}%`;
     const errBlock =
@@ -168,7 +171,7 @@
     card.innerHTML = `
       <div class="run-card-head">
         <div>
-          <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}</div>
+          <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}</div>
           <div class="run-card-sub">${agentLabel} · age ${m.ageYears ?? '?'}y ${m.ageMonths ?? 0}m${s.email ? ' · ' + escapeHtml(s.email) : ''}</div>
         </div>
         <span class="pill pill-${s.status}">${STATUS_ICON[s.status] || ''} ${STATUS_LABEL[s.status] || s.status}</span>
@@ -232,7 +235,7 @@
       rows.forEach((r) => {
         const tr = el('tr');
         const acc = r.accuracy == null ? '—' : `${(r.accuracy * 100).toFixed(1)}%`;
-        const agent = r.agent === 'vlm' ? `VLM · ${r.provider || ''}` : 'Oracle';
+        const agent = (r.agent === 'vlm' ? `VLM · ${r.provider || ''}` : 'Oracle') + (r.persona ? ' <span class="tag">persona</span>' : '');
         const dur = r.durationMs != null ? `${Math.round(r.durationMs / 1000)}s` : '—';
         const errs = (r.errors && r.errors.length) ? r.errors.map(escapeHtml).join('<br>') : '—';
         tr.innerHTML = `

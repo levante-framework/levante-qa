@@ -39,7 +39,7 @@ export interface VLMDecision {
 export const vlmAgent = {
   decide(pngBase64: string, transcript: string | null = null): Cypress.Chainable<VLMDecision> {
     return cy
-      .task<VLMResult>('askVLM', { pngBase64, systemPrompt: SYSTEM_PROMPT, transcript })
+      .task<VLMResult>('askVLM', { pngBase64, systemPrompt: SYSTEM_PROMPT, taskId: 'hearts_and_flowers', transcript })
       .then((result: VLMResult): VLMDecision => ({
         action: result.action,
         latencyMs: result.latencyMs,

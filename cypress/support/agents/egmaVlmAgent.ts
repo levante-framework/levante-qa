@@ -66,6 +66,7 @@ export const egmaVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'egma_math',
         transcript,
         userText,
       })

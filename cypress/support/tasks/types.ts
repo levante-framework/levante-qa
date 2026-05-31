@@ -565,6 +565,10 @@ export interface VLMRequest {
   // LEFT/RIGHT/CONTINUE action (e.g. EGMA, where the model replies with a number)
   // pass their own instruction here.
   userText?: string | null;
+  // The levante-qa task slug (e.g. 'trog', 'egma_math'). Used only to add a
+  // task-specific difficulty hint when the child-age persona is enabled; has no
+  // effect on a normal (non-persona) run.
+  taskId?: string | null;
 }
 
 export interface VLMResult {

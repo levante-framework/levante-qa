@@ -60,6 +60,7 @@ export const trogVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'trog',
         transcript,
         userText,
       })

@@ -56,6 +56,7 @@ export const matrixReasoningVlmAgent = {
       .task<VLMResult>('askVLM', {
         pngBase64,
         systemPrompt: SYSTEM_PROMPT,
+        taskId: 'matrix_reasoning',
         transcript,
         userText: text,
       })
