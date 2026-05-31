@@ -3,6 +3,26 @@ import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import * as dotenv from 'dotenv';
 
+/**
+ * When the dashboard launches a run it sets QA_RUN_ID so each run's logs land in
+ * their own subdir. Specs use fixed log filenames (e.g.
+ * `cypress/logs/_trog_oracle_live.jsonl`); rewriting any `cypress/logs/...` path
+ * into `cypress/logs/runs/<QA_RUN_ID>/...` keeps parallel runs from colliding on
+ * those fixed names, with no spec changes. Unset → original behavior.
+ */
+function scopeLogPath(p: string): string {
+  const runId = process.env.QA_RUN_ID;
+  if (!runId) return p;
+  const norm = p.replace(/\\/g, '/');
+  const marker = 'cypress/logs/';
+  const idx = norm.indexOf(marker);
+  if (idx === -1) return p;
+  const head = norm.slice(0, idx + marker.length);
+  const tail = norm.slice(idx + marker.length);
+  if (tail.startsWith(`runs/${runId}/`)) return p;
+  return `${head}runs/${runId}/${tail}`;
+}
+
 import { askVLM as dispatchVLM, parseAction } from './cypress/plugins/vlmClients';
 import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
@@ -79,7 +99,8 @@ export default defineConfig({
          * Appends newline-delimited JSON records to a log file, creating the
          * parent directory if needed. Used for trial logging.
          */
-        writeJsonl({ path, records }: WriteJsonlArgs): null {
+        writeJsonl({ path: rawPath, records }: WriteJsonlArgs): null {
+          const path = scopeLogPath(rawPath);
           const dir = dirname(path);
           if (!existsSync(dir)) {
             mkdirSync(dir, { recursive: true });

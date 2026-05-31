@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LEVANTE QA · Task Runner</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <header class="header">
+        <div class="header-title">
+          <i class="fas fa-flask-vial"></i>
+          <div>
+            <h1>LEVANTE QA</h1>
+            <p>Oracle &amp; VLM task runner · hs-levante-admin-dev</p>
+          </div>
+        </div>
+        <div class="header-meta" id="headerMeta">
+          <span class="status-pill"><i class="fas fa-circle"></i> connecting…</span>
+        </div>
+      </header>
+
+      <nav class="tab-buttons">
+        <button class="tab-button active" data-tab="launch">
+          <i class="fas fa-rocket"></i> Launch
+        </button>
+        <button class="tab-button" data-tab="results">
+          <i class="fas fa-table-list"></i> Results
+        </button>
+      </nav>
+
+      <!-- ───────────────────────── Launch tab ───────────────────────── -->
+      <section class="tab-content active" id="tab-launch">
+        <form class="launch-form" id="launchForm" autocomplete="off">
+          <div class="field">
+            <label for="taskSelect">Task</label>
+            <select id="taskSelect" name="task"></select>
+          </div>
+
+          <div class="field">
+            <label>Agent</label>
+            <div class="segmented" id="agentToggle">
+              <button type="button" class="seg active" data-agent="oracle">Oracle</button>
+              <button type="button" class="seg" data-agent="vlm">VLM</button>
+            </div>
+          </div>
+
+          <div class="field" id="providerField" hidden>
+            <label for="providerSelect">VLM provider</label>
+            <select id="providerSelect" name="provider"></select>
+          </div>
+
+          <div class="field age-field">
+            <label>Child age</label>
+            <div class="age-inputs">
+              <div class="age-box">
+                <input type="number" id="ageYears" name="ageYears" min="0" max="18" value="8" />
+                <span>years</span>
+              </div>
+              <div class="age-box">
+                <input type="number" id="ageMonths" name="ageMonths" min="0" max="11" value="0" />
+                <span>months</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field submit-field">
+            <button type="submit" class="btn btn-primary" id="launchBtn">
+              <i class="fas fa-play"></i> Launch run
+            </button>
+          </div>
+        </form>
+
+        <div class="hint">
+          <i class="fas fa-circle-info"></i>
+          A unique test participant of the chosen age is created on
+          <code>hs-levante-admin-dev</code>, then the task launches via the
+          dashboard. Runs proceed in parallel — launch several at once.
+        </div>
+
+        <h2 class="section-title">Active &amp; recent runs</h2>
+        <div class="run-grid" id="runGrid">
+          <p class="empty-note" id="runsEmpty">No runs yet this session. Launch one above.</p>
+        </div>
+      </section>
+
+      <!-- ───────────────────────── Results tab ───────────────────────── -->
+      <section class="tab-content" id="tab-results">
+        <div class="results-toolbar">
+          <h2 class="section-title">Accumulated run history</h2>
+          <button class="btn btn-secondary" id="refreshResults">
+            <i class="fas fa-rotate"></i> Refresh
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table class="results-table" id="resultsTable">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Task</th>
+                <th>Agent</th>
+                <th>Age</th>
+                <th>Status</th>
+                <th>Accuracy</th>
+                <th>Trials</th>
+                <th>Errors</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+          <p class="empty-note" id="resultsEmpty">No completed runs recorded yet.</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Run details modal -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3 id="modalTitle">Run log</h3>
+          <button class="modal-close" id="modalClose"><i class="fas fa-xmark"></i></button>
+        </div>
+        <pre class="log-box" id="modalLog"></pre>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

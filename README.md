@@ -103,6 +103,47 @@ node scripts/e2e-init/setup-qa-site.mjs        # uses VITE_FIREBASE_PROJECT=DEV 
 `cypress/e2e/dashboard_launch.cy.ts` is a smoke test for this path (self-skips
 unless `LAUNCH=dashboard` and `PARTICIPANT_USER` are set).
 
+## Local QA dashboard (web UI)
+
+A local, Pitwall-styled web UI launches oracle/VLM runs **in parallel** for a
+participant **created at a chosen age** (years + months), flags serious errors
+live, and accumulates run history on a second tab.
+
+```bash
+pnpm dashboard          # → http://localhost:4180
+```
+
+How it works (per launch):
+
+1. **Provision** — the backend runs
+   `levante-support/scripts/e2e-init/provision-participant.mjs`, which creates a
+   unique, test-flagged participant on `hs-levante-admin-dev` whose
+   `birthMonth`/`birthYear` are derived from the requested age, and assigns just
+   the selected task. (Age drives age-appropriate item selection via
+   `core-tasks` `getAge → userMetadata.age`.) It prints a
+   `PROVISION_RESULT={...}` line with launchable credentials.
+2. **Run** — the backend spawns `cypress run` in `LAUNCH=dashboard` mode as that
+   participant, with logs scoped to `cypress/logs/runs/<runId>/` and screenshots
+   to `cypress/screenshots/runs/<runId>/` so parallel runs never collide (the
+   scoping is handled in `cypress.config.ts` via the `QA_RUN_ID` env var).
+3. **Monitor** — the UI polls per-run status; a run is flagged **failed** on a
+   non-zero Cypress exit code or any non-empty diagnostic log
+   (`*_no_key` / `*_key_mismatch` / `*_unsolved`).
+4. **Accumulate** — on completion the backend appends a record (task, agent,
+   provider, age, status, accuracy, trials, errors, timings) to
+   `results/runs.json`, shown on the **Results** tab.
+
+Requirements: the provisioner needs the `-dev` service-account credential —
+runs against the same `levante-support` `.env`
+(`LEVANTE_ADMIN_FIREBASE_CREDENTIALS`) used by `setup-qa-site.mjs`. Point the
+backend at a non-default support checkout with `LEVANTE_SUPPORT_DIR`, change the
+port with `QA_DASHBOARD_PORT`. Dev-only by design (the provisioner refuses to
+run outside `hs-levante-admin-dev`).
+
+The provisioner is a self-contained Admin-SDK script, kept swappable for the
+admin-callable path (`createUsers` + `upsertAdministration`) without touching
+the dashboard.
+
 ## Architecture
 
 Two agent paths share the same task model (selectors, stimulus parser, response rule, scoring) and the same trial-logging pipeline:
@@ -562,8 +603,13 @@ cypress/
     id3Reader.ts            node-side fetch + node-id3 parse + cache
     mentalRotationSolver.ts node-side pixel rotation/mirror solver (authentic MR oracle)
 scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, score_matrix.ts, summarize_runs.ts
+dashboard/                  server.mjs (run orchestration backend), catalog.mjs (task→spec map)
+  public/                   index.html, app.js, styles.css (Pitwall-styled UI: Launch + Results tabs)
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
+
+The dashboard's per-run provisioner lives in the sibling repo at
+`levante-support/scripts/e2e-init/provision-participant.mjs`.
 
 Diagnostic logs written during a run (git-ignored):
 
