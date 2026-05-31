@@ -25,6 +25,10 @@ import {
   CHOICE_BUTTON as MR_CHOICE_BUTTON,
   CONTINUE_BUTTON as MR_CONTINUE_BUTTON,
 } from './tasks/mentalRotation';
+import {
+  CHOICE_BUTTON as MATRIX_CHOICE_BUTTON,
+  CONTINUE_BUTTON as MATRIX_CONTINUE_BUTTON,
+} from './tasks/matrixReasoning';
 import type { Action } from './tasks/types';
 
 /**
@@ -149,6 +153,20 @@ Cypress.Commands.add('continueMr', () => {
   });
 });
 
+/** Click the Matrix Reasoning image choice at `index` (0 = leftmost). */
+Cypress.Commands.add('chooseMatrixOption', (index: number) => {
+  cy.get(MATRIX_CHOICE_BUTTON).eq(index).click({ force: true });
+});
+
+/** Advance past a Matrix Reasoning instruction/transition screen via its OK button. */
+Cypress.Commands.add('continueMatrix', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(MATRIX_CONTINUE_BUTTON).length > 0) {
+      cy.get(MATRIX_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -181,6 +199,10 @@ declare global {
       chooseMrOption(index: number): Chainable<void>;
       /** Click the Mental Rotation instruction/transition continue (OK) button if present. */
       continueMr(): Chainable<void>;
+      /** Click the Matrix Reasoning image choice at the given index (0 = leftmost). */
+      chooseMatrixOption(index: number): Chainable<void>;
+      /** Click the Matrix Reasoning instruction/transition continue (OK) button if present. */
+      continueMatrix(): Chainable<void>;
     }
   }
 }

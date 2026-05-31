@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Six tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, and **Mental Rotation** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Seven tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, **Mental Rotation**, and **Matrix Reasoning** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -35,8 +35,10 @@ Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
 `pnpm cy:run:vocab:vlm -- --env provider=gemini`, `pnpm cy:run:stories:oracle`,
 `pnpm cy:run:stories:vlm -- --env provider=gemini`, `pnpm cy:run:sds:oracle`,
 `pnpm cy:run:sds:vlm -- --env provider=gemini`, `pnpm cy:run:mr:oracle`,
-and `pnpm cy:run:mr:vlm -- --env provider=gemini` (score with
-`pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds` / `pnpm score:mr`).
+`pnpm cy:run:mr:vlm -- --env provider=gemini`, `pnpm cy:run:matrix:oracle`,
+and `pnpm cy:run:matrix:vlm -- --env provider=gemini` (score with
+`pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds` / `pnpm score:mr` /
+`pnpm score:matrix`).
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -217,6 +219,15 @@ own answer key, and we read it via `appKeyedCorrectIndex()` in
   item keyed, narration captured, and a high **solver/key agreement rate** (it is
   **118/118 = 100%** on the current corpus; disagreements would be logged to
   `cypress/logs/_mr_key_mismatch.jsonl`). The VLM is scored against the same key.
+- **Matrix Reasoning** scores the VLM against the `.correct` key (on the choice
+  `<img>`, via the shared `afcStimulus`), and like Stories its **oracle is
+  key-driven, not differential**: completing the visual analogy requires pattern
+  inference, and the matrix/choice `alt`s are opaque asset keys (`tf1_4_M_ss3`,
+  `tf1_4_T1_ss3_md`) with no semantic content — there is nothing to recompute
+  against (and unlike Mental Rotation, no pixel rule helps). The oracle clicks the
+  keyed answer and asserts the task completes, narration is captured, and **every
+  scored item ships an answer key** (missing keys → `cypress/logs/_matrix_no_key.jsonl`,
+  failing the run). The interesting artifact is the VLM benchmark.
 
 **Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
 `aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
@@ -423,6 +434,31 @@ The geometric solver was validated offline against all 113 unique corpus items
 (target/choice webps fetched from `levante-assets-dev`) at **113/113** before
 wiring into the oracle, then re-confirmed at **118/118** through the live DOM.
 
+## Matrix Reasoning
+
+Matrix Reasoning (task id `matrix-reasoning`) is the seventh task; its model
+lives in `cypress/support/tasks/matrixReasoning.ts`. It is a **4-alternative
+forced-choice image task** rendered through the shared `afcStimulus` (like Vocab,
+Stories, and Mental Rotation): a composite **matrix-with-a-missing-cell** image is
+shown in `.lev-stim-content-x-3`, and four tile choices
+(`#jspsych-html-multi-response-btngroup button.image-matrix`) complete the visual
+pattern. There are 2 practice + ~78 test items; choices appear all at once (no
+stagger) and every response trial is narrated.
+
+- Under Cypress, core-tasks marks the correct choice's **`<img>`** with `.correct`.
+  That key is the **only** ground truth: the analogy needs visual pattern
+  inference and the `alt`s are opaque asset keys, so — like Stories — the **oracle
+  is key-driven**, clicking the keyed answer and asserting the task completes,
+  narration is captured, and **every scored item is keyed** (missing keys →
+  `cypress/logs/_matrix_no_key.jsonl`, failing the run). The **VLM** sees the
+  matrix + choices screenshot and the narration, and picks a position (1–4),
+  scored against the same key. See
+  [How correctness is validated](#how-correctness-is-validated).
+
+This task preloads a large image bank, so the specs allow extra time for the
+loading screen before the fullscreen "OK". `cat=false` pins the fixed timeline and
+`maxIncorrect` is raised so a stray miss never early-aborts.
+
 ## Layout
 
 ```
@@ -433,10 +469,11 @@ cypress/
   e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts
   e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
   e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
+  e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts (task models), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts, matrixReasoning.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts, matrixReasoningVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
@@ -444,7 +481,7 @@ cypress/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
     mentalRotationSolver.ts node-side pixel rotation/mirror solver (authentic MR oracle)
-scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, summarize_runs.ts
+scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, score_matrix.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 
@@ -469,6 +506,9 @@ cypress/logs/_mr_oracle_live.jsonl       append-as-you-go oracle trial log (Ment
 cypress/logs/_mr_vlm_live.jsonl          append-as-you-go VLM trial log (Mental Rotation)
 cypress/logs/_mr_no_key.jsonl            Mental Rotation items that shipped no answer key
 cypress/logs/_mr_key_mismatch.jsonl      MR items where the pixel solver disagreed with the app key
+cypress/logs/_matrix_oracle_live.jsonl   append-as-you-go oracle trial log (Matrix Reasoning)
+cypress/logs/_matrix_vlm_live.jsonl      append-as-you-go VLM trial log (Matrix Reasoning)
+cypress/logs/_matrix_no_key.jsonl        Matrix Reasoning items that shipped no answer key
 ```
 
 ## Conventions

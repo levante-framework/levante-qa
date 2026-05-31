@@ -318,6 +318,55 @@ export const MentalRotationSummaryStatsSchema = z.object({
 });
 export type MentalRotationSummaryStats = z.infer<typeof MentalRotationSummaryStatsSchema>;
 
+// --- Matrix Reasoning ------------------------------------------------------
+
+/**
+ * A single Matrix Reasoning trial. 'item' rows are the scored 4-AFC pattern
+ * completions (matrix-with-missing-cell + four tile choices); 'instructions'
+ * covers intro/transition screens. The answer needs visual pattern inference,
+ * so the only ground truth is the app's `.correct` key (keyedIndex/keyedValue),
+ * used to score both agents.
+ */
+export const MatrixReasoningTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['instructions', 'item']),
+  promptText: z.string().nullable().default(null),
+  // The matrix stimulus image's asset key.
+  stimulusAlt: z.string().nullable().default(null),
+  // The choices' asset keys, in DOM order.
+  choices: z.array(z.string()).default([]),
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type MatrixReasoningTrialRecord = z.infer<typeof MatrixReasoningTrialRecordSchema>;
+
+export function parseMatrixReasoningTrialRecord(input: unknown): MatrixReasoningTrialRecord {
+  return MatrixReasoningTrialRecordSchema.parse(input);
+}
+
+export const MatrixReasoningSummaryStatsSchema = z.object({
+  nItems: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type MatrixReasoningSummaryStats = z.infer<typeof MatrixReasoningSummaryStatsSchema>;
+
 // --- Same-Different Selection ----------------------------------------------
 
 /**
