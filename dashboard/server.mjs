@@ -226,7 +226,10 @@ async function finalizeRun(run) {
 
 function spawnCypress(run) {
   const task = findTask(run.meta.task);
-  const spec = run.meta.agent === 'vlm' ? task.vlmSpec : task.oracleSpec;
+  // 'child' is a VLM-backed run (same spec + provider) with the age persona
+  // forced on, so it shares the VLM spec path.
+  const isVlmBacked = run.meta.agent === 'vlm' || run.meta.agent === 'child';
+  const spec = isVlmBacked ? task.vlmSpec : task.oracleSpec;
   run.meta.spec = spec;
 
   const env = { ...process.env };
@@ -238,12 +241,12 @@ function spawnCypress(run) {
   env.PARTICIPANT_USER = run.creds.email;
   env.PARTICIPANT_PASS = run.creds.password;
   env.QA_RUN_ID = run.runId;
-  if (run.meta.agent === 'vlm' && run.meta.provider) {
+  if (isVlmBacked && run.meta.provider) {
     env.VLM_PROVIDER = run.meta.provider;
   }
-  // Child-age persona (VLM only): make the model answer as a typical child of
-  // the run's age would. Defaults the persona age to the participant's age.
-  if (run.meta.agent === 'vlm' && run.meta.persona) {
+  // 'child' runs force the age persona on: the model answers as a typical child
+  // of the participant's age would, calibrated to LEVANTE accuracy-by-age data.
+  if (run.meta.persona) {
     env.QA_PERSONA = 'child';
     env.QA_PERSONA_AGE_YEARS = String(run.meta.ageYears);
     env.QA_PERSONA_AGE_MONTHS = String(run.meta.ageMonths);
@@ -257,7 +260,7 @@ function spawnCypress(run) {
     '--config',
     `screenshotsFolder=cypress/screenshots/runs/${run.runId}`,
   ];
-  if (run.meta.agent === 'vlm' && run.meta.provider) {
+  if (isVlmBacked && run.meta.provider) {
     args.push('--env', `provider=${run.meta.provider}`);
   }
 
@@ -407,14 +410,16 @@ const server = http.createServer(async (req, res) => {
         const p = JSON.parse(body || '{}');
         const task = findTask(p.taskId);
         if (!task) return sendJson(res, 400, { error: `Unknown task: ${p.taskId}` });
-        const agent = p.agent === 'vlm' ? 'vlm' : 'oracle';
-        if (agent === 'vlm' && !task.vlmSpec) {
+        const agent = p.agent === 'vlm' ? 'vlm' : p.agent === 'child' ? 'child' : 'oracle';
+        const isVlmBacked = agent === 'vlm' || agent === 'child';
+        if (isVlmBacked && !task.vlmSpec) {
           return sendJson(res, 400, { error: `${task.label} has no VLM agent (oracle only).` });
         }
-        const provider = agent === 'vlm' ? String(p.provider || VLM_PROVIDERS[0]) : null;
+        const provider = isVlmBacked ? String(p.provider || VLM_PROVIDERS[0]) : null;
         const ageYears = Number.isFinite(Number(p.ageYears)) ? Math.max(0, Math.floor(Number(p.ageYears))) : 8;
         const ageMonths = Number.isFinite(Number(p.ageMonths)) ? Math.max(0, Math.floor(Number(p.ageMonths))) : 0;
-        const persona = agent === 'vlm' && p.persona === true;
+        // 'child' always simulates the participant's age; persona is intrinsic to it.
+        const persona = agent === 'child';
         const runId = startRun({
           task: task.id,
           taskLabel: task.label,
@@ -423,7 +428,7 @@ const server = http.createServer(async (req, res) => {
           persona,
           ageYears,
           ageMonths,
-          spec: agent === 'vlm' ? task.vlmSpec : task.oracleSpec,
+          spec: isVlmBacked ? task.vlmSpec : task.oracleSpec,
         });
         sendJson(res, 200, { runId });
       } catch (err) {

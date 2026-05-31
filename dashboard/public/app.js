@@ -43,17 +43,19 @@
 
   function syncVlmAvailability() {
     const hasVlm = currentTaskHasVlm();
-    const vlmSeg = document.querySelector('#agentToggle .seg[data-agent="vlm"]');
-    vlmSeg.disabled = !hasVlm;
-    vlmSeg.style.opacity = hasVlm ? '1' : '0.4';
-    if (!hasVlm && state.agent === 'vlm') {
+    // Both VLM and Child are model-backed, so both require a VLM spec.
+    ['vlm', 'child'].forEach((a) => {
+      const seg = document.querySelector(`#agentToggle .seg[data-agent="${a}"]`);
+      seg.disabled = !hasVlm;
+      seg.style.opacity = hasVlm ? '1' : '0.4';
+    });
+    if (!hasVlm && (state.agent === 'vlm' || state.agent === 'child')) {
       state.agent = 'oracle';
       document.querySelectorAll('#agentToggle .seg').forEach((s) => s.classList.remove('active'));
       document.querySelector('#agentToggle .seg[data-agent="oracle"]').classList.add('active');
     }
-    const showVlmFields = state.agent === 'vlm' && hasVlm;
-    $('#providerField').hidden = !showVlmFields;
-    $('#personaField').hidden = !showVlmFields;
+    const modelBacked = (state.agent === 'vlm' || state.agent === 'child') && hasVlm;
+    $('#providerField').hidden = !modelBacked;
   }
 
   $('#taskSelect').addEventListener('change', syncVlmAvailability);
@@ -98,7 +100,6 @@
       taskId: $('#taskSelect').value,
       agent: state.agent,
       provider: $('#providerSelect').value,
-      persona: state.agent === 'vlm' && $('#personaToggle').checked,
       ageYears: Number($('#ageYears').value),
       ageMonths: Number($('#ageMonths').value),
     };
@@ -156,13 +157,19 @@
     error: '<i class="fas fa-triangle-exclamation"></i>',
   };
 
+  function agentDisplay(agent, provider) {
+    if (agent === 'child') return `Child · ${provider || ''}`;
+    if (agent === 'vlm') return `VLM · ${provider || ''}`;
+    return 'Oracle';
+  }
+
   function renderCard(runId, s) {
     const card = $(`#run-${runId}`);
     if (!card) return;
     card.className = `run-card is-${s.status}`;
     const m = s.meta || {};
-    const personaTag = m.persona ? '<span class="tag">persona</span>' : '';
-    const agentLabel = m.agent === 'vlm' ? `VLM · ${m.provider || ''}` : 'Oracle';
+    const personaTag = m.persona && m.agent !== 'child' ? '<span class="tag">persona</span>' : '';
+    const agentLabel = agentDisplay(m.agent, m.provider);
     const acc = s.accuracy == null ? '—' : `${(s.accuracy * 100).toFixed(1)}%`;
     const errBlock =
       (s.errors && s.errors.length)
@@ -235,7 +242,7 @@
       rows.forEach((r) => {
         const tr = el('tr');
         const acc = r.accuracy == null ? '—' : `${(r.accuracy * 100).toFixed(1)}%`;
-        const agent = (r.agent === 'vlm' ? `VLM · ${r.provider || ''}` : 'Oracle') + (r.persona ? ' <span class="tag">persona</span>' : '');
+        const agent = agentDisplay(r.agent, r.provider) + (r.persona && r.agent !== 'child' ? ' <span class="tag">persona</span>' : '');
         const dur = r.durationMs != null ? `${Math.round(r.durationMs / 1000)}s` : '—';
         const errs = (r.errors && r.errors.length) ? r.errors.map(escapeHtml).join('<br>') : '—';
         tr.innerHTML = `

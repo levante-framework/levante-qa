@@ -47,20 +47,13 @@
             <div class="segmented" id="agentToggle">
               <button type="button" class="seg active" data-agent="oracle">Oracle</button>
               <button type="button" class="seg" data-agent="vlm">VLM</button>
+              <button type="button" class="seg" data-agent="child">Child</button>
             </div>
           </div>
 
           <div class="field" id="providerField" hidden>
-            <label for="providerSelect">VLM provider</label>
+            <label for="providerSelect">Model provider</label>
             <select id="providerSelect" name="provider"></select>
-          </div>
-
-          <div class="field" id="personaField" hidden>
-            <label>Child persona</label>
-            <label class="checkbox-row">
-              <input type="checkbox" id="personaToggle" />
-              <span>Answer as a child of the chosen age</span>
-            </label>
           </div>
 
           <div class="field age-field">
@@ -89,6 +82,10 @@
           A unique test participant of the chosen age is created on
           <code>hs-levante-admin-dev</code>, then the task launches via the
           dashboard. Runs proceed in parallel — launch several at once.
+          <strong>Oracle</strong> = deterministic regression;
+          <strong>VLM</strong> = raw model in the loop;
+          <strong>Child</strong> = the model simulating a child of the chosen age
+          (age-calibrated persona).
         </div>
 
         <h2 class="section-title">Active &amp; recent runs</h2>
