@@ -264,6 +264,61 @@ export const StoriesSummaryStatsSchema = z.object({
 });
 export type StoriesSummaryStats = z.infer<typeof StoriesSummaryStatsSchema>;
 
+// --- Same-Different Selection ----------------------------------------------
+
+/**
+ * A single SDS trial. Two scored kinds plus instructions:
+ *   - 'single': one card is correct; scored against the app's `.correct` key.
+ *   - 'match':  pick two cards sharing a dimension; NO answer key exists, so
+ *     these carry the selected pair but `correct` stays null (completion is the
+ *     regression signal). Card values are the dimension-encoded `alt` strings.
+ */
+export const SdsTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['instructions', 'single', 'match']),
+  promptText: z.string().nullable().default(null),
+  // All cards shown, in DOM order (their dimension-encoded `alt`).
+  choices: z.array(z.string()).default([]),
+  // Single-select choice.
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  // Multi-select (match) pair.
+  selectedIndices: z.array(z.number().int()).default([]),
+  selectedValues: z.array(z.string()).default([]),
+  matchedDimension: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  // The app's answer key (single-select only).
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type SdsTrialRecord = z.infer<typeof SdsTrialRecordSchema>;
+
+export function parseSdsTrialRecord(input: unknown): SdsTrialRecord {
+  return SdsTrialRecordSchema.parse(input);
+}
+
+export const SdsSummaryStatsSchema = z.object({
+  nSingle: z.number().int().nonnegative(),
+  nMatch: z.number().int().nonnegative(),
+  // Accuracy over single-select items (the only ones with an answer key).
+  accuracySingle: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type SdsSummaryStats = z.infer<typeof SdsSummaryStatsSchema>;
+
 /**
  * Aggregate statistics produced by scoreTrials for one run.
  */

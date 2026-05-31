@@ -20,10 +20,13 @@
     "cy:run:vocab:vlm": "cypress run --spec 'cypress/e2e/vocab/vlm_agent.cy.ts'",
     "cy:run:stories:oracle": "cypress run --spec 'cypress/e2e/stories/oracle.cy.ts'",
     "cy:run:stories:vlm": "cypress run --spec 'cypress/e2e/stories/vlm_agent.cy.ts'",
+    "cy:run:sds:oracle": "cypress run --spec 'cypress/e2e/same_different/oracle.cy.ts'",
+    "cy:run:sds:vlm": "cypress run --spec 'cypress/e2e/same_different/vlm_agent.cy.ts'",
     "score": "tsx scripts/score.ts",
     "score:egma": "tsx scripts/score_egma.ts",
     "score:vocab": "tsx scripts/score_vocab.ts",
     "score:stories": "tsx scripts/score_stories.ts",
+    "score:sds": "tsx scripts/score_sds.ts",
     "summarize": "tsx scripts/summarize_runs.ts",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit"

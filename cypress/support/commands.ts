@@ -16,6 +16,11 @@ import {
   CHOICE_BUTTON as STORIES_CHOICE_BUTTON,
   CONTINUE_BUTTON as STORIES_CONTINUE_BUTTON,
 } from './tasks/stories';
+import {
+  SINGLE_CHOICE as SDS_SINGLE_CHOICE,
+  MULTI_CHOICE as SDS_MULTI_CHOICE,
+  CONTINUE_BUTTON as SDS_CONTINUE_BUTTON,
+} from './tasks/sameDifferent';
 import type { Action } from './tasks/types';
 
 /**
@@ -107,6 +112,25 @@ Cypress.Commands.add('continueStories', () => {
   });
 });
 
+/** Click the SDS single-select card at `index` (0 = leftmost). */
+Cypress.Commands.add('chooseSdsSingle', (index: number) => {
+  cy.get(SDS_SINGLE_CHOICE).eq(index).click({ force: true });
+});
+
+/** Click the SDS multi-select (match) card at `index` (0 = leftmost). */
+Cypress.Commands.add('chooseSdsMatch', (index: number) => {
+  cy.get(SDS_MULTI_CHOICE).eq(index).click({ force: true });
+});
+
+/** Advance past an SDS instruction / display screen via its OK button. */
+Cypress.Commands.add('continueSds', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(SDS_CONTINUE_BUTTON).length > 0) {
+      cy.get(SDS_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -129,6 +153,12 @@ declare global {
       chooseStoriesOption(index: number): Chainable<void>;
       /** Click the Stories story-beat/instruction continue (OK) button if present. */
       continueStories(): Chainable<void>;
+      /** Click the SDS single-select card at the given index (0 = leftmost). */
+      chooseSdsSingle(index: number): Chainable<void>;
+      /** Click the SDS multi-select (match) card at the given index (0 = leftmost). */
+      chooseSdsMatch(index: number): Chainable<void>;
+      /** Click the SDS instruction/display continue (OK) button if present. */
+      continueSds(): Chainable<void>;
     }
   }
 }

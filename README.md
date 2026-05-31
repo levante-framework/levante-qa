@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Four tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, and **Stories (Theory of Mind)** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Five tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, and **Same-Different Selection** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -33,8 +33,9 @@ pnpm summarize
 Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
 `pnpm cy:run:egma:vlm -- --env provider=gemini`, `pnpm cy:run:vocab:oracle`,
 `pnpm cy:run:vocab:vlm -- --env provider=gemini`, `pnpm cy:run:stories:oracle`,
-and `pnpm cy:run:stories:vlm -- --env provider=gemini` (score with
-`pnpm score:vocab` / `pnpm score:stories`).
+`pnpm cy:run:stories:vlm -- --env provider=gemini`, `pnpm cy:run:sds:oracle`,
+and `pnpm cy:run:sds:vlm -- --env provider=gemini` (score with
+`pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds`).
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -187,6 +188,18 @@ own answer key, and we read it via `appKeyedCorrectIndex()` in
   missing `.correct` marker is a real content/regression bug, logged to
   `cypress/logs/_stories_no_key.jsonl` and failing the run). The interesting
   artifact for Stories is the VLM benchmark, not the oracle.
+- **Same-Different Selection** is *two* tasks in one. Its **single-select** items
+  ("Choose the card with a circle", "Which of these is the same?") mark `.correct`
+  on the chosen BUTTON (not the `<img>`, and via a custom trial — SDS does not use
+  `afcStimulus`); the oracle clicks the key and asserts every single item is keyed,
+  and the VLM is scored against it. Its **multi-select match rounds** ("touch two
+  cards that are the same") expose **no key at all** — many pairs are valid and the
+  app scores a pair *relationally* (it must share a dimension not already used in
+  this card set). There is nothing to recompute against, so we port core-tasks'
+  own proven e2e solver (a dimension-overlap heuristic with per-card-set state) to
+  drive the rounds, and treat **reaching the completion screen** as the regression
+  signal (the app accepted every pair at runtime). The VLM is benchmarked on the
+  single-select items only; match rounds are auto-driven.
 
 **Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
 `aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
@@ -326,6 +339,35 @@ makes it a genuine multimodal theory-of-mind benchmark: the model must combine
 the story (audio), the question, and the choice images. `maxIncorrect` is raised
 in `DEFAULT_PARAMS` so a model error never early-aborts the run.
 
+## Same-Different Selection
+
+Same-Different Selection (task id `same-different-selection`) is the fifth task;
+its model lives in `cypress/support/tasks/sameDifferent.ts`. It is unusual: a run
+(~132 screens) mixes **two very different kinds of item**, and SDS uses *custom*
+trials rather than the shared `afcStimulus`. Cards encode their features in the
+image `alt`: `{size}-{color}-{shape}[-{number}][-{bg}]`, e.g. `med-blue-circle`.
+
+- **Single-select (~31 items)** — "Choose the card with a circle", "Which of
+  these is the same as this one?". Rendered in `#jspsych-html-multi-response-btngroup`;
+  under Cypress core-tasks marks the correct **button** (note: the button, not the
+  inner `<img>`) with `.correct`. Auto-advances on click, no OK. These are cleanly
+  scoreable: the **oracle** clicks the key and asserts every single item is keyed;
+  the **VLM** sees the cards + the spoken instruction and picks a position (1–n),
+  scored against the key.
+- **Multi-select match (~90 rounds)** — "Touch two cards that are the same in some
+  way", with 3/4/5 cards. Rendered in `#jspsych-audio-multi-response-btngroup`, with
+  **no answer key**: many pairs are valid, and a pair is scored *relationally* (it
+  must share a dimension not already matched in this card set). Since there is
+  nothing to recompute against, both agents drive these rounds with a **port of
+  core-tasks' own passing e2e solver** (`nextMatchPair` — a dimension-overlap
+  heuristic with per-set state in `sameDifferent.ts`), and **completing the run is
+  the regression signal** (the app accepted every pair). See
+  [How correctness is validated](#how-correctness-is-validated).
+
+A live-DOM mapping run grounded every selector before the model was written
+(SDS's custom trials differ from vocab/ToM). `cat=false` pins the fixed-order
+timeline and `maxIncorrect` is raised so a stray miss never early-aborts.
+
 ## Layout
 
 ```
@@ -334,17 +376,18 @@ cypress/
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
   e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts
   e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts
+  e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts (task models), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
-scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, summarize_runs.ts
+scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 
@@ -362,6 +405,9 @@ cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not 
 cypress/logs/_stories_oracle_live.jsonl  append-as-you-go oracle trial log (Stories)
 cypress/logs/_stories_vlm_live.jsonl     append-as-you-go VLM trial log (Stories)
 cypress/logs/_stories_no_key.jsonl       Stories question items that shipped no answer key
+cypress/logs/_sds_oracle_live.jsonl      append-as-you-go oracle trial log (SDS)
+cypress/logs/_sds_vlm_live.jsonl         append-as-you-go VLM trial log (SDS)
+cypress/logs/_sds_no_key.jsonl           SDS single-select items that shipped no answer key
 ```
 
 ## Conventions
