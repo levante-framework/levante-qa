@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Seven tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, **Mental Rotation**, and **Matrix Reasoning** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Eight tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, **Mental Rotation**, **Matrix Reasoning**, and **TROG** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -36,9 +36,10 @@ Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
 `pnpm cy:run:stories:vlm -- --env provider=gemini`, `pnpm cy:run:sds:oracle`,
 `pnpm cy:run:sds:vlm -- --env provider=gemini`, `pnpm cy:run:mr:oracle`,
 `pnpm cy:run:mr:vlm -- --env provider=gemini`, `pnpm cy:run:matrix:oracle`,
-and `pnpm cy:run:matrix:vlm -- --env provider=gemini` (score with
+`pnpm cy:run:matrix:vlm -- --env provider=gemini`, `pnpm cy:run:trog:oracle`,
+and `pnpm cy:run:trog:vlm -- --env provider=gemini` (score with
 `pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds` / `pnpm score:mr` /
-`pnpm score:matrix`).
+`pnpm score:matrix` / `pnpm score:trog`).
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -228,6 +229,16 @@ own answer key, and we read it via `appKeyedCorrectIndex()` in
   keyed answer and asserts the task completes, narration is captured, and **every
   scored item ships an answer key** (missing keys → `cypress/logs/_matrix_no_key.jsonl`,
   failing the run). The interesting artifact is the VLM benchmark.
+- **TROG** scores the VLM against the `.correct` key (on the choice `<img>`, via
+  the shared `afcStimulus`), and its **oracle is key-driven** (like Stories /
+  Matrix). The stimulus is a *spoken sentence* and the four choices are pictures;
+  the choice `alt`s are opaque image asset keys (`13-boy-running`) and mapping a
+  *sentence* to a *picture* needs both language and vision, so there is nothing to
+  recompute (unlike Vocab, whose `alt`s are the target word). The oracle clicks the
+  keyed answer and asserts the task completes, **every scored item ships an answer
+  key** (missing keys → `cypress/logs/_trog_no_key.jsonl`, failing the run), and
+  the sentence narration is captured. The VLM is the real benchmark — it receives
+  the sentence as a transcript plus the picture choices.
 
 **Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
 `aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
@@ -459,6 +470,35 @@ This task preloads a large image bank, so the specs allow extra time for the
 loading screen before the fullscreen "OK". `cat=false` pins the fixed timeline and
 `maxIncorrect` is raised so a stray miss never early-aborts.
 
+## TROG
+
+TROG (Test for Reception of Grammar; task id `trog`) is the eighth task; its model
+lives in `cypress/support/tasks/trog.ts`. It is a **4-alternative forced-choice
+grammar-comprehension task** rendered through the shared `afcStimulus`, and it
+shares **Vocab's response layout** (`.lev-response-row-inline` + a 2×2 grid of
+`button.image-medium`, each wrapping an `<img>`). A **sentence is spoken** (e.g.
+*"the boy is running"*) and the participant picks the one of four pictures whose
+scene matches it. ~99 test items span grammatical constructions — nouns, verbs,
+negatives, reversible passives, prepositions, relative clauses, etc. Choices
+appear all at once (no stagger).
+
+- Crucially, there is **no on-screen sentence** on response trials — the sentence
+  is delivered **only by narration** (like Vocab). But unlike Vocab — whose choice
+  `alt`s *are* the target word — TROG `alt`s are opaque image asset keys
+  (`13-boy-running`) and matching a *sentence* to a *picture* needs both language
+  and vision. So the **oracle is key-driven** (like Stories / Matrix): under
+  Cypress core-tasks marks the correct choice's **`<img>`** with `.correct`, the
+  oracle clicks it, and asserts the task completes, **every scored item is keyed**
+  (missing keys → `cypress/logs/_trog_no_key.jsonl`, failing the run), and the
+  sentence narration is captured. The **VLM** is the real benchmark — it receives
+  the sentence as an ID3 audio **transcript** plus the picture choices, and picks a
+  position (1–4) scored against the same key. See
+  [How correctness is validated](#how-correctness-is-validated).
+
+`cat=false` pins the fixed timeline and `maxIncorrect` is raised so a stray miss
+never early-aborts; the specs also allow extra time for the image-bank loading
+screen before the fullscreen "OK".
+
 ## Layout
 
 ```
@@ -470,10 +510,11 @@ cypress/
   e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
   e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
   e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts
+  e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts, matrixReasoning.ts (task models), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts, matrixReasoningVlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts, matrixReasoning.ts, trog.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts, matrixReasoningVlmAgent.ts, trogVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
@@ -509,6 +550,9 @@ cypress/logs/_mr_key_mismatch.jsonl      MR items where the pixel solver disagre
 cypress/logs/_matrix_oracle_live.jsonl   append-as-you-go oracle trial log (Matrix Reasoning)
 cypress/logs/_matrix_vlm_live.jsonl      append-as-you-go VLM trial log (Matrix Reasoning)
 cypress/logs/_matrix_no_key.jsonl        Matrix Reasoning items that shipped no answer key
+cypress/logs/_trog_oracle_live.jsonl     append-as-you-go oracle trial log (TROG)
+cypress/logs/_trog_vlm_live.jsonl        append-as-you-go VLM trial log (TROG)
+cypress/logs/_trog_no_key.jsonl          TROG items that shipped no answer key
 ```
 
 ## Conventions

@@ -26,6 +26,8 @@
     "cy:run:mr:vlm": "cypress run --spec 'cypress/e2e/mental_rotation/vlm_agent.cy.ts'",
     "cy:run:matrix:oracle": "cypress run --spec 'cypress/e2e/matrix_reasoning/oracle.cy.ts'",
     "cy:run:matrix:vlm": "cypress run --spec 'cypress/e2e/matrix_reasoning/vlm_agent.cy.ts'",
+    "cy:run:trog:oracle": "cypress run --spec 'cypress/e2e/trog/oracle.cy.ts'",
+    "cy:run:trog:vlm": "cypress run --spec 'cypress/e2e/trog/vlm_agent.cy.ts'",
     "score": "tsx scripts/score.ts",
     "score:egma": "tsx scripts/score_egma.ts",
     "score:vocab": "tsx scripts/score_vocab.ts",
@@ -33,6 +35,7 @@
     "score:sds": "tsx scripts/score_sds.ts",
     "score:mr": "tsx scripts/score_mr.ts",
     "score:matrix": "tsx scripts/score_matrix.ts",
+    "score:trog": "tsx scripts/score_trog.ts",
     "summarize": "tsx scripts/summarize_runs.ts",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit"

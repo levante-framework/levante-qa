@@ -318,6 +318,56 @@ export const MentalRotationSummaryStatsSchema = z.object({
 });
 export type MentalRotationSummaryStats = z.infer<typeof MentalRotationSummaryStatsSchema>;
 
+// --- TROG (Test for Reception of Grammar) ----------------------------------
+
+/**
+ * A single TROG trial. 'item' rows are the scored 4-AFC sentence→picture
+ * matches; 'instructions' covers intro/transition screens. The spoken sentence
+ * is the input and lives only in the narration, so it is captured in
+ * audioTranscript (there is no on-screen sentence text). The answer needs
+ * sentence comprehension + vision, so the only ground truth is the app's
+ * `.correct` key (keyedIndex/keyedValue), used to score both agents.
+ */
+export const TrogTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['instructions', 'item']),
+  // On-screen text (instruction screens only; null on response trials).
+  promptText: z.string().nullable().default(null),
+  // The choices' opaque image asset keys, in DOM order.
+  choices: z.array(z.string()).default([]),
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  // The spoken sentence (the actual stimulus) and its source.
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type TrogTrialRecord = z.infer<typeof TrogTrialRecordSchema>;
+
+export function parseTrogTrialRecord(input: unknown): TrogTrialRecord {
+  return TrogTrialRecordSchema.parse(input);
+}
+
+export const TrogSummaryStatsSchema = z.object({
+  nItems: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type TrogSummaryStats = z.infer<typeof TrogSummaryStatsSchema>;
+
 // --- Matrix Reasoning ------------------------------------------------------
 
 /**

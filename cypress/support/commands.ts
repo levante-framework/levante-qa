@@ -29,6 +29,10 @@ import {
   CHOICE_BUTTON as MATRIX_CHOICE_BUTTON,
   CONTINUE_BUTTON as MATRIX_CONTINUE_BUTTON,
 } from './tasks/matrixReasoning';
+import {
+  CHOICE_BUTTON as TROG_CHOICE_BUTTON,
+  CONTINUE_BUTTON as TROG_CONTINUE_BUTTON,
+} from './tasks/trog';
 import type { Action } from './tasks/types';
 
 /**
@@ -167,6 +171,20 @@ Cypress.Commands.add('continueMatrix', () => {
   });
 });
 
+/** Click the TROG image choice at `index` (0 = top-left, row-major). */
+Cypress.Commands.add('chooseTrogOption', (index: number) => {
+  cy.get(TROG_CHOICE_BUTTON).eq(index).click({ force: true });
+});
+
+/** Advance past a TROG instruction/transition screen via its OK button. */
+Cypress.Commands.add('continueTrog', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(TROG_CONTINUE_BUTTON).length > 0) {
+      cy.get(TROG_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -203,6 +221,10 @@ declare global {
       chooseMatrixOption(index: number): Chainable<void>;
       /** Click the Matrix Reasoning instruction/transition continue (OK) button if present. */
       continueMatrix(): Chainable<void>;
+      /** Click the TROG image choice at the given index (0 = top-left, row-major). */
+      chooseTrogOption(index: number): Chainable<void>;
+      /** Click the TROG instruction/transition continue (OK) button if present. */
+      continueTrog(): Chainable<void>;
     }
   }
 }
