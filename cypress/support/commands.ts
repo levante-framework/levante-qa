@@ -21,6 +21,10 @@ import {
   MULTI_CHOICE as SDS_MULTI_CHOICE,
   CONTINUE_BUTTON as SDS_CONTINUE_BUTTON,
 } from './tasks/sameDifferent';
+import {
+  CHOICE_BUTTON as MR_CHOICE_BUTTON,
+  CONTINUE_BUTTON as MR_CONTINUE_BUTTON,
+} from './tasks/mentalRotation';
 import type { Action } from './tasks/types';
 
 /**
@@ -131,6 +135,20 @@ Cypress.Commands.add('continueSds', () => {
   });
 });
 
+/** Click the Mental Rotation image choice at `index` (0 = leftmost). */
+Cypress.Commands.add('chooseMrOption', (index: number) => {
+  cy.get(MR_CHOICE_BUTTON).eq(index).click({ force: true });
+});
+
+/** Advance past a Mental Rotation instruction/transition screen via its OK button. */
+Cypress.Commands.add('continueMr', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(MR_CONTINUE_BUTTON).length > 0) {
+      cy.get(MR_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -159,6 +177,10 @@ declare global {
       chooseSdsMatch(index: number): Chainable<void>;
       /** Click the SDS instruction/display continue (OK) button if present. */
       continueSds(): Chainable<void>;
+      /** Click the Mental Rotation image choice at the given index (0 = leftmost). */
+      chooseMrOption(index: number): Chainable<void>;
+      /** Click the Mental Rotation instruction/transition continue (OK) button if present. */
+      continueMr(): Chainable<void>;
     }
   }
 }

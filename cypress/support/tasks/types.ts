@@ -264,6 +264,60 @@ export const StoriesSummaryStatsSchema = z.object({
 });
 export type StoriesSummaryStats = z.infer<typeof StoriesSummaryStatsSchema>;
 
+// --- Mental Rotation -------------------------------------------------------
+
+/**
+ * A single Mental Rotation trial. 'item' rows are the scored 2-AFC rotation
+ * judgments (target shape + rotated copy vs. mirror); 'instructions' covers
+ * intro/transition screens. The answer needs rotation reasoning, so the only
+ * ground truth is the app's `.correct` key (keyedIndex/keyedValue), used to
+ * score both agents.
+ */
+export const MentalRotationTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['instructions', 'item']),
+  promptText: z.string().nullable().default(null),
+  // The target/reference shape's asset key.
+  targetAlt: z.string().nullable().default(null),
+  // The choices' asset keys, in DOM order.
+  choices: z.array(z.string()).default([]),
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  // For the oracle, `correct` means the pixel solver agreed with the app key.
+  correct: z.boolean().nullable().default(null),
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
+  // Pixel-solver diagnostics (oracle): predicted index and its score margin
+  // (winner minus runner-up; small ⇒ an ambiguous / near-symmetric item).
+  solverIndex: z.number().int().nullable().default(null),
+  solverMargin: z.number().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type MentalRotationTrialRecord = z.infer<typeof MentalRotationTrialRecordSchema>;
+
+export function parseMentalRotationTrialRecord(input: unknown): MentalRotationTrialRecord {
+  return MentalRotationTrialRecordSchema.parse(input);
+}
+
+export const MentalRotationSummaryStatsSchema = z.object({
+  nItems: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type MentalRotationSummaryStats = z.infer<typeof MentalRotationSummaryStatsSchema>;
+
 // --- Same-Different Selection ----------------------------------------------
 
 /**

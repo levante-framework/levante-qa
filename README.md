@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Five tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, and **Same-Different Selection** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Six tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, and **Mental Rotation** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -34,8 +34,9 @@ Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
 `pnpm cy:run:egma:vlm -- --env provider=gemini`, `pnpm cy:run:vocab:oracle`,
 `pnpm cy:run:vocab:vlm -- --env provider=gemini`, `pnpm cy:run:stories:oracle`,
 `pnpm cy:run:stories:vlm -- --env provider=gemini`, `pnpm cy:run:sds:oracle`,
-and `pnpm cy:run:sds:vlm -- --env provider=gemini` (score with
-`pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds`).
+`pnpm cy:run:sds:vlm -- --env provider=gemini`, `pnpm cy:run:mr:oracle`,
+and `pnpm cy:run:mr:vlm -- --env provider=gemini` (score with
+`pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds` / `pnpm score:mr`).
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -200,6 +201,22 @@ own answer key, and we read it via `appKeyedCorrectIndex()` in
   drive the rounds, and treat **reaching the completion screen** as the regression
   signal (the app accepted every pair at runtime). The VLM is benchmarked on the
   single-select items only; match rounds are auto-driven.
+- **Mental Rotation** *is* a differential test, but the independent answer comes
+  from **pixels, not a rule**. The DOM `alt`s are opaque asset keys (`rp000Silh`),
+  so instead the oracle runs a **code-based geometric solver** on the actual
+  silhouette images (`cypress/plugins/mentalRotationSolver.ts`): of the two
+  choices, one is the target shape *rotated* and the other is its *mirror*, so for
+  each choice it measures the best image overlap (IoU) of the target under **pure
+  rotation** vs. under **reflection + rotation**, and picks the choice best
+  explained by rotation alone (`score = max_θ IoU(R_θ(target), choice) − max_θ
+  IoU(R_θ(mirror(target)), choice)`). Masks are normalized to be translation- and
+  scale-invariant (centroid-centered, radius-of-gyration scaled) with auto-detected
+  foreground polarity — the targets are black-on-white but the silhouette choices
+  are *inverted* (white-on-black). The oracle **clicks its own pixel answer** and
+  cross-checks it against the app's `.correct` key, asserting completion, every
+  item keyed, narration captured, and a high **solver/key agreement rate** (it is
+  **118/118 = 100%** on the current corpus; disagreements would be logged to
+  `cypress/logs/_mr_key_mismatch.jsonl`). The VLM is scored against the same key.
 
 **Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
 `aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
@@ -368,6 +385,44 @@ A live-DOM mapping run grounded every selector before the model was written
 (SDS's custom trials differ from vocab/ToM). `cat=false` pins the fixed-order
 timeline and `maxIncorrect` is raised so a stray miss never early-aborts.
 
+## Mental Rotation
+
+Mental Rotation (task id `mental-rotation`) is the sixth task; its model lives in
+`cypress/support/tasks/mentalRotation.ts`. It is a clean **2-alternative
+forced-choice image task** rendered through the shared `afcStimulus` (like Vocab
+and Stories): a **target** shape is shown in `.lev-stim-content`, and two image
+choices below (`#jspsych-html-multi-response-btngroup button.image-large`) are a
+rotated copy of it vs. its mirror — the participant taps the rotation, not the
+mirror. Items span 2D silhouettes and 3D block figures at varying angles
+(~118 scored trials including duplicates + 2 practice). Choices appear all at
+once (no staggered reveal), and every response trial is narrated.
+
+- Under Cypress, core-tasks marks the correct choice's **`<img>`** with `.correct`
+  (the non-math `afcStimulus` path). Rather than just trusting that key, the
+  **oracle solves each item itself from the images** with a pixel-based
+  rotation/mirror solver (`cypress/plugins/mentalRotationSolver.ts`, run node-side
+  via the `solveMentalRotation` cy.task) — it fetches the target + choice webps,
+  normalizes them (centroid-centered, radius-of-gyration scaled, auto-detected
+  foreground polarity since the silhouette choices are inverted white-on-black),
+  and picks the choice that overlaps the target under **rotation alone** rather
+  than **reflection** (see [How correctness is
+  validated](#how-correctness-is-validated)). It clicks its own answer and
+  cross-checks it against `.correct` (agreement is currently **100%**;
+  disagreements → `cypress/logs/_mr_key_mismatch.jsonl`). It also asserts the task
+  completes, every item is keyed (missing keys → `cypress/logs/_mr_no_key.jsonl`),
+  and narration is captured. The **VLM** sees the target + choices screenshot and
+  the narration, and picks a position (1–2), scored against the same key.
+
+Because some corpus rows repeat, the specs synchronize on a **screen-signature
+transition wait** (rather than content dedup) so duplicate consecutive items are
+handled separately; both specs add a gate-escape (click the key) for the gated
+practice items, where a wrong pick does not advance. `cat=false` pins the fixed
+timeline and `maxIncorrect` is raised so a stray miss never early-aborts.
+
+The geometric solver was validated offline against all 113 unique corpus items
+(target/choice webps fetched from `levante-assets-dev`) at **113/113** before
+wiring into the oracle, then re-confirmed at **118/118** through the live DOM.
+
 ## Layout
 
 ```
@@ -377,17 +432,19 @@ cypress/
   e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts
   e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts
   e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
+  e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts (task models), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
-scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, summarize_runs.ts
+    mentalRotationSolver.ts node-side pixel rotation/mirror solver (authentic MR oracle)
+scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 
@@ -408,6 +465,10 @@ cypress/logs/_stories_no_key.jsonl       Stories question items that shipped no 
 cypress/logs/_sds_oracle_live.jsonl      append-as-you-go oracle trial log (SDS)
 cypress/logs/_sds_vlm_live.jsonl         append-as-you-go VLM trial log (SDS)
 cypress/logs/_sds_no_key.jsonl           SDS single-select items that shipped no answer key
+cypress/logs/_mr_oracle_live.jsonl       append-as-you-go oracle trial log (Mental Rotation)
+cypress/logs/_mr_vlm_live.jsonl          append-as-you-go VLM trial log (Mental Rotation)
+cypress/logs/_mr_no_key.jsonl            Mental Rotation items that shipped no answer key
+cypress/logs/_mr_key_mismatch.jsonl      MR items where the pixel solver disagreed with the app key
 ```
 
 ## Conventions

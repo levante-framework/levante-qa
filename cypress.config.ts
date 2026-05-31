@@ -6,6 +6,11 @@ import * as dotenv from 'dotenv';
 import { askVLM as dispatchVLM, parseAction } from './cypress/plugins/vlmClients';
 import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
+import { solveMentalRotation } from './cypress/plugins/mentalRotationSolver';
+import type {
+  MentalRotationSolveRequest,
+  MentalRotationSolveResult,
+} from './cypress/plugins/mentalRotationSolver';
 import type { Mp3Tags } from './cypress/support/tasks/types';
 
 dotenv.config();
@@ -56,6 +61,18 @@ export default defineConfig({
          */
         async readMp3Tags(url: string): Promise<Mp3Tags> {
           return readMp3Tags(url);
+        },
+
+        /**
+         * Pixel-based Mental Rotation solver: decides which choice is the target
+         * under pure rotation (vs. the mirror distractor) directly from the
+         * silhouette images. Powers the "authentic" oracle; its answer is
+         * cross-checked against the app's `.correct` key by the spec.
+         */
+        async solveMentalRotation(
+          req: MentalRotationSolveRequest,
+        ): Promise<MentalRotationSolveResult> {
+          return solveMentalRotation(req);
         },
 
         /**
