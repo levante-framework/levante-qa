@@ -159,6 +159,60 @@ export const EgmaSummaryStatsSchema = z.object({
 });
 export type EgmaSummaryStats = z.infer<typeof EgmaSummaryStatsSchema>;
 
+// --- Vocab -----------------------------------------------------------------
+
+/**
+ * A single Vocab trial. Vocab is a 4-AFC picture task whose target word is
+ * delivered only by narration; the answer is the chosen image's concept word
+ * (its `alt`) plus its index, so oracle and VLM records are directly
+ * comparable.
+ */
+export const VocabTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  // 'word' is a response item; 'instructions' covers intro/section screens.
+  itemType: z.enum(['word', 'instructions']),
+  // The narration that named the target word (the only place the prompt exists).
+  promptText: z.string().nullable().default(null),
+  // The target concept word parsed from the narration (article stripped).
+  targetWord: z.string().nullable().default(null),
+  // The image choices' concept words (their `alt`), in DOM order.
+  choices: z.array(z.string()).default([]),
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  // The task's OWN answer key for this item: index/value of the choice the app
+  // marks correct (.correct on the <img>, emitted only under Cypress). Null when
+  // no marker is present. Ground truth for the cross-check / VLM scoring.
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type VocabTrialRecord = z.infer<typeof VocabTrialRecordSchema>;
+
+export function parseVocabTrialRecord(input: unknown): VocabTrialRecord {
+  return VocabTrialRecordSchema.parse(input);
+}
+
+export const VocabSummaryStatsSchema = z.object({
+  nTrials: z.number().int().nonnegative(),
+  // Exact accuracy over scored word items (instruction rows excluded).
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type VocabSummaryStats = z.infer<typeof VocabSummaryStatsSchema>;
+
 /**
  * Aggregate statistics produced by scoreTrials for one run.
  */

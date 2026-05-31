@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Two tasks are implemented today — **Hearts & Flowers** and **EGMA math** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Three tasks are implemented today — **Hearts & Flowers**, **EGMA math**, and **Vocab** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -30,8 +30,9 @@ pnpm score:egma     # EGMA math
 pnpm summarize
 ```
 
-Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle` and
-`pnpm cy:run:egma:vlm -- --env provider=gemini`.
+Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
+`pnpm cy:run:egma:vlm -- --env provider=gemini`, `pnpm cy:run:vocab:oracle`,
+and `pnpm cy:run:vocab:vlm -- --env provider=gemini`.
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -166,6 +167,13 @@ own answer key, and we read it via `appKeyedCorrectIndex()` in
 - **EGMA VLM** is scored against the same app key (not against our solver), so
   the benchmark doesn't silently inherit a solver bug. Each record carries the
   model's choice, the app's `keyedIndex`/`keyedValue`, and `correct`.
+- **Vocab oracle/VLM** use the identical mechanism. The vocab marker is a
+  `.correct` class on the correct choice's `<img>` (non-math path), so
+  `appKeyedCorrectIndex()` in `vocab.ts` reads it the same way. The vocab oracle
+  computes its answer *independently* by matching the spoken word (narration
+  transcript) to the image whose `alt` names it, then asserts that matches the
+  key on every item; the vocab VLM picks an image by position and is scored
+  against the key.
 
 **Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
 `aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
@@ -240,33 +248,67 @@ The number-line is **VLM-driven**: the model is shown the line with its labeled
 endpoints and decides where to place the marker; the placement is proximity-
 scored by normalized error (same tolerance as the oracle), not auto-advanced.
 
+## Vocab
+
+Vocab (picture vocabulary) is the third task; its model lives in
+`cypress/support/tasks/vocab.ts`. It is a **4-alternative forced-choice picture
+task**: a word is spoken (narration only — no on-screen text) and four images
+are shown in a 2×2 grid; the participant taps the image the word names. Like
+EGMA's number-identification, the prompt exists **only in the audio**, so the
+[audio channel](#audio-channel-narration-transcripts) is a prerequisite. The
+choices carry their concept word in the image `alt` (the button text is empty),
+and core-tasks marks the correct choice with a `.correct` class on its `<img>`
+under Cypress.
+
+- **Oracle**: reads the four choices' `alt` words, resolves the spoken word from
+  the narration transcript (article-stripped, e.g. "the acorn" → `acorn`), and
+  matches it to a choice — *independently* of the `.correct` marker. It then
+  cross-checks against the app key and asserts agreement on every item (a real
+  [differential test](#how-correctness-is-validated)); unmatched items are
+  dumped to `_vocab_unsolved.jsonl` and mismatches to `_vocab_key_mismatch.jsonl`.
+- **VLM**: sees the screenshot + the spoken word and replies with the grid
+  position (1–4) of the matching image; the choice is scored against the app
+  key. The number of grid choices and the `.correct` marker make this a clean
+  image-recognition benchmark.
+
+The corpus is ~171 items, so a full run is long; `maxIncorrect` is raised in
+`DEFAULT_PARAMS` so a solver/model error never triggers the task's early-abort
+and truncates the run (we want every item attempted for the cross-check). Vocab
+is **not** gated (no practice re-presentations in the shipped corpus), so the
+specs are simpler than EGMA's.
+
 ## Layout
 
 ```
 cypress/
   e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts, rule_equivalence.cy.ts
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
+  e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts (task models), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
-scripts/                    score.ts, score_egma.ts, summarize_runs.ts
+scripts/                    score.ts, score_egma.ts, score_vocab.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 
 Diagnostic logs written during a run (git-ignored):
 
 ```
-cypress/logs/_egma_oracle_live.jsonl     append-as-you-go oracle trial log
-cypress/logs/_egma_vlm_live.jsonl        append-as-you-go VLM trial log
+cypress/logs/_egma_oracle_live.jsonl     append-as-you-go oracle trial log (EGMA)
+cypress/logs/_egma_vlm_live.jsonl        append-as-you-go VLM trial log (EGMA)
 cypress/logs/_egma_key_mismatch.jsonl    items where our answer ≠ the task's answer key
 cypress/logs/_egma_unsolved_dom.jsonl    DOM dumps of items the solver could not answer
+cypress/logs/_vocab_oracle_live.jsonl    append-as-you-go oracle trial log (Vocab)
+cypress/logs/_vocab_vlm_live.jsonl       append-as-you-go VLM trial log (Vocab)
+cypress/logs/_vocab_key_mismatch.jsonl   vocab items where our answer ≠ the answer key
+cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not match
 ```
 
 ## Conventions

@@ -8,6 +8,10 @@ import {
   CONTINUE_BUTTON as EGMA_CONTINUE_BUTTON,
   SLIDER as EGMA_SLIDER,
 } from './tasks/egmaMath';
+import {
+  CHOICE_BUTTON as VOCAB_CHOICE_BUTTON,
+  CONTINUE_BUTTON as VOCAB_CONTINUE_BUTTON,
+} from './tasks/vocab';
 import type { Action } from './tasks/types';
 
 /**
@@ -67,6 +71,24 @@ Cypress.Commands.add('placeSlider', (value: number) => {
     .trigger('change', { force: true });
 });
 
+/**
+ * Click the Vocab image choice at `index` (DOM/reading order: 0 = top-left).
+ * Vocab uses a different response-row class than EGMA, so it needs its own
+ * selector.
+ */
+Cypress.Commands.add('chooseVocabOption', (index: number) => {
+  cy.get(VOCAB_CHOICE_BUTTON).eq(index).click({ force: true });
+});
+
+/** Advance past a Vocab instruction / section screen via its OK button. */
+Cypress.Commands.add('continueVocab', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(VOCAB_CONTINUE_BUTTON).length > 0) {
+      cy.get(VOCAB_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -81,6 +103,10 @@ declare global {
       continueEgma(): Chainable<void>;
       /** Set the EGMA number-line slider to a value and fire input/change. */
       placeSlider(value: number): Chainable<void>;
+      /** Click the Vocab image choice at the given index (0 = top-left). */
+      chooseVocabOption(index: number): Chainable<void>;
+      /** Click the Vocab instruction/section continue (OK) button if present. */
+      continueVocab(): Chainable<void>;
     }
   }
 }
