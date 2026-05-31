@@ -213,6 +213,57 @@ export const VocabSummaryStatsSchema = z.object({
 });
 export type VocabSummaryStats = z.infer<typeof VocabSummaryStatsSchema>;
 
+// --- Stories (Theory of Mind) ----------------------------------------------
+
+/**
+ * A single Stories (theory-of-mind) trial. Story beats are 'instructions'
+ * screens (narrated scene setup); 'question' rows are the scored 2–4-choice
+ * image comprehension/inference items. The answer requires story context, so
+ * the only ground truth is the app's `.correct` key — recorded as
+ * keyedIndex/keyedValue and used to score both agents.
+ */
+export const StoriesTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['instructions', 'question']),
+  // The on-screen narration / question text for this screen.
+  promptText: z.string().nullable().default(null),
+  // The accumulated story narration the VLM was given as context (question rows).
+  storyContext: z.string().nullable().default(null),
+  // The image choices' concept words (their `alt`), in DOM order.
+  choices: z.array(z.string()).default([]),
+  chosenIndex: z.number().int().nullable().default(null),
+  chosenValue: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  // The task's OWN answer key: index/value of the choice marked `.correct`.
+  keyedIndex: z.number().int().nullable().default(null),
+  keyedValue: z.string().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  // VLM-only fields.
+  provider: z.string().nullable().default(null),
+  modelRaw: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type StoriesTrialRecord = z.infer<typeof StoriesTrialRecordSchema>;
+
+export function parseStoriesTrialRecord(input: unknown): StoriesTrialRecord {
+  return StoriesTrialRecordSchema.parse(input);
+}
+
+export const StoriesSummaryStatsSchema = z.object({
+  nQuestions: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type StoriesSummaryStats = z.infer<typeof StoriesSummaryStatsSchema>;
+
 /**
  * Aggregate statistics produced by scoreTrials for one run.
  */

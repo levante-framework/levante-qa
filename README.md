@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Three tasks are implemented today — **Hearts & Flowers**, **EGMA math**, and **Vocab** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Four tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, and **Stories (Theory of Mind)** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -32,7 +32,9 @@ pnpm summarize
 
 Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
 `pnpm cy:run:egma:vlm -- --env provider=gemini`, `pnpm cy:run:vocab:oracle`,
-and `pnpm cy:run:vocab:vlm -- --env provider=gemini`.
+`pnpm cy:run:vocab:vlm -- --env provider=gemini`, `pnpm cy:run:stories:oracle`,
+and `pnpm cy:run:stories:vlm -- --env provider=gemini` (score with
+`pnpm score:vocab` / `pnpm score:stories`).
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -174,6 +176,17 @@ own answer key, and we read it via `appKeyedCorrectIndex()` in
   transcript) to the image whose `alt` names it, then asserts that matches the
   key on every item; the vocab VLM picks an image by position and is scored
   against the key.
+- **Stories (Theory of Mind)** scores the VLM against the same `.correct` key
+  (on the choice `<img>`), but its **oracle is NOT a differential test** — and
+  deliberately so. The answer to a false-belief / emotion-reasoning question
+  *cannot* be recomputed from a rule; it requires following the story, so there
+  is nothing to cross-check the key against. The Stories oracle therefore just
+  clicks the keyed answer (exactly what core-tasks' own e2e test does) and
+  instead asserts the things that *are* checkable: the task completes, audio
+  narration is captured, and **every scored item ships an answer key** (a
+  missing `.correct` marker is a real content/regression bug, logged to
+  `cypress/logs/_stories_no_key.jsonl` and failing the run). The interesting
+  artifact for Stories is the VLM benchmark, not the oracle.
 
 **Source-equivalence (when there is no DOM key).** Hearts & Flowers emits **no**
 `aria-label="correct"` marker, and `window.jsPsych` is unreadable on the v7
@@ -277,6 +290,42 @@ and truncates the run (we want every item attempted for the cross-check). Vocab
 is **not** gated (no practice re-presentations in the shipped corpus), so the
 specs are simpler than EGMA's.
 
+## Stories (Theory of Mind)
+
+Stories (task id `theory-of-mind`) is the fourth task; its model lives in
+`cypress/support/tasks/stories.ts`. Each of the **6 stories** is told as a
+sequence of narrated, illustrated **story beats** (instruction screens), then
+asks **2–4-choice picture questions** — false-belief ("where will she look
+first?"), reality checks ("where is it really?"), and emotion reasoning ("how
+does she feel?"). A full run is **30 story beats + 31 questions**. The narration
+is the story, so the [audio channel](#audio-channel-narration-transcripts) is a
+prerequisite; the question and story text also render on-screen (read from
+`.instruction-small`).
+
+Two things set it apart from the other tasks:
+
+- **The answer can't be computed by a rule.** Following a false-belief story and
+  reasoning about a character's mistaken belief is exactly the cognitive skill
+  under test, so there is no independent solver to build. The **oracle** simply
+  clicks the app's `.correct` key (like core-tasks' own e2e) and asserts what
+  *is* checkable — completion, captured narration, and that **every item ships
+  an answer key**. See [How correctness is validated](#how-correctness-is-validated).
+  The real artifact here is the **VLM benchmark**.
+- **Choices are staggered.** Each picture choice renders disabled
+  (`.lev-staggered-disabled`) and is revealed one at a time with its own audio
+  label; only after the last is revealed do all become clickable. The model
+  reads "all choices revealed" as *no button still carries the stagger class*
+  (`isItemReady`), and captures the question narration during the stagger
+  (before the choice-label clips play).
+
+The **VLM** is given the **accumulated story narration** as context (reset at
+each story boundary — "Nice work! Here is a new story.") plus the current
+question and a screenshot of the numbered picture choices, and replies with the
+position (1–n) of its answer; the choice is scored against the app key. This
+makes it a genuine multimodal theory-of-mind benchmark: the model must combine
+the story (audio), the question, and the choice images. `maxIncorrect` is raised
+in `DEFAULT_PARAMS` so a model error never early-aborts the run.
+
 ## Layout
 
 ```
@@ -284,17 +333,18 @@ cypress/
   e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts, rule_equivalence.cy.ts
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
   e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts
+  e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts (task models), types.ts (zod schemas)
-    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts (task models), types.ts (zod schemas)
+    agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
     e2e.ts, commands.ts
   plugins/
     vlmClients/             index.ts (dispatch), openai.ts, anthropic.ts, gemini.ts
     id3Reader.ts            node-side fetch + node-id3 parse + cache
-scripts/                    score.ts, score_egma.ts, score_vocab.ts, summarize_runs.ts
+scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, summarize_runs.ts
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```
 
@@ -309,6 +359,9 @@ cypress/logs/_vocab_oracle_live.jsonl    append-as-you-go oracle trial log (Voca
 cypress/logs/_vocab_vlm_live.jsonl       append-as-you-go VLM trial log (Vocab)
 cypress/logs/_vocab_key_mismatch.jsonl   vocab items where our answer ≠ the answer key
 cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not match
+cypress/logs/_stories_oracle_live.jsonl  append-as-you-go oracle trial log (Stories)
+cypress/logs/_stories_vlm_live.jsonl     append-as-you-go VLM trial log (Stories)
+cypress/logs/_stories_no_key.jsonl       Stories question items that shipped no answer key
 ```
 
 ## Conventions

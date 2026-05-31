@@ -12,6 +12,10 @@ import {
   CHOICE_BUTTON as VOCAB_CHOICE_BUTTON,
   CONTINUE_BUTTON as VOCAB_CONTINUE_BUTTON,
 } from './tasks/vocab';
+import {
+  CHOICE_BUTTON as STORIES_CHOICE_BUTTON,
+  CONTINUE_BUTTON as STORIES_CONTINUE_BUTTON,
+} from './tasks/stories';
 import type { Action } from './tasks/types';
 
 /**
@@ -89,6 +93,20 @@ Cypress.Commands.add('continueVocab', () => {
   });
 });
 
+/** Click the Stories image choice at `index` (DOM/reading order: 0 = leftmost). */
+Cypress.Commands.add('chooseStoriesOption', (index: number) => {
+  cy.get(STORIES_CHOICE_BUTTON).eq(index).click({ force: true });
+});
+
+/** Advance past a Stories story-beat / instruction screen via its OK button. */
+Cypress.Commands.add('continueStories', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(STORIES_CONTINUE_BUTTON).length > 0) {
+      cy.get(STORIES_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -107,6 +125,10 @@ declare global {
       chooseVocabOption(index: number): Chainable<void>;
       /** Click the Vocab instruction/section continue (OK) button if present. */
       continueVocab(): Chainable<void>;
+      /** Click the Stories image choice at the given index (0 = leftmost). */
+      chooseStoriesOption(index: number): Chainable<void>;
+      /** Click the Stories story-beat/instruction continue (OK) button if present. */
+      continueStories(): Chainable<void>;
     }
   }
 }
