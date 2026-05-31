@@ -497,6 +497,112 @@ code {
   flex-direction: column;
   overflow: hidden;
 }
+.modal-card-wide {
+  width: min(960px, 100%);
+  max-height: 88vh;
+}
+.modal-body {
+  overflow: auto;
+  padding: 0 0 12px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-grid dt {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+.detail-grid dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-strong);
+  word-break: break-all;
+}
+.detail-section {
+  padding: 12px 20px 0;
+}
+.detail-section h4 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+.detail-section h4 i {
+  margin-right: 6px;
+  color: var(--cyan-2);
+}
+.detail-errors {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #fecaca;
+}
+.artifact-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.artifact-tab {
+  background: rgba(0, 200, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--cyan-2);
+  font-size: 11px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.artifact-tab.active {
+  border-color: var(--cyan);
+  background: rgba(0, 200, 255, 0.18);
+}
+.artifact-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.log-box-sm {
+  max-height: 220px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.modal-body > .detail-section:last-child .log-box {
+  max-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0 0 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.btn-details {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--cyan-2);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-details:hover {
+  border-color: var(--cyan);
+}
+.results-table tbody tr {
+  cursor: default;
+}
+.results-table tbody tr:hover {
+  background: rgba(0, 200, 255, 0.04);
+}
 .modal-head {
   display: flex;
   justify-content: space-between;

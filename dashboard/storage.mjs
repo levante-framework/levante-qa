@@ -119,7 +119,7 @@ export async function uploadRunArtifacts(runId, localDir) {
   }
   let uploaded = 0;
   for (const name of names) {
-    if (!name.endsWith('.jsonl')) continue;
+    if (!name.endsWith('.jsonl') && name !== 'dashboard.log') continue;
     try {
       const body = await readFile(join(localDir, name));
       await bucket.file(`${PREFIX}/runs/${runId}/${name}`).save(body, {
@@ -132,6 +132,38 @@ export async function uploadRunArtifacts(runId, localDir) {
     }
   }
   return uploaded;
+}
+
+/** Lists JSONL artifact names stored under levante-qa/runs/<runId>/ in GCS. */
+export async function listRemoteArtifacts(runId) {
+  const bucket = await getBucket();
+  if (!bucket) return [];
+  const prefix = `${PREFIX}/runs/${runId}/`;
+  try {
+    const [files] = await bucket.getFiles({ prefix });
+    return files
+      .map((f) => f.name.slice(prefix.length))
+      .filter((n) => n && n.endsWith('.jsonl') && !n.includes('/'));
+  } catch (err) {
+    warnOnce(`could not list ${prefix}: ${err?.message || err}`);
+    return [];
+  }
+}
+
+/** Downloads one run file from GCS (.jsonl or dashboard.log); returns null if missing. */
+export async function downloadRemoteArtifact(runId, name) {
+  const bucket = await getBucket();
+  if (!bucket) return null;
+  const safe = String(name).replace(/[/\\]/g, '');
+  if (!safe.endsWith('.jsonl') && safe !== 'dashboard.log') return null;
+  try {
+    const [buf] = await bucket.file(`${PREFIX}/runs/${runId}/${safe}`).download();
+    return buf.toString('utf-8');
+  } catch (err) {
+    if (err && (err.code === 404 || err.code === '404')) return null;
+    warnOnce(`could not download ${safe}: ${err?.message || err}`);
+    return null;
+  }
 }
 
 /** Union of two run lists keyed by runId, newest-finished entry wins. */

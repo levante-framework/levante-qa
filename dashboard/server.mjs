@@ -29,6 +29,8 @@ import {
   uploadRunArtifacts,
   mergeIndexes,
   gcsTarget,
+  listRemoteArtifacts,
+  downloadRemoteArtifact,
 } from './storage.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -94,6 +96,40 @@ function appendIndex(record) {
  * On startup, fold any runs already in GCS into the local index so the Results
  * tab survives restarts and shows runs recorded by other machines.
  */
+async function findIndexedRun(runId) {
+  const [local, remote] = await Promise.all([readIndex(), downloadIndex()]);
+  return mergeIndexes(local, remote).find((r) => r.runId === runId) || null;
+}
+
+async function listLocalArtifacts(runId) {
+  try {
+    const names = await readdir(join(LOGS_ROOT, runId));
+    return names.filter((n) => n.endsWith('.jsonl'));
+  } catch {
+    return [];
+  }
+}
+
+/** Reads a JSONL artifact from the local run dir, else GCS. */
+async function readArtifactText(runId, name, maxBytes = 512_000) {
+  const safe = String(name).replace(/[/\\]/g, '');
+  if (!safe.endsWith('.jsonl')) return null;
+  try {
+    const raw = await readFile(join(LOGS_ROOT, runId, safe), 'utf-8');
+    return raw.length > maxBytes ? raw.slice(-maxBytes) : raw;
+  } catch {
+    const remote = await downloadRemoteArtifact(runId, safe);
+    if (!remote) return null;
+    return remote.length > maxBytes ? remote.slice(-maxBytes) : remote;
+  }
+}
+
+function tailJsonlLines(text, maxLines = 40) {
+  const lines = text.split('\n').filter((l) => l.trim().length > 0);
+  const slice = lines.slice(-maxLines);
+  return { lines: slice, totalLines: lines.length, truncated: lines.length > maxLines };
+}
+
 async function hydrateIndexFromGcs() {
   const remote = await downloadIndex();
   if (!remote.length) return;
@@ -275,8 +311,16 @@ async function finalizeRun(run) {
     logDir: run.logDir,
     spec: run.meta.spec,
   });
-  // Mirror the run's small JSONL artifacts to GCS (graceful no-op if disabled).
-  uploadRunArtifacts(run.runId, join(LOGS_ROOT, run.runId)).catch(() => {});
+  // Persist Cypress console output + mirror artifacts to GCS.
+  const runLogDir = join(LOGS_ROOT, run.runId);
+  if (run.logLines.length) {
+    mkdir(runLogDir, { recursive: true })
+      .then(() => writeFile(join(runLogDir, 'dashboard.log'), run.logLines.join(''), 'utf-8'))
+      .then(() => uploadRunArtifacts(run.runId, runLogDir))
+      .catch(() => {});
+  } else {
+    uploadRunArtifacts(run.runId, runLogDir).catch(() => {});
+  }
 }
 
 function spawnCypress(run) {
@@ -516,9 +560,53 @@ const server = http.createServer(async (req, res) => {
 
   const logMatch = pathname.match(/^\/api\/run\/([^/]+)\/log$/);
   if (req.method === 'GET' && logMatch) {
-    const run = runs.get(logMatch[1]);
-    if (!run) return sendJson(res, 404, { error: 'Unknown runId' });
-    sendJson(res, 200, { runId: run.runId, log: run.logLines.join('') });
+    const runId = logMatch[1];
+    const live = runs.get(runId);
+    if (live) {
+      sendJson(res, 200, { runId, log: live.logLines.join('') });
+      return;
+    }
+    let log = null;
+    try {
+      log = await readFile(join(LOGS_ROOT, runId, 'dashboard.log'), 'utf-8');
+    } catch {
+      log = await downloadRemoteArtifact(runId, 'dashboard.log');
+    }
+    if (!log) return sendJson(res, 404, { error: 'No log saved for this run' });
+    sendJson(res, 200, { runId, log });
+    return;
+  }
+
+  const artifactMatch = pathname.match(/^\/api\/run\/([^/]+)\/artifact$/);
+  if (req.method === 'GET' && artifactMatch) {
+    const runId = artifactMatch[1];
+    const name = url.searchParams.get('name');
+    if (!name) return sendJson(res, 400, { error: 'Missing name query param' });
+    const text = await readArtifactText(runId, name);
+    if (!text) return sendJson(res, 404, { error: 'Artifact not found' });
+    const tail = Number(url.searchParams.get('tail') || 40);
+    const parsed = tailJsonlLines(text, Math.min(200, Math.max(1, tail)));
+    sendJson(res, 200, { runId, name, ...parsed });
+    return;
+  }
+
+  const detailsMatch = pathname.match(/^\/api\/run\/([^/]+)$/);
+  if (req.method === 'GET' && detailsMatch) {
+    const runId = detailsMatch[1];
+    const record = await findIndexedRun(runId);
+    if (!record) return sendJson(res, 404, { error: 'Unknown runId' });
+    const [localArts, remoteArts] = await Promise.all([
+      listLocalArtifacts(runId),
+      listRemoteArtifacts(runId),
+    ]);
+    const artifacts = [...new Set([...localArts, ...remoteArts])].sort();
+    const gcs = gcsTarget();
+    sendJson(res, 200, {
+      run: record,
+      artifacts,
+      gcsUri: gcs ? `${gcs}/runs/${runId}/` : null,
+      hasLiveLog: runs.has(runId),
+    });
     return;
   }
 

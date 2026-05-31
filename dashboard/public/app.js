@@ -235,19 +235,140 @@
     }
   }
 
-  // ── Log modal ──────────────────────────────────────────────────────────────
-  async function openLog(runId, title) {
-    $('#modalTitle').textContent = `Run log · ${title || runId}`;
-    $('#modalLog').textContent = 'Loading…';
-    $('#modal').hidden = false;
+  // ── Run details modal ─────────────────────────────────────────────────────
+  let activeArtifactRunId = null;
+
+  function fmtDuration(ms) {
+    if (ms == null) return '—';
+    const s = Math.round(ms / 1000);
+    if (s < 60) return `${s}s`;
+    return `${Math.floor(s / 60)}m ${s % 60}s`;
+  }
+
+  function summaryRow(label, value) {
+    return `<dt>${escapeHtml(label)}</dt><dd>${value}</dd>`;
+  }
+
+  function formatJsonlPreview(lines) {
+    return lines
+      .map((l) => {
+        try {
+          return JSON.stringify(JSON.parse(l), null, 2);
+        } catch {
+          return l;
+        }
+      })
+      .join('\n\n---\n\n');
+  }
+
+  async function loadArtifactPreview(runId, name, btn) {
+    activeArtifactRunId = runId;
+    document.querySelectorAll('.artifact-tab').forEach((b) => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const pre = $('#modalArtifactPreview');
+    pre.textContent = 'Loading…';
+    try {
+      const res = await fetch(
+        `/api/run/${encodeURIComponent(runId)}/artifact?name=${encodeURIComponent(name)}&tail=30`,
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      const header =
+        data.truncated
+          ? `(last ${data.lines.length} of ${data.totalLines} lines)\n\n`
+          : `(${data.lines.length} lines)\n\n`;
+      pre.textContent = header + formatJsonlPreview(data.lines);
+    } catch (err) {
+      pre.textContent = `Could not load ${name}: ${err.message}`;
+    }
+  }
+
+  async function loadRunLog(runId) {
+    const pre = $('#modalLog');
+    pre.textContent = 'Loading…';
     try {
       const res = await fetch(`/api/run/${encodeURIComponent(runId)}/log`);
       const data = await res.json();
-      $('#modalLog').textContent = data.log || '(no output)';
-      $('#modalLog').scrollTop = $('#modalLog').scrollHeight;
+      if (!res.ok) {
+        pre.textContent = data.error || '(no Cypress output saved for this run)';
+        return;
+      }
+      pre.textContent = data.log || '(empty)';
+      pre.scrollTop = pre.scrollHeight;
     } catch {
-      $('#modalLog').textContent = 'Failed to load log.';
+      pre.textContent = 'Failed to load log.';
     }
+  }
+
+  async function openRunDetails(runId, titleHint) {
+    $('#modal').hidden = false;
+    $('#modalTitle').textContent = titleHint ? `Run · ${titleHint}` : 'Run details';
+    $('#modalSummary').innerHTML = '';
+    $('#modalErrorsSection').hidden = true;
+    $('#modalErrors').innerHTML = '';
+    $('#modalArtifacts').innerHTML = '';
+    $('#modalArtifactPreview').textContent = 'Loading…';
+    $('#modalLog').textContent = 'Loading…';
+    activeArtifactRunId = runId;
+
+    try {
+      const res = await fetch(`/api/run/${encodeURIComponent(runId)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load run');
+      const r = data.run;
+      const acc = r.accuracy == null ? '—' : `${(r.accuracy * 100).toFixed(1)}%`;
+      const agent = escapeHtml(agentDisplay(r.agent, r.provider));
+      const when = `${fmtTime(r.startedAt)} → ${fmtTime(r.finishedAt)}`;
+
+      $('#modalTitle').textContent = `${r.taskLabel || r.task} · ${agentDisplay(r.agent, r.provider)}`;
+
+      $('#modalSummary').innerHTML = [
+        summaryRow('When', escapeHtml(when)),
+        summaryRow('Status', `<span class="pill pill-${r.status}">${STATUS_LABEL[r.status] || r.status}</span>`),
+        summaryRow('Accuracy', escapeHtml(acc)),
+        summaryRow('Trials', escapeHtml(String(r.nTrials || 0))),
+        summaryRow('Duration', escapeHtml(fmtDuration(r.durationMs))),
+        summaryRow('Age', escapeHtml(`${r.ageYears ?? '?'}y ${r.ageMonths ?? 0}m`)),
+        summaryRow('Participant', escapeHtml(r.email || '—')),
+        summaryRow('Run ID', `<code>${escapeHtml(r.runId)}</code>`),
+        summaryRow('Spec', `<code>${escapeHtml(r.spec || '—')}</code>`),
+        summaryRow('Log dir', `<code>${escapeHtml(r.logDir || '—')}</code>`),
+        data.gcsUri ? summaryRow('GCS', `<code>${escapeHtml(data.gcsUri)}</code>`) : '',
+      ].join('');
+
+      if (r.errors && r.errors.length) {
+        $('#modalErrorsSection').hidden = false;
+        $('#modalErrors').innerHTML = r.errors.map((e) => `<li>${escapeHtml(e)}</li>`).join('');
+      }
+
+      const arts = data.artifacts || [];
+      const artEl = $('#modalArtifacts');
+      if (!arts.length) {
+        artEl.innerHTML = '<span class="empty-note">No JSONL artifacts found (local or GCS).</span>';
+        $('#modalArtifactPreview').textContent = '—';
+      } else {
+        artEl.innerHTML = '';
+        arts.forEach((name, i) => {
+          const btn = el('button', 'artifact-tab' + (i === 0 ? ' active' : ''));
+          btn.type = 'button';
+          btn.textContent = name;
+          btn.addEventListener('click', () => loadArtifactPreview(runId, name, btn));
+          artEl.appendChild(btn);
+        });
+        loadArtifactPreview(runId, arts[0], artEl.querySelector('.artifact-tab'));
+      }
+
+      loadRunLog(runId);
+    } catch (err) {
+      $('#modalTitle').textContent = 'Run details';
+      $('#modalSummary').innerHTML = `<dd>${escapeHtml(err.message)}</dd>`;
+      $('#modalArtifactPreview').textContent = '—';
+      $('#modalLog').textContent = '—';
+    }
+  }
+
+  function openLog(runId, title) {
+    openRunDetails(runId, title);
   }
   $('#modalClose').addEventListener('click', () => ($('#modal').hidden = true));
   $('#modal').addEventListener('click', (e) => {
@@ -278,7 +399,11 @@
           <td>${acc}</td>
           <td>${r.nTrials || 0}</td>
           <td class="err-cell">${errs}</td>
-          <td>${dur}</td>`;
+          <td>${dur}</td>
+          <td><button type="button" class="btn-details" data-details="${escapeHtml(r.runId)}">Details</button></td>`;
+        tr.querySelector('[data-details]').addEventListener('click', () =>
+          openRunDetails(r.runId, r.taskLabel || r.task),
+        );
         body.appendChild(tr);
       });
     } catch {
