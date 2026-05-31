@@ -318,6 +318,60 @@ export const MentalRotationSummaryStatsSchema = z.object({
 });
 export type MentalRotationSummaryStats = z.infer<typeof MentalRotationSummaryStatsSchema>;
 
+// --- Memory Game (Corsi block-tapping) -------------------------------------
+
+/**
+ * A single Memory Game item (one display+input pair). 'sequence' rows are the
+ * scored span trials; 'instructions' covers intro/feedback/ready screens. There
+ * is no `.correct` marker: the oracle independently OBSERVES the flashed sequence
+ * (`observedSequence`) and cross-checks it against the app's internal key
+ * (`keyedSequence`, the forward order from window.cypressData) — `observedMatchesKey`
+ * records that authentic agreement. `clickOrder` is what the oracle clicked
+ * (reversed on backward trials), and `correct` is the app's own scoring of the
+ * reproduction.
+ */
+export const MemoryGameTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['instructions', 'sequence']),
+  phase: z.enum(['forward', 'backward']).nullable().default(null),
+  // Block count (9 for the 3x3 default grid).
+  gridBlocks: z.number().int().nonnegative().default(0),
+  spanLength: z.number().int().nonnegative().default(0),
+  // The sequence the oracle observed from the display flashes (forward order).
+  observedSequence: z.array(z.number().int()).default([]),
+  // The app's internal key (forward order), from window.cypressData.
+  keyedSequence: z.array(z.number().int()).nullable().default(null),
+  // The order the oracle actually clicked (reversed for backward trials).
+  clickOrder: z.array(z.number().int()).default([]),
+  // Did the observed flash sequence match the internal key? (authentic check)
+  observedMatchesKey: z.boolean().nullable().default(null),
+  // The app's own scoring of the reproduction.
+  correct: z.boolean().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+});
+export type MemoryGameTrialRecord = z.infer<typeof MemoryGameTrialRecordSchema>;
+
+export function parseMemoryGameTrialRecord(input: unknown): MemoryGameTrialRecord {
+  return MemoryGameTrialRecordSchema.parse(input);
+}
+
+export const MemoryGameSummaryStatsSchema = z.object({
+  nSequences: z.number().int().nonnegative(),
+  nForward: z.number().int().nonnegative(),
+  nBackward: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  observeKeyAgreement: z.number().nullable(),
+  maxSpan: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  nWithAudio: z.number().int().nonnegative(),
+});
+export type MemoryGameSummaryStats = z.infer<typeof MemoryGameSummaryStatsSchema>;
+
 // --- TROG (Test for Reception of Grammar) ----------------------------------
 
 /**

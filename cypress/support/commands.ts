@@ -33,6 +33,10 @@ import {
   CHOICE_BUTTON as TROG_CHOICE_BUTTON,
   CONTINUE_BUTTON as TROG_CONTINUE_BUTTON,
 } from './tasks/trog';
+import {
+  BLOCK as MEMORY_BLOCK,
+  CONTINUE_BUTTON as MEMORY_CONTINUE_BUTTON,
+} from './tasks/memoryGame';
 import type { Action } from './tasks/types';
 
 /**
@@ -185,6 +189,20 @@ Cypress.Commands.add('continueTrog', () => {
   });
 });
 
+/** Click the Memory Game block whose `data-id` equals `blockId`. */
+Cypress.Commands.add('chooseMemoryBlock', (blockId: number) => {
+  cy.get(`${MEMORY_BLOCK}[data-id="${blockId}"]`).click({ force: true });
+});
+
+/** Advance past a Memory Game instruction/feedback/ready screen via its OK button. */
+Cypress.Commands.add('continueMemory', () => {
+  cy.get('body').then(($body) => {
+    if ($body.find(MEMORY_CONTINUE_BUTTON).length > 0) {
+      cy.get(MEMORY_CONTINUE_BUTTON).first().click({ force: true });
+    }
+  });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
@@ -225,6 +243,10 @@ declare global {
       chooseTrogOption(index: number): Chainable<void>;
       /** Click the TROG instruction/transition continue (OK) button if present. */
       continueTrog(): Chainable<void>;
+      /** Click the Memory Game block whose data-id equals blockId. */
+      chooseMemoryBlock(blockId: number): Chainable<void>;
+      /** Click the Memory Game instruction/feedback continue (OK) button if present. */
+      continueMemory(): Chainable<void>;
     }
   }
 }

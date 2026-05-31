@@ -7,7 +7,7 @@ This repo serves two purposes:
 1. **QA / regression** — a deterministic, DOM-driven **oracle** agent plays a task end-to-end and asserts it can be completed at 100% accuracy with no timeouts. This catches regressions in the task itself (selectors, stimulus rendering, scoring, block sequencing). Where the task exposes its own answer key, the oracle is a true [differential test](#how-correctness-is-validated): it cross-checks its independently-computed answer against the app's key on every item.
 2. **VLM-agent benchmarking** — the *same* task is driven by a vision-language model in the loop (screenshot → model → click), letting us benchmark how well different models perform the cognitive task.
 
-Eight tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, **Mental Rotation**, **Matrix Reasoning**, and **TROG** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
+Nine tasks are implemented today — **Hearts & Flowers**, **EGMA math**, **Vocab**, **Stories (Theory of Mind)**, **Same-Different Selection**, **Mental Rotation**, **Matrix Reasoning**, **TROG**, and **Memory Game** — and others follow the same structure (see [Adding a new task](#adding-a-new-task)).
 
 ## Quickstart
 
@@ -37,9 +37,10 @@ Per-task runners are also available, e.g. `pnpm cy:run:egma:oracle`,
 `pnpm cy:run:sds:vlm -- --env provider=gemini`, `pnpm cy:run:mr:oracle`,
 `pnpm cy:run:mr:vlm -- --env provider=gemini`, `pnpm cy:run:matrix:oracle`,
 `pnpm cy:run:matrix:vlm -- --env provider=gemini`, `pnpm cy:run:trog:oracle`,
-and `pnpm cy:run:trog:vlm -- --env provider=gemini` (score with
-`pnpm score:vocab` / `pnpm score:stories` / `pnpm score:sds` / `pnpm score:mr` /
-`pnpm score:matrix` / `pnpm score:trog`).
+`pnpm cy:run:trog:vlm -- --env provider=gemini`, and `pnpm cy:run:memory:oracle`
+(Memory Game is oracle-only) (score with `pnpm score:vocab` / `pnpm score:stories`
+/ `pnpm score:sds` / `pnpm score:mr` / `pnpm score:matrix` / `pnpm score:trog` /
+`pnpm score:memory`).
 
 The VLM provider is selected by the `VLM_PROVIDER` env var (`openai` | `anthropic` | `gemini`); `--env provider=<p>` labels the run and is surfaced to the spec. Set the matching `*_API_KEY` in `.env`.
 
@@ -499,6 +500,43 @@ appear all at once (no stagger).
 never early-aborts; the specs also allow extra time for the image-bank loading
 screen before the fullscreen "OK".
 
+## Memory Game
+
+Memory Game (task id `memory-game`) is the ninth task; its model lives in
+`cypress/support/tasks/memoryGame.ts`. It is a **Corsi block-tapping** spatial
+memory-span task (built on `@jspsych-contrib/plugin-corsi-blocks`), and it is
+mechanically unlike the forced-choice tasks: each item is **two** jsPsych trials
+— a **display** trial that flashes a sequence of grid blocks one-at-a-time, then
+an **input** trial where the sequence is reproduced by clicking the blocks in the
+**same** order (forward block) or **reverse** order (backward block). The span
+grows by one after every three correct trials; the run is 16 forward + 21
+backward test reps (plus practice), and we pass `age=10` to get the 3×3 grid and
+the normal (non-"heavy") instruction path.
+
+There is **no `.correct` marker**, so rather than reading the key this oracle is a
+genuine **differential test** (the Mental Rotation philosophy):
+
+- An in-page recorder (installed at `onBeforeLoad`, alongside the audio capture)
+  watches the blocks and logs every presentation flash. Flashes are detected by
+  **color polarity** (a strongly dark-blue fill) rather than an exact RGB match,
+  because the display trial leaves CSS transitions on, so the highlight animates
+  into `#275BDD`; this also ignores the lighter click-feedback blue. The buffer is
+  cleared after each item, so it only ever holds the current display's flashes.
+- At the input trial the oracle reads its **observed** sequence, cross-checks it
+  against the app's internal key (`window.cypressData.correctAnswer`, forward
+  order, exposed only under Cypress), then **reproduces the observed sequence**
+  (reversed on backward trials, detected by the input prompt differing from the
+  forward one). Disagreements go to `cypress/logs/_memory_key_mismatch.jsonl` and
+  fail the run.
+- The run then asserts the app's own per-trial scoring (read from
+  `window.initJsPsych` data) **accepted every reproduction**, that both blocks ran,
+  and that narration was captured. So we verify both that the animation renders the
+  true sequence AND that reproducing it is scored correct.
+
+**VLM: this task is oracle-only.** The stimulus is a temporal animation, so a
+single screenshot can't capture the sequence; a meaningful VLM benchmark would
+need multi-frame/video capture.
+
 ## Layout
 
 ```
@@ -511,9 +549,10 @@ cypress/
   e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
   e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts
   e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts
+  e2e/memory_game/          oracle.cy.ts (oracle-only; temporal-animation stimulus)
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/
-    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts, matrixReasoning.ts, trog.ts (task models), types.ts (zod schemas)
+    tasks/                  heartsAndFlowers.ts, egmaMath.ts, vocab.ts, stories.ts, sameDifferent.ts, mentalRotation.ts, matrixReasoning.ts, trog.ts, memoryGame.ts (task models), types.ts (zod schemas)
     agents/                 oracleAgent.ts, vlmAgent.ts, egmaVlmAgent.ts, vocabVlmAgent.ts, storiesVlmAgent.ts, sdsVlmAgent.ts, mentalRotationVlmAgent.ts, matrixReasoningVlmAgent.ts, trogVlmAgent.ts
     audio/                  audioCapture.ts (play-log monkeypatch), id3.ts (cy.task wrapper), audioOracle.ts
     launch.ts               launchTask: standalone demo vs -dev dashboard participant flow
@@ -553,6 +592,8 @@ cypress/logs/_matrix_no_key.jsonl        Matrix Reasoning items that shipped no 
 cypress/logs/_trog_oracle_live.jsonl     append-as-you-go oracle trial log (TROG)
 cypress/logs/_trog_vlm_live.jsonl        append-as-you-go VLM trial log (TROG)
 cypress/logs/_trog_no_key.jsonl          TROG items that shipped no answer key
+cypress/logs/_memory_oracle_live.jsonl   append-as-you-go oracle trial log (Memory Game)
+cypress/logs/_memory_key_mismatch.jsonl  Memory Game items where the observed flashes ≠ the internal key
 ```
 
 ## Conventions
