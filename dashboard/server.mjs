@@ -23,6 +23,13 @@ import { dirname, join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { CATALOG, VLM_PROVIDERS, findTask } from './catalog.mjs';
+import {
+  downloadIndex,
+  uploadIndex,
+  uploadRunArtifacts,
+  mergeIndexes,
+  gcsTarget,
+} from './storage.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
@@ -77,8 +84,25 @@ function appendIndex(record) {
     list.push(record);
     await mkdir(dirname(RUNS_INDEX), { recursive: true });
     await writeFile(RUNS_INDEX, JSON.stringify(list, null, 2) + '\n', 'utf-8');
+    // Mirror to GCS (no-op/graceful if unavailable).
+    await uploadIndex(list);
   });
   return indexWriteChain;
+}
+
+/**
+ * On startup, fold any runs already in GCS into the local index so the Results
+ * tab survives restarts and shows runs recorded by other machines.
+ */
+async function hydrateIndexFromGcs() {
+  const remote = await downloadIndex();
+  if (!remote.length) return;
+  indexWriteChain = indexWriteChain.then(async () => {
+    const merged = mergeIndexes(await readIndex(), remote);
+    await mkdir(dirname(RUNS_INDEX), { recursive: true });
+    await writeFile(RUNS_INDEX, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+  });
+  await indexWriteChain;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +215,36 @@ function appendLog(run, chunk) {
   }
 }
 
+/**
+ * Terminates a run's active child process tree (provisioner or Cypress).
+ * Spawned detached, so we signal the whole process group. Returns true if a
+ * live process was signalled.
+ */
+function killRun(run) {
+  run.cancelled = true;
+  const proc = run.proc;
+  if (!proc || proc.exitCode !== null || proc.signalCode) return false;
+  const pid = proc.pid;
+  if (!pid) return false;
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    try { proc.kill('SIGTERM'); } catch { /* already gone */ }
+  }
+  // Escalate if it doesn't exit on its own.
+  setTimeout(() => {
+    try { process.kill(-pid, 'SIGKILL'); } catch { /* already gone */ }
+  }, 4000);
+  return true;
+}
+
 async function finalizeRun(run) {
+  // Cancelled runs are aborted by the user and not recorded in run history.
+  if (run.cancelled) {
+    run.status = 'cancelled';
+    run.finishedAt = new Date().toISOString();
+    return;
+  }
   run.finishedAt = new Date().toISOString();
   const results = await computeRunResults(run);
   run.accuracy = results.accuracy;
@@ -222,6 +275,8 @@ async function finalizeRun(run) {
     logDir: run.logDir,
     spec: run.meta.spec,
   });
+  // Mirror the run's small JSONL artifacts to GCS (graceful no-op if disabled).
+  uploadRunArtifacts(run.runId, join(LOGS_ROOT, run.runId)).catch(() => {});
 }
 
 function spawnCypress(run) {
@@ -265,8 +320,11 @@ function spawnCypress(run) {
   }
 
   appendLog(run, `\n[dashboard] launching: npx ${args.join(' ')}\n`);
-  const child = spawn('npx', args, { cwd: REPO_ROOT, env });
+  // detached → its own process group so cancellation can kill the whole tree
+  // (cypress spawns an Electron/browser child of its own).
+  const child = spawn('npx', args, { cwd: REPO_ROOT, env, detached: true });
   run.pid = child.pid;
+  run.proc = child;
   run.status = 'running';
 
   child.stdout.on('data', (c) => appendLog(run, c));
@@ -296,7 +354,8 @@ function provisionThenRun(run) {
   ];
   appendLog(run, `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m)...\n`);
 
-  const child = spawn('node', args, { cwd: SUPPORT_DIR, env: { ...process.env } });
+  const child = spawn('node', args, { cwd: SUPPORT_DIR, env: { ...process.env }, detached: true });
+  run.proc = child;
   let stdout = '';
   child.stdout.on('data', (c) => {
     stdout += c.toString();
@@ -447,7 +506,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && pathname === '/api/runs') {
-    const list = await readIndex();
+    const [local, remote] = await Promise.all([readIndex(), downloadIndex()]);
+    const list = mergeIndexes(local, remote);
     // Newest first.
     list.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
     sendJson(res, 200, { runs: list });
@@ -459,6 +519,17 @@ const server = http.createServer(async (req, res) => {
     const run = runs.get(logMatch[1]);
     if (!run) return sendJson(res, 404, { error: 'Unknown runId' });
     sendJson(res, 200, { runId: run.runId, log: run.logLines.join('') });
+    return;
+  }
+
+  const cancelMatch = pathname.match(/^\/api\/run\/([^/]+)$/);
+  if (req.method === 'DELETE' && cancelMatch) {
+    const run = runs.get(cancelMatch[1]);
+    if (!run) return sendJson(res, 404, { error: 'Unknown runId' });
+    const killed = killRun(run);
+    appendLog(run, `\n[dashboard] run cancelled by user${killed ? ' — terminating process' : ''}.\n`);
+    runs.delete(run.runId);
+    sendJson(res, 200, { ok: true, killed });
     return;
   }
 
@@ -475,5 +546,9 @@ server.listen(PORT, () => {
   console.log(`\nLEVANTE-QA dashboard → http://localhost:${PORT}`);
   console.log(`  repo:        ${REPO_ROOT}`);
   console.log(`  provisioner: ${PROVISIONER}`);
-  console.log(`  runs index:  ${RUNS_INDEX}\n`);
+  console.log(`  runs index:  ${RUNS_INDEX}`);
+  console.log(`  gcs store:   ${gcsTarget() || '(disabled)'}\n`);
+  hydrateIndexFromGcs().catch((err) => {
+    console.warn(`[gcs] index hydrate failed: ${err?.message || err}`);
+  });
 });

@@ -125,6 +125,7 @@
     $('#runsEmpty')?.remove();
     const card = el('div', 'run-card is-running');
     card.id = `run-${runId}`;
+    card.dataset.startedAt = new Date().toISOString();
     $('#runGrid').prepend(card);
     state.tracked.set(runId, { meta: payload });
     renderCard(runId, {
@@ -171,6 +172,7 @@
     const personaTag = m.persona && m.agent !== 'child' ? '<span class="tag">persona</span>' : '';
     const agentLabel = agentDisplay(m.agent, m.provider);
     const acc = s.accuracy == null ? '—' : `${(s.accuracy * 100).toFixed(1)}%`;
+    const startedAt = card.dataset.startedAt || s.startedAt;
     const errBlock =
       (s.errors && s.errors.length)
         ? `<div class="run-errors"><b><i class="fas fa-flag"></i> ${s.errors.length} issue${s.errors.length > 1 ? 's' : ''}</b><br>${s.errors.map(escapeHtml).join('<br>')}</div>`
@@ -180,8 +182,12 @@
         <div>
           <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}</div>
           <div class="run-card-sub">${agentLabel} · age ${m.ageYears ?? '?'}y ${m.ageMonths ?? 0}m${s.email ? ' · ' + escapeHtml(s.email) : ''}</div>
+          <div class="run-card-time"><i class="fas fa-clock"></i> ${fmtTime(startedAt)}</div>
         </div>
-        <span class="pill pill-${s.status}">${STATUS_ICON[s.status] || ''} ${STATUS_LABEL[s.status] || s.status}</span>
+        <div class="run-card-head-right">
+          <span class="pill pill-${s.status}">${STATUS_ICON[s.status] || ''} ${STATUS_LABEL[s.status] || s.status}</span>
+          <button class="card-close" data-remove="${runId}" title="Remove from this list" aria-label="Remove card">&times;</button>
+        </div>
       </div>
       <div class="run-metrics">
         <span class="metric">Accuracy <b>${acc}</b></span>
@@ -192,13 +198,31 @@
         <button class="link-btn" data-log="${runId}"><i class="fas fa-terminal"></i> View log</button>
       </div>`;
     card.querySelector('[data-log]').addEventListener('click', () => openLog(runId, m.taskLabel));
+    card.querySelector('[data-remove]').addEventListener('click', () => removeCard(runId));
+  }
+
+  function removeCard(runId) {
+    // Kills any in-flight process server-side, stops polling (pollRun bails when
+    // the card is gone), and clears the card from the Launch list. Completed
+    // runs remain in history (Results tab); cancelled runs are not recorded.
+    state.tracked.delete(runId);
+    fetch(`/api/run/${encodeURIComponent(runId)}`, { method: 'DELETE' }).catch(() => {});
+    $(`#run-${runId}`)?.remove();
+    if (!$('#runGrid').children.length) {
+      $('#runGrid').appendChild(
+        el('p', 'empty-note', 'No runs yet this session. Launch one above.'),
+      ).id = 'runsEmpty';
+    }
   }
 
   async function pollRun(runId) {
+    // Card was removed by the user — stop polling.
+    if (!$(`#run-${runId}`)) return;
     try {
       const res = await fetch(`/api/status?runId=${encodeURIComponent(runId)}`);
       if (!res.ok) return;
       const s = await res.json();
+      if (!$(`#run-${runId}`)) return;
       renderCard(runId, s);
       if (s.status === 'provisioning' || s.status === 'running') {
         setTimeout(() => pollRun(runId), 1500);
@@ -207,7 +231,7 @@
         state.tracked.delete(runId);
       }
     } catch {
-      setTimeout(() => pollRun(runId), 3000);
+      if ($(`#run-${runId}`)) setTimeout(() => pollRun(runId), 3000);
     }
   }
 

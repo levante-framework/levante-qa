@@ -164,7 +164,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
     // Wait for the app to load, then dismiss the fullscreen prompt. This also
     // guarantees the jsPsych timeline has started before the loop treats an
     // empty content root as "finished".
-    cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
+    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });

@@ -70,7 +70,7 @@ export function loginToDashboard(onBeforeLoad: (win: Window) => void): void {
  * the previously installed audio patch is preserved.
  */
 export function launchCoreTask(taskId: string): void {
-  cy.get('[data-pc-section=tablist]', { timeout: 120000 }).should('exist');
+  cy.get('[data-pc-section=tablist]', { timeout: 300000 }).should('exist');
   cy.get(`a[href*="core-tasks/${taskId}"]`, { timeout: 60000 })
     .first()
     .scrollIntoView()

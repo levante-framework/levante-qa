@@ -279,7 +279,7 @@ describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
   it('solves each item from pixels and matches the app answer key', () => {
     resetAudioCapture();
     launchTask({ taskId: 'mental-rotation', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
+    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });

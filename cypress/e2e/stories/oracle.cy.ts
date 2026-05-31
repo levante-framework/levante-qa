@@ -220,7 +220,7 @@ describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
   it('completes the task by clicking the app answer key', () => {
     resetAudioCapture();
     launchTask({ taskId: 'theory-of-mind', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
+    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });

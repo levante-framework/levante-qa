@@ -133,6 +133,31 @@ How it works (per launch):
    provider, age, status, accuracy, trials, errors, timings) to
    `results/runs.json`, shown on the **Results** tab.
 
+Run cards on the **Launch** tab show the launch time and an **X** to remove a
+card; removing a still-running card cancels it (the backend kills the whole
+process tree). Live cards are session-scoped, so they clear on restart — the
+durable history lives on the **Results** tab (see below).
+
+### Durable run storage (GCS)
+
+So history survives restarts and is shared across machines, the dashboard
+mirrors the run index and each run's small JSONL artifacts to a Cloud Storage
+bucket — by default **`gs://levante-tools/levante-qa/`** (the same "tools"
+bucket that hosts `pitwall/` and `test-results/`):
+
+- `levante-qa/runs.json` — the canonical run index.
+- `levante-qa/runs/<runId>/*.jsonl` — per-run trial archive + diagnostic +
+  persona logs (screenshots are **not** uploaded).
+
+On startup the server folds the remote index into the local one, and
+`/api/runs` returns the union of local + remote, so the Results tab shows runs
+recorded on any machine. Auth uses **Application Default Credentials**
+(`gcloud auth application-default login`) unless `GCP_SERVICE_ACCOUNT_JSON` /
+`GOOGLE_APPLICATION_CREDENTIALS` is set. Everything degrades gracefully: if the
+bucket is unreachable or `QA_GCS_DISABLE=1`, the dashboard keeps working with
+local-only history. Override via `QA_GCS_BUCKET`, `QA_GCS_PREFIX`,
+`QA_GCS_PROJECT`.
+
 Requirements: the provisioner needs the `-dev` service-account credential —
 runs against the same `levante-support` `.env`
 (`LEVANTE_ADMIN_FIREBASE_CREDENTIALS`) used by `setup-qa-site.mjs`. Point the
@@ -639,7 +664,7 @@ cypress/
     id3Reader.ts            node-side fetch + node-id3 parse + cache
     mentalRotationSolver.ts node-side pixel rotation/mirror solver (authentic MR oracle)
 scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, score_matrix.ts, summarize_runs.ts, sync_persona.mjs
-dashboard/                  server.mjs (run orchestration backend), catalog.mjs (task→spec map)
+dashboard/                  server.mjs (run orchestration backend), catalog.mjs (task→spec map), storage.mjs (GCS run-history mirror)
   public/                   index.html, app.js, styles.css (Pitwall-styled UI: Launch + Results tabs)
 .github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
 ```

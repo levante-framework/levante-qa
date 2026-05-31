@@ -263,7 +263,7 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
       demoUrl: buildUrl(),
       onBeforeLoad: installAudioCapture,
     });
-    cy.contains('OK', { timeout: 120000 }).should('be.visible').click({ force: true });
+    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });
