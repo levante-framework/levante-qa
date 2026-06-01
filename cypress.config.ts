@@ -51,12 +51,16 @@ interface WriteJsonlArgs {
 const PERSONA_ON = String(process.env.QA_PERSONA ?? '').toLowerCase() === 'child';
 const PERSONA_AGE_YEARS = Number(process.env.QA_PERSONA_AGE_YEARS ?? '');
 const PERSONA_AGE_MONTHS = Number(process.env.QA_PERSONA_AGE_MONTHS ?? '0');
+/** When `irt`, append mean child IRT θ for this age/task (requires age_task_ability.json). */
+const PERSONA_ABILITY_IRT = String(process.env.QA_PERSONA_ABILITY ?? '').toLowerCase() === 'irt';
 let personaLogged = false;
 
 function applyPersona(req: VLMRequest): VLMRequest {
   if (!PERSONA_ON || !Number.isFinite(PERSONA_AGE_YEARS)) return req;
   const ageMonths = Number.isFinite(PERSONA_AGE_MONTHS) ? PERSONA_AGE_MONTHS : 0;
-  const preamble = makeChildPersonaPrompt(PERSONA_AGE_YEARS, ageMonths, req.taskId ?? undefined);
+  const preamble = makeChildPersonaPrompt(PERSONA_AGE_YEARS, ageMonths, req.taskId ?? undefined, {
+    includeIrtAbility: PERSONA_ABILITY_IRT,
+  });
   if (!personaLogged) {
     personaLogged = true;
     try {
@@ -70,6 +74,7 @@ function applyPersona(req: VLMRequest): VLMRequest {
           taskId: req.taskId ?? null,
           ageYears: PERSONA_AGE_YEARS,
           ageMonths,
+          personaAbility: PERSONA_ABILITY_IRT ? 'irt' : null,
           preamble,
         }) + '\n',
         'utf-8',

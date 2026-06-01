@@ -299,6 +299,7 @@ async function finalizeRun(run) {
     ageYears: run.meta.ageYears,
     ageMonths: run.meta.ageMonths,
     persona: !!run.meta.persona,
+    personaAbility: run.meta.personaAbility ?? null,
     status: run.status,
     accuracy: run.accuracy,
     nTrials: run.nTrials,
@@ -349,6 +350,9 @@ function spawnCypress(run) {
     env.QA_PERSONA = 'child';
     env.QA_PERSONA_AGE_YEARS = String(run.meta.ageYears);
     env.QA_PERSONA_AGE_MONTHS = String(run.meta.ageMonths);
+    if (run.meta.personaAbility === 'irt') {
+      env.QA_PERSONA_ABILITY = 'irt';
+    }
   }
 
   const args = [
@@ -523,12 +527,15 @@ const server = http.createServer(async (req, res) => {
         const ageMonths = Number.isFinite(Number(p.ageMonths)) ? Math.max(0, Math.floor(Number(p.ageMonths))) : 0;
         // 'child' always simulates the participant's age; persona is intrinsic to it.
         const persona = agent === 'child';
+        const personaAbility =
+          persona && p.personaAbility === 'irt' ? 'irt' : null;
         const runId = startRun({
           task: task.id,
           taskLabel: task.label,
           agent,
           provider,
           persona,
+          personaAbility,
           ageYears,
           ageMonths,
           spec: isVlmBacked ? task.vlmSpec : task.oracleSpec,

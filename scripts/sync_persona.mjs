@@ -24,7 +24,7 @@ const BENCH_DIR = process.env.LEVANTE_BENCH_DIR
 
 const SRC = join(BENCH_DIR, 'shared', 'persona');
 const DEST = join(REPO_ROOT, 'cypress', 'support', 'persona');
-const FILES = ['age_task_accuracy.json', 'persona_template.txt'];
+const FILES = ['age_task_accuracy.json', 'age_task_ability.json', 'persona_template.txt'];
 
 async function main() {
   await mkdir(DEST, { recursive: true });

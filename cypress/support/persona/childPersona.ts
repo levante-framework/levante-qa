@@ -16,6 +16,10 @@ import { join } from 'node:path';
 
 export type AgeAccuracyProfile = Record<string, Record<string, number>>;
 
+/** Per-age mean IRT ability (theta) from child ability_scores + trials age. */
+export type AgeAbilityCell = { theta: number; n?: number };
+export type AgeAbilityProfile = Record<string, Record<string, AgeAbilityCell>>;
+
 /** Maps a levante-qa task folder slug to the canonical LEVANTE task_id used in
  * the trial data / profile JSON. Slugs with no matching profile (none today)
  * simply fall back to age-only persona wording. */
@@ -36,10 +40,11 @@ const FALLBACK_TEMPLATE = [
   '',
   'Answer the way a child of that age would actually answer — not perfectly, and not randomly. When an item is beyond what a child this age has typically mastered, make the kind of mistake such a child would plausibly make rather than reasoning it out with adult knowledge. When an item is easy for this age, answer it correctly.',
   '',
-  'Always respond in exactly the format the task instructions require, with no explanation.{difficulty_block}',
+  'Always respond in exactly the format the task instructions require, with no explanation.{difficulty_block}{ability_block}',
 ].join('\n');
 
 let cachedProfile: AgeAccuracyProfile | null = null;
+let cachedAbilityProfile: AgeAbilityProfile | null = null;
 let cachedTemplate: string | null = null;
 
 function personaDir(): string {
@@ -55,6 +60,19 @@ export function loadProfile(): AgeAccuracyProfile {
     }
   }
   return cachedProfile as AgeAccuracyProfile;
+}
+
+export function loadAbilityProfile(): AgeAbilityProfile {
+  if (cachedAbilityProfile === null) {
+    try {
+      cachedAbilityProfile = JSON.parse(
+        readFileSync(join(personaDir(), 'age_task_ability.json'), 'utf-8'),
+      );
+    } catch {
+      cachedAbilityProfile = {};
+    }
+  }
+  return cachedAbilityProfile as AgeAbilityProfile;
 }
 
 function loadTemplate(): string {
@@ -75,15 +93,25 @@ export function difficultyLabel(accuracy: number): 'easy' | 'moderate' | 'hard' 
   return 'hard';
 }
 
-/** Nearest available age row's accuracy (clamps to the profile's age range). */
-function nearestAccuracy(taskAcc: Record<string, number>, ageYears: number): number | null {
+/** Nearest available age row in a numeric profile (clamps to the profile's age range). */
+function nearestAgeKey<T>(taskAcc: Record<string, T>, ageYears: number): string | null {
   const ages = Object.keys(taskAcc).map(Number).filter((n) => Number.isFinite(n));
   if (ages.length === 0) return null;
   let best = ages[0];
   for (const a of ages) {
     if (Math.abs(a - ageYears) < Math.abs(best - ageYears)) best = a;
   }
-  return taskAcc[String(best)] ?? null;
+  return String(best);
+}
+
+function nearestAccuracy(taskAcc: Record<string, number>, ageYears: number): number | null {
+  const key = nearestAgeKey(taskAcc, ageYears);
+  return key != null ? (taskAcc[key] ?? null) : null;
+}
+
+function nearestAbility(taskAb: Record<string, AgeAbilityCell>, ageYears: number): AgeAbilityCell | null {
+  const key = nearestAgeKey(taskAb, ageYears);
+  return key != null ? (taskAb[key] ?? null) : null;
 }
 
 function agePhrase(ageYears: number, ageMonths: number): string {
@@ -97,17 +125,27 @@ function agePhrase(ageYears: number, ageMonths: number): string {
  * (e.g. 'trog', 'egma_math'); when its profile is available the preamble adds a
  * task-specific difficulty hint for the target age.
  */
+export type ChildPersonaOptions = {
+  /** When true, append mean IRT θ for this age/task (if available in age_task_ability.json). */
+  includeIrtAbility?: boolean;
+  profile?: AgeAccuracyProfile;
+  abilityProfile?: AgeAbilityProfile;
+};
+
 export function makeChildPersonaPrompt(
   ageYears: number,
   ageMonths = 0,
   qaTaskSlug?: string,
-  profile: AgeAccuracyProfile = loadProfile(),
+  options: ChildPersonaOptions = {},
 ): string {
   const template = loadTemplate();
   const phrase = agePhrase(ageYears, ageMonths);
   const ageDecimal = ageYears + ageMonths / 12;
+  const profile = options.profile ?? loadProfile();
+  const abilityProfile = options.abilityProfile ?? loadAbilityProfile();
 
   let difficultyBlock = '';
+  let abilityBlock = '';
   const taskId = qaTaskSlug ? SLUG_TO_TASK_ID[qaTaskSlug] : undefined;
   if (taskId && profile[taskId]) {
     const acc = nearestAccuracy(profile[taskId], ageDecimal);
@@ -117,6 +155,18 @@ export function makeChildPersonaPrompt(
         `(about ${Math.round(acc * 100)}% of items answered correctly by children this age).`;
     }
   }
+  if (options.includeIrtAbility && taskId && abilityProfile[taskId]) {
+    const cell = nearestAbility(abilityProfile[taskId], ageDecimal);
+    if (cell != null && Number.isFinite(cell.theta)) {
+      const sign = cell.theta >= 0 ? '+' : '';
+      abilityBlock =
+        `\n\nOn this task's IRT scale, children this age typically have ability θ ≈ ${sign}${cell.theta.toFixed(2)} ` +
+        `(task-specific scale; higher θ means stronger performance relative to item difficulty).`;
+    }
+  }
 
-  return template.replace('{age_phrase}', phrase).replace('{difficulty_block}', difficultyBlock);
+  return template
+    .replace('{age_phrase}', phrase)
+    .replace('{difficulty_block}', difficultyBlock)
+    .replace('{ability_block}', abilityBlock);
 }

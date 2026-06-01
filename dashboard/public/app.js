@@ -56,6 +56,7 @@
     }
     const modelBacked = (state.agent === 'vlm' || state.agent === 'child') && hasVlm;
     $('#providerField').hidden = !modelBacked;
+    $('#irtField').hidden = state.agent !== 'child' || !hasVlm;
   }
 
   $('#taskSelect').addEventListener('change', syncVlmAvailability);
@@ -102,6 +103,8 @@
       provider: $('#providerSelect').value,
       ageYears: Number($('#ageYears').value),
       ageMonths: Number($('#ageMonths').value),
+      personaAbility:
+        state.agent === 'child' && $('#irtToggle').checked ? 'irt' : null,
     };
     const btn = $('#launchBtn');
     btn.disabled = true;
@@ -170,6 +173,7 @@
     card.className = `run-card is-${s.status}`;
     const m = s.meta || {};
     const personaTag = m.persona && m.agent !== 'child' ? '<span class="tag">persona</span>' : '';
+    const irtTag = m.personaAbility === 'irt' ? '<span class="tag">IRT θ</span>' : '';
     const agentLabel = agentDisplay(m.agent, m.provider);
     const acc = s.accuracy == null ? '—' : `${(s.accuracy * 100).toFixed(1)}%`;
     const startedAt = card.dataset.startedAt || s.startedAt;
@@ -180,7 +184,7 @@
     card.innerHTML = `
       <div class="run-card-head">
         <div>
-          <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}</div>
+          <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}${irtTag}</div>
           <div class="run-card-sub">${agentLabel} · age ${m.ageYears ?? '?'}y ${m.ageMonths ?? 0}m${s.email ? ' · ' + escapeHtml(s.email) : ''}</div>
           <div class="run-card-time"><i class="fas fa-clock"></i> ${fmtTime(startedAt)}</div>
         </div>
@@ -329,6 +333,11 @@
         summaryRow('Trials', escapeHtml(String(r.nTrials || 0))),
         summaryRow('Duration', escapeHtml(fmtDuration(r.durationMs))),
         summaryRow('Age', escapeHtml(`${r.ageYears ?? '?'}y ${r.ageMonths ?? 0}m`)),
+        r.personaAbility === 'irt'
+          ? summaryRow('Persona', 'Child + IRT θ')
+          : r.persona || r.agent === 'child'
+            ? summaryRow('Persona', 'Child (accuracy)')
+            : '',
         summaryRow('Participant', escapeHtml(r.email || '—')),
         summaryRow('Run ID', `<code>${escapeHtml(r.runId)}</code>`),
         summaryRow('Spec', `<code>${escapeHtml(r.spec || '—')}</code>`),
@@ -387,7 +396,10 @@
       rows.forEach((r) => {
         const tr = el('tr');
         const acc = r.accuracy == null ? '—' : `${(r.accuracy * 100).toFixed(1)}%`;
-        const agent = agentDisplay(r.agent, r.provider) + (r.persona && r.agent !== 'child' ? ' <span class="tag">persona</span>' : '');
+        const agent =
+          agentDisplay(r.agent, r.provider) +
+          (r.persona && r.agent !== 'child' ? ' <span class="tag">persona</span>' : '') +
+          (r.personaAbility === 'irt' ? ' <span class="tag">IRT θ</span>' : '');
         const dur = r.durationMs != null ? `${Math.round(r.durationMs / 1000)}s` : '—';
         const errs = (r.errors && r.errors.length) ? r.errors.map(escapeHtml).join('<br>') : '—';
         tr.innerHTML = `

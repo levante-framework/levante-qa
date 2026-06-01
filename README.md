@@ -179,6 +179,10 @@ default; the oracle is never affected.
 ```bash
 QA_PERSONA=child QA_PERSONA_AGE_YEARS=6 QA_PERSONA_AGE_MONTHS=0 \
   pnpm cy:run:trog:vlm -- --env provider=gemini
+
+# Optional: also inject mean child IRT θ for that age/task (6 tasks with IRT models)
+QA_PERSONA=child QA_PERSONA_ABILITY=irt QA_PERSONA_AGE_YEARS=8 QA_PERSONA_AGE_MONTHS=0 \
+  pnpm cy:run:trog:vlm -- --env provider=gemini
 ```
 
 When enabled, the `askVLM` node task (`cypress.config.ts`) prepends a persona
@@ -187,7 +191,9 @@ it with no per-agent code. The preamble is built by
 `cypress/support/persona/childPersona.ts` from two **shared artifacts**:
 
 - `cypress/support/persona/age_task_accuracy.json` — per-task mean accuracy by
-  age, the empirical "difficulty" target.
+  age (always included in the child persona).
+- `cypress/support/persona/age_task_ability.json` — per-task mean IRT ability θ
+  by age (optional; see below).
 - `cypress/support/persona/persona_template.txt` — the prompt wording.
 
 These are the **single source of truth shared with `levante-bench`** (canonical
@@ -200,9 +206,10 @@ pnpm persona:sync          # copies from ../levante-bench (override LEVANTE_BENC
 ```
 
 The applied persona (age + preamble) is logged once per run to
-`cypress/logs/_<task>_persona.jsonl`. In the dashboard, a VLM-only "Child
-persona" toggle sets `QA_PERSONA*` for the run (persona age defaults to the
-participant's age) and is shown on run cards and in the Results table.
+`cypress/logs/_<task>_persona.jsonl`. In the dashboard, **Child** runs always use
+the accuracy-based persona; check **Include mean child ability (θ) from IRT** to
+also append the IRT θ hint (`QA_PERSONA_ABILITY=irt`). Scoring and pass/fail
+logic are unchanged — only the VLM system prompt differs.
 
 ## Architecture
 
