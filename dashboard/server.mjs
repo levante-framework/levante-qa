@@ -348,6 +348,9 @@ function spawnCypress(run) {
   if (isVlmBacked && run.meta.provider) {
     env.VLM_PROVIDER = run.meta.provider;
   }
+  if (run.meta.agent === 'wrong') {
+    env.QA_AGENT_MODE = 'wrong';
+  }
   // 'child' runs force the age persona on: the model answers as a typical child
   // of the participant's age would, calibrated to LEVANTE accuracy-by-age data.
   if (run.meta.persona) {

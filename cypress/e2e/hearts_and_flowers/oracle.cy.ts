@@ -32,10 +32,13 @@ import { launchTask } from '../../support/launch';
 const MAX_STEPS = 1200;
 const TASK = 'hearts-and-flowers';
 
-const hfAgent = isWrongAgentMode() ? wrongHeartsAgent : oracleAgent;
-const AGENT_LABEL = isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)';
+function hfAgent() {
+  return isWrongAgentMode() ? wrongHeartsAgent : oracleAgent;
+}
 
-describe(`Hearts & Flowers — ${AGENT_LABEL}`, () => {
+describe(
+  `Hearts & Flowers — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`,
+  () => {
   const records: TrialRecord[] = [];
   let gameComplete = false;
   // Flips true once a non-empty task screen has been seen, so that an empty
@@ -136,7 +139,7 @@ describe(`Hearts & Flowers — ${AGENT_LABEL}`, () => {
       }
 
       const state = readStimulus(win);
-      const action = hfAgent.decide(win);
+      const action = hfAgent().decide(win);
       const isResponse = action === 'LEFT' || action === 'RIGHT';
       const expected = isResponse
         ? correctAction(state.shape, state.side, state.blockType)
@@ -153,11 +156,8 @@ describe(`Hearts & Flowers — ${AGENT_LABEL}`, () => {
             side: state.side,
             congruency: state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
             action,
-            correct: isResponse
-              ? isWrongAgentMode()
-                ? expected !== null && action !== expected
-                : action === expected
-              : null,
+            // Task correctness (not "agent succeeded at its job").
+            correct: isResponse ? action === expected : null,
             oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
@@ -181,4 +181,5 @@ describe(`Hearts & Flowers — ${AGENT_LABEL}`, () => {
     cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
     step(0);
   });
-});
+  },
+);

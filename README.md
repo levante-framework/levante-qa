@@ -217,7 +217,9 @@ A fourth deterministic agent, **Wrong**, runs the same end-to-end flow as the or
 deliberately selects the incorrect answer on every scored item (invert LEFT/RIGHT, pick the
 next AFC index, wrong PA image, perturbed Corsi sequence, etc.). Each task has
 `cypress/e2e/<task>/wrong_agent.cy.ts` (a one-line import of `oracle.cy.ts`); mode is
-detected from the spec filename. Logs use the `wrong_<task>_*.jsonl` prefix; finalize
+detected via `QA_AGENT_MODE=wrong` (set by `wrongAgentEntry.ts` before the shared
+`oracle.cy` loads — `Cypress.spec.relative` alone is unreliable when oracle is imported).
+Logs use the `wrong_<task>_*.jsonl` prefix; finalize
 asserts **0%** accuracy while still requiring task completion. Dashboard: **Wrong** on the
 Launch tab. CLI: `pnpm cy:run:wrong`.
 

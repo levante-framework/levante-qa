@@ -4,10 +4,16 @@
  */
 export type QaAgentMode = 'oracle' | 'wrong';
 
-/** True when the active spec is `wrong_agent.cy.ts`. */
+/** True when the active spec is `wrong_agent.cy.ts` (or dashboard set QA_AGENT_MODE). */
 export function qaAgentMode(): QaAgentMode {
+  if (String(Cypress.env('QA_AGENT_MODE') ?? '').toLowerCase() === 'wrong') {
+    return 'wrong';
+  }
   const rel = String(Cypress.spec.relative ?? '');
-  return rel.includes('wrong_agent') ? 'wrong' : 'oracle';
+  if (rel.includes('wrong_agent')) return 'wrong';
+  const name = String(Cypress.spec.name ?? '');
+  if (name.includes('wrong_agent')) return 'wrong';
+  return 'oracle';
 }
 
 export function isWrongAgentMode(): boolean {

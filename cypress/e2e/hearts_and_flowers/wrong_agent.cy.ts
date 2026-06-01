@@ -1,2 +1,3 @@
-/** Wrong-agent entrypoint — see oracle.cy.ts (branches on spec filename). */
+/** Wrong-agent entrypoint — sets QA_AGENT_MODE before the shared oracle spec loads. */
+import '../../support/wrongAgentEntry';
 import './oracle.cy';
