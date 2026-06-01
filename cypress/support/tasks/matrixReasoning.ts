@@ -114,6 +114,51 @@ export function isInstructionScreen(win: TaskWindow): boolean {
   return !!primary && isInteractable(primary);
 }
 
+/** Labels used on fullscreen / intro screens (not the literal text "OK"). */
+const START_CONTINUE_LABEL = /^(ok|continue|next)$/i;
+
+function findEnabledStartButton(doc: Document): HTMLElement | null {
+  const fullscreen = doc.querySelector(
+    '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn',
+  ) as HTMLElement | null;
+  if (fullscreen && isInteractable(fullscreen) && !(fullscreen as HTMLButtonElement).disabled) {
+    return fullscreen;
+  }
+  for (const el of doc.querySelectorAll('button.primary, button.jspsych-btn')) {
+    const btn = el as HTMLButtonElement;
+    const label = (btn.textContent ?? '').trim();
+    if (!START_CONTINUE_LABEL.test(label)) continue;
+    if (isInteractable(btn) && !btn.disabled) return btn;
+  }
+  return null;
+}
+
+/**
+ * Advance through asset preload, fullscreen, and intro/downex screens. Matrix
+ * Reasoning rarely shows a bare "OK" — buttons are usually Continue / Next and
+ * may stay disabled until narration/animations finish.
+ */
+export function dismissMatrixStartup(attempt = 0): void {
+  const MAX = 180;
+  if (attempt >= MAX) return;
+
+  if (attempt === 0) {
+    cy.get('.jspsych-content-wrapper, .jspsych-content', { timeout: 300000 }).should('exist');
+  }
+
+  cy.window({ log: false }).then((w) => {
+    const win = w as unknown as TaskWindow;
+    if (isItemReady(win) || isInstructionScreen(win)) return;
+
+    const btn = findEnabledStartButton(win.document);
+    if (btn) {
+      cy.wrap(btn).click({ force: true });
+    }
+    cy.wait(1200, { log: false });
+    dismissMatrixStartup(attempt + 1);
+  });
+}
+
 /** The image choices' asset keys, in DOM order (index === choice index). */
 export function readChoices(win: TaskWindow): string[] {
   return Array.from(win.document.querySelectorAll(CHOICE_IMG)).map((img) =>

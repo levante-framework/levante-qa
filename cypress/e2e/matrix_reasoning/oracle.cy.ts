@@ -4,6 +4,7 @@ import {
   isComplete,
   isInstructionScreen,
   isItemReady,
+  dismissMatrixStartup,
   readChoices,
   readPromptText,
   readStimulusAlt,
@@ -228,9 +229,7 @@ describe(`Matrix Reasoning — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (k
   it('completes the task by clicking the app answer key', () => {
     resetAudioCapture();
     launchTask({ taskId: 'matrix-reasoning', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    // Matrix Reasoning preloads a large image bank; allow extra time for the
-    // loading screen before the fullscreen "OK" appears.
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    dismissMatrixStartup();
     step(0);
   });
 });

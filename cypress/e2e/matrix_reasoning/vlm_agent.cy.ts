@@ -2,6 +2,7 @@ import matrixReasoningVlmAgent from '../../support/agents/matrixReasoningVlmAgen
 import {
   appKeyedCorrectIndex,
   buildUrl,
+  dismissMatrixStartup,
   isComplete,
   isInstructionScreen,
   isItemReady,
@@ -216,9 +217,7 @@ describe(`Matrix Reasoning — VLM agent (${provider})`, () => {
       demoUrl: buildUrl(),
       onBeforeLoad: installAudioCapture,
     });
-    // Matrix Reasoning preloads a large image bank; allow extra time for the
-    // loading screen before the fullscreen "OK" appears.
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    dismissMatrixStartup();
     step(0);
   });
 });

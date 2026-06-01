@@ -590,8 +590,10 @@ stagger) and every response trial is narrated.
   scored against the same key. See
   [How correctness is validated](#how-correctness-is-validated).
 
-This task preloads a large image bank, so the specs allow extra time for the
-loading screen before the fullscreen "OK". `cat=false` pins the fixed timeline and
+This task preloads a large image bank; startup uses **Continue** / **Next** (not
+a bare `OK`), including optional downex intro screens with disabled buttons until
+audio/animations finish. Specs call `dismissMatrixStartup()` instead of
+`cy.contains('OK')`. `cat=false` pins the fixed timeline and
 `maxIncorrect` is raised so a stray miss never early-aborts.
 
 ## TROG
