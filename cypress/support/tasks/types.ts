@@ -526,6 +526,43 @@ export const SdsSummaryStatsSchema = z.object({
 });
 export type SdsSummaryStats = z.infer<typeof SdsSummaryStatsSchema>;
 
+// --- PA (ROAR Phonological Awareness) --------------------------------------
+
+/**
+ * A single PA screen/trial. Scored rows are `item` (oracle clicked
+ * sessionStorage `goal`); `break` rows mark FSM/LSM break screens.
+ */
+export const PaTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['intro', 'tutorial', 'item', 'break']),
+  goal: z.string().nullable().default(null),
+  breakMarker: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  provider: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type PaTrialRecord = z.infer<typeof PaTrialRecordSchema>;
+
+export function parsePaTrialRecord(input: unknown): PaTrialRecord {
+  return PaTrialRecordSchema.parse(input);
+}
+
+export const PaSummaryStatsSchema = z.object({
+  nItems: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nBreaks: z.number().int().nonnegative(),
+});
+export type PaSummaryStats = z.infer<typeof PaSummaryStatsSchema>;
+
 /**
  * Aggregate statistics produced by scoreTrials for one run.
  */

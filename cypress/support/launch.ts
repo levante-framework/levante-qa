@@ -4,14 +4,11 @@
  * By default a spec loads the standalone hosted demo (`?task=…`): fast, no auth,
  * ideal for the regression/benchmark loops. Set `LAUNCH=dashboard` to instead
  * drive the *real* participant flow: log in to the `-dev` dashboard and start
- * the assigned core task.
+ * the assigned task.
  *
- * The core task runs INLINE in the same dashboard SPA (`#jspsych-target`,
- * route `/game/core-tasks/:taskId`) — same origin, no iframe — so the Web Audio
- * capture installed via `onBeforeLoad` and every task selector keep working
- * exactly as they do against the demo. Because the dashboard navigates to the
- * task client-side (Vue router, no full reload), the patch installed at the
- * sign-in page load persists into the task.
+ * Core tasks run INLINE at `/game/core-tasks/:taskId` (`#jspsych-target`).
+ * ROAR literacy tasks (PA, SRE, SWR) use separate routes `/game/pa`, `/game/sre`,
+ * `/game/swr` with `@bdelab/roar-*` packages — same `#jspsych-target` container.
  */
 
 /** Default `-dev` dashboard host (admin-dev, where the QA participant has
@@ -19,7 +16,7 @@
 const DEFAULT_DASHBOARD_URL = 'https://hs-levante-admin-dev.web.app';
 
 export interface LaunchOptions {
-  /** Core-tasks task id, e.g. `egma-math` or `hearts-and-flowers`. */
+  /** Core-tasks id (`egma-math`) or ROAR id (`pa`, `sre`, `swr`). */
   taskId: string;
   /** Standalone demo URL (with `?task=…`) used when not in dashboard mode. */
   demoUrl: string;
@@ -32,16 +29,18 @@ export function isDashboardLaunch(): boolean {
   return String(Cypress.env('LAUNCH') ?? '').toLowerCase() === 'dashboard';
 }
 
+/** ROAR tasks are not served from levante-tasks-demo; they require dashboard launch. */
+export function isRoarTaskId(taskId: string): boolean {
+  return taskId === 'pa' || taskId === 'sre' || taskId === 'swr';
+}
+
 function dashboardBase(): string {
   return String(Cypress.env('DASHBOARD_URL') ?? DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
 }
 
 /**
  * Log in to the dashboard as a participant. Credentials come from the
- * `PARTICIPANT_USER` / `PARTICIPANT_PASS` env vars (a bare username is mapped to
- * an internal auth email by the dashboard itself). The audio capture is
- * installed at this initial page load and survives the later client-side
- * navigation into the task.
+ * `PARTICIPANT_USER` / `PARTICIPANT_PASS` env vars.
  */
 export function loginToDashboard(onBeforeLoad: (win: Window) => void): void {
   const user = String(Cypress.env('PARTICIPANT_USER') ?? '');
@@ -57,17 +56,13 @@ export function loginToDashboard(onBeforeLoad: (win: Window) => void): void {
   cy.get('[data-cy=input-password]').clear().type(pass, { log: false });
   cy.get('[data-cy=submit-sign-in-with-password]').click();
 
-  // Fail fast if auth did not take (otherwise the task wait would just hang).
   cy.location('pathname', { timeout: 60000 }).should((p) =>
     expect(p, 'navigated away from /signin after login').to.not.match(/\/signin$/),
   );
 }
 
 /**
- * From the participant home, start the assigned core task whose route targets
- * `taskId`. GameTabs renders the launch control as a router-link to
- * `/game/core-tasks/<taskId>`; clicking it is a same-window SPA navigation, so
- * the previously installed audio patch is preserved.
+ * From the participant home, start an assigned **core** task (`/game/core-tasks/…`).
  */
 export function launchCoreTask(taskId: string): void {
   cy.get('[data-pc-section=tablist]', { timeout: 300000 }).should('exist');
@@ -78,11 +73,34 @@ export function launchCoreTask(taskId: string): void {
 }
 
 /**
- * Launch a task by the configured strategy. In demo mode this is a plain
- * `cy.visit`; in dashboard mode it logs in and starts the assigned task. In both
- * cases the caller then proceeds with the same instruction/trial loop.
+ * From the participant home, start an assigned **ROAR** task (`/game/pa`, etc.).
+ * GameTabs renders a router-link (class `game-btn`) to `/game/<taskId>` — same
+ * pattern as levante-dashboard's testTasks.cy.ts.
+ */
+export function launchRoarTask(taskId: string): void {
+  // PrimeVue tabs: select first tab, then the game-btn router-link in the active panel
+  // (matches levante-dashboard/cypress/e2e/testTasks.cy.ts).
+  cy.get('[data-pc-section=tablist]', { timeout: 300000 }).should('exist').children().first().click();
+  cy.get('[data-pc-name=tabpanel][data-p-active=true]', { timeout: 120000 })
+    .find('a.game-btn')
+    .contains(/click to start/i)
+    .click({ force: true });
+  cy.location('pathname', { timeout: 120000 }).should('include', `/game/${taskId}`);
+}
+
+/**
+ * Launch a task by the configured strategy.
+ * ROAR tasks always use dashboard mode (no standalone demo URL).
  */
 export function launchTask(opts: LaunchOptions): void {
+  if (isRoarTaskId(opts.taskId)) {
+    expect(isDashboardLaunch(), 'ROAR tasks (pa/sre/swr) require LAUNCH=dashboard').to.equal(
+      true,
+    );
+    loginToDashboard(opts.onBeforeLoad);
+    launchRoarTask(opts.taskId);
+    return;
+  }
   if (isDashboardLaunch()) {
     loginToDashboard(opts.onBeforeLoad);
     launchCoreTask(opts.taskId);

@@ -717,6 +717,29 @@ cypress/logs/_memory_key_mismatch.jsonl  Memory Game items where the observed fl
 - **Selectors are defined only** in the per-task support file (`tasks/<task>.ts`), never inline in specs. Unverified selectors carry a `TODO(selectors)` comment — confirm them against the live DOM before relying on a green oracle run.
 - **Provider clients live behind a small interface** (`VLMClient` in `plugins/vlmClients/index.ts`); adding a VLM is one new file plus one dispatch-table entry.
 
+## ROAR literacy tasks (PA, SRE, SWR) — in progress
+
+These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`, etc.), not on
+`levante-tasks-demo`. They use route `/game/pa` (not `/game/core-tasks/…`) and require
+`LAUNCH=dashboard` plus a provisioned assignment (`provision-participant.mjs --task pa`).
+
+**PA (phonological awareness)** — first task under investigation:
+
+- **Launch:** `cypress/support/launch.ts` → `launchRoarTask()` (home tab → “Click to start” → `/game/pa`).
+- **Explore spec:** `cypress/e2e/pa/_explore.cy.ts` logs DOM snapshots to `cypress/logs/_pa_explore.jsonl`.
+- **Flow discovered:** custom intro (“click the button on the screen”) → fullscreen **Continue** →
+  audio-calibration screens → then `jspsych-audio-button-response-button` trials (phoneme audio +
+  four image choices). Not the core-tasks text **OK** button.
+- **Bench data:** `levante-bench` has ~10k `pa` trials in `trials.csv`; no `pa` IRT ability file yet.
+- **Answer key:** `sessionStorage.currentStimulus` → JSON `.goal` (image stem); oracle clicks
+  `img[src*="<goal>.webp"]` (same as `roar-dashboard` `paHelpers.js`). No `.correct` DOM class.
+- **Support:** `cypress/support/tasks/pa.ts` (`advancePaIntro`, `readGoalFromWindow`).
+- **Oracle:** `cypress/e2e/pa/oracle.cy.ts` — full English playthrough (`pnpm cy:run:pa:oracle`).
+- **Score:** `pnpm score:pa` → `results/pa_summary.csv`.
+- **Next:** VLM spec; SRE/SWR one at a time.
+
+SRE and SWR follow the same ROAR shell — we will tackle them one at a time after PA.
+
 ## Adding a new task
 
 1. Create `cypress/support/tasks/<task>.ts` exporting: `URL_BASE`, `DEFAULT_PARAMS`, selectors (with `TODO(selectors)`), `readStimulus`, `correctAction`, any task-specific congruency/condition helpers, and `scoreTrials`.

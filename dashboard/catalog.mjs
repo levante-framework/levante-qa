@@ -67,6 +67,14 @@ export const CATALOG = [
     oracleSpec: 'cypress/e2e/memory_game/oracle.cy.ts',
     vlmSpec: null,
   },
+  {
+    id: 'pa',
+    label: 'ROAR — Phoneme (PA)',
+    taskId: 'pa',
+    oracleSpec: 'cypress/e2e/pa/oracle.cy.ts',
+    vlmSpec: null,
+    requiresDashboard: true,
+  },
 ];
 
 export const VLM_PROVIDERS = ['gemini', 'openai', 'anthropic'];
