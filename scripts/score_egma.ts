@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join, basename, extname } from 'node:path';
 
 import { scoreTrials } from '../cypress/support/tasks/egmaMath';
+import { agentFromRunId } from './logAgent';
 import { EgmaTrialRecordSchema, type EgmaTrialRecord } from '../cypress/support/tasks/types';
 
 const LOGS_DIR = 'cypress/logs';
@@ -62,7 +63,7 @@ function main(): void {
 
   // Only EGMA run logs (skip the H&F logs and the live/diagnostic scratch files).
   const files = readdirSync(LOGS_DIR)
-    .filter((f) => /^(oracle|vlm)_egma_.*\.jsonl?$/.test(f))
+    .filter((f) => /^(oracle|vlm|wrong)_egma_.*\.jsonl?$/.test(f))
     .sort();
 
   if (files.length === 0) {
@@ -77,10 +78,10 @@ function main(): void {
     if (records.length === 0) continue;
 
     const stats = scoreTrials(records);
-    const agent = records.some((r) => r.oracle) ? 'oracle' : 'vlm';
+    const runId = basename(file, extname(file));
+    const agent = agentFromRunId(runId, records);
     const provider = records.find((r) => r.provider)?.provider ?? '';
     const task = records[0]?.task ?? 'egma-math';
-    const runId = basename(file, extname(file));
 
     rows.push(
       [

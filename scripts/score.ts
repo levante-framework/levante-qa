@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join, basename, extname } from 'node:path';
 
 import { scoreTrials } from '../cypress/support/tasks/heartsAndFlowers';
+import { agentFromRunId } from './logAgent';
 import { TrialRecordSchema, type TrialRecord } from '../cypress/support/tasks/types';
 
 const LOGS_DIR = 'cypress/logs';
@@ -79,10 +80,10 @@ function main(): void {
     if (records.length === 0) continue;
 
     const stats = scoreTrials(records);
-    const agent = records.some((r) => r.oracle) ? 'oracle' : 'vlm';
+    const runId = basename(file, extname(file));
+    const agent = agentFromRunId(runId, records);
     const provider = records.find((r) => r.provider)?.provider ?? '';
     const task = records[0]?.task ?? '';
-    const runId = basename(file, extname(file));
 
     rows.push(
       [

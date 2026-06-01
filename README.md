@@ -211,9 +211,19 @@ the accuracy-based persona; check **Include mean child ability (θ) from IRT** t
 also append the IRT θ hint (`QA_PERSONA_ABILITY=irt`). Scoring and pass/fail
 logic are unchanged — only the VLM system prompt differs.
 
+## Wrong agent (floor check)
+
+A fourth deterministic agent, **Wrong**, runs the same end-to-end flow as the oracle but
+deliberately selects the incorrect answer on every scored item (invert LEFT/RIGHT, pick the
+next AFC index, wrong PA image, perturbed Corsi sequence, etc.). Each task has
+`cypress/e2e/<task>/wrong_agent.cy.ts` (a one-line import of `oracle.cy.ts`); mode is
+detected from the spec filename. Logs use the `wrong_<task>_*.jsonl` prefix; finalize
+asserts **0%** accuracy while still requiring task completion. Dashboard: **Wrong** on the
+Launch tab. CLI: `pnpm cy:run:wrong`.
+
 ## Architecture
 
-Two agent paths share the same task model (selectors, stimulus parser, response rule, scoring) and the same trial-logging pipeline:
+Oracle and VLM agent paths share the same task model (selectors, stimulus parser, response rule, scoring) and the same trial-logging pipeline:
 
 ```
                          ┌─────────────────────────────────────────────┐

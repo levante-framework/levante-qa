@@ -1,4 +1,11 @@
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
 import oracleAgent from '../../support/agents/oracleAgent';
+import wrongHeartsAgent from '../../support/agents/wrongHeartsAgent';
 import {
   buildUrl,
   congruency,
@@ -25,7 +32,10 @@ import { launchTask } from '../../support/launch';
 const MAX_STEPS = 1200;
 const TASK = 'hearts-and-flowers';
 
-describe('Hearts & Flowers — oracle (deterministic)', () => {
+const hfAgent = isWrongAgentMode() ? wrongHeartsAgent : oracleAgent;
+const AGENT_LABEL = isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)';
+
+describe(`Hearts & Flowers — ${AGENT_LABEL}`, () => {
   const records: TrialRecord[] = [];
   let gameComplete = false;
   // Flips true once a non-empty task screen has been seen, so that an empty
@@ -35,7 +45,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', {
-      path: `cypress/logs/oracle_hf_${ts}.jsonl`,
+      path: `cypress/logs/${agentLogStem()}_hf_${ts}.jsonl`,
       records,
     });
 
@@ -47,7 +57,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
 
       const correctCount = responses.filter((r) => r.correct === true).length;
       const accuracy = responses.length > 0 ? correctCount / responses.length : 0;
-      expect(accuracy, 'oracle accuracy').to.equal(1.0);
+      expect(accuracy, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
 
       const timeouts = responses.filter((r) => r.timedOut === true).length;
       expect(timeouts, 'oracle timeouts').to.equal(0);
@@ -68,7 +78,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
         shape: null,
         side: null,
         action: 'CONTINUE',
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       }),
@@ -126,7 +136,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
       }
 
       const state = readStimulus(win);
-      const action = oracleAgent.decide(win);
+      const action = hfAgent.decide(win);
       const isResponse = action === 'LEFT' || action === 'RIGHT';
       const expected = isResponse
         ? correctAction(state.shape, state.side, state.blockType)
@@ -143,8 +153,12 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
             side: state.side,
             congruency: state.blockType === 'mixed' ? congruency(state.shape, state.side) : null,
             action,
-            correct: isResponse ? action === expected : null,
-            oracle: true,
+            correct: isResponse
+              ? isWrongAgentMode()
+                ? expected !== null && action !== expected
+                : action === expected
+              : null,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           }),
@@ -157,7 +171,7 @@ describe('Hearts & Flowers — oracle (deterministic)', () => {
     });
   }
 
-  it('completes all blocks at 100% accuracy', () => {
+  it('completes all blocks end-to-end', () => {
     resetBlockTracker();
     resetAudioCapture();
     launchTask({ taskId: 'hearts-and-flowers', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });

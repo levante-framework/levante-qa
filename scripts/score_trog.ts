@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join, basename, extname } from 'node:path';
 
 import { scoreTrials } from '../cypress/support/tasks/trog';
+import { agentFromRunId } from './logAgent';
 import { TrogTrialRecordSchema, type TrogTrialRecord } from '../cypress/support/tasks/types';
 
 const LOGS_DIR = 'cypress/logs';
@@ -60,7 +61,7 @@ function main(): void {
   }
 
   const files = readdirSync(LOGS_DIR)
-    .filter((f) => /^(oracle|vlm)_trog_.*\.jsonl?$/.test(f))
+    .filter((f) => /^(oracle|vlm|wrong)_trog_.*\.jsonl?$/.test(f))
     .sort();
 
   if (files.length === 0) {
@@ -75,10 +76,10 @@ function main(): void {
     if (records.length === 0) continue;
 
     const stats = scoreTrials(records);
-    const agent = records.some((r) => r.oracle) ? 'oracle' : 'vlm';
+    const runId = basename(file, extname(file));
+    const agent = agentFromRunId(runId, records);
     const provider = records.find((r) => r.provider)?.provider ?? '';
     const task = records[0]?.task ?? 'trog';
-    const runId = basename(file, extname(file));
 
     rows.push(
       [

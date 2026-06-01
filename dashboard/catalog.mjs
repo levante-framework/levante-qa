@@ -9,6 +9,7 @@ export const CATALOG = [
     label: 'Hearts & Flowers',
     taskId: 'hearts-and-flowers',
     oracleSpec: 'cypress/e2e/hearts_and_flowers/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/hearts_and_flowers/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/hearts_and_flowers/vlm_agent.cy.ts',
   },
   {
@@ -16,6 +17,7 @@ export const CATALOG = [
     label: 'EGMA Math',
     taskId: 'egma-math',
     oracleSpec: 'cypress/e2e/egma_math/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/egma_math/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/egma_math/vlm_agent.cy.ts',
   },
   {
@@ -23,6 +25,7 @@ export const CATALOG = [
     label: 'Vocab',
     taskId: 'vocab',
     oracleSpec: 'cypress/e2e/vocab/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/vocab/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/vocab/vlm_agent.cy.ts',
   },
   {
@@ -30,6 +33,7 @@ export const CATALOG = [
     label: 'Stories (Theory of Mind)',
     taskId: 'theory-of-mind',
     oracleSpec: 'cypress/e2e/stories/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/stories/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/stories/vlm_agent.cy.ts',
   },
   {
@@ -37,6 +41,7 @@ export const CATALOG = [
     label: 'Same-Different Selection',
     taskId: 'same-different-selection',
     oracleSpec: 'cypress/e2e/same_different/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/same_different/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/same_different/vlm_agent.cy.ts',
   },
   {
@@ -44,6 +49,7 @@ export const CATALOG = [
     label: 'Mental Rotation',
     taskId: 'mental-rotation',
     oracleSpec: 'cypress/e2e/mental_rotation/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/mental_rotation/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/mental_rotation/vlm_agent.cy.ts',
   },
   {
@@ -51,6 +57,7 @@ export const CATALOG = [
     label: 'Matrix Reasoning',
     taskId: 'matrix-reasoning',
     oracleSpec: 'cypress/e2e/matrix_reasoning/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/matrix_reasoning/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/matrix_reasoning/vlm_agent.cy.ts',
   },
   {
@@ -58,6 +65,7 @@ export const CATALOG = [
     label: 'TROG',
     taskId: 'trog',
     oracleSpec: 'cypress/e2e/trog/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/trog/wrong_agent.cy.ts',
     vlmSpec: 'cypress/e2e/trog/vlm_agent.cy.ts',
   },
   {
@@ -65,6 +73,7 @@ export const CATALOG = [
     label: 'Memory Game (Corsi)',
     taskId: 'memory-game',
     oracleSpec: 'cypress/e2e/memory_game/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/memory_game/wrong_agent.cy.ts',
     vlmSpec: null,
   },
   {
@@ -72,6 +81,7 @@ export const CATALOG = [
     label: 'ROAR — Phoneme (PA)',
     taskId: 'pa',
     oracleSpec: 'cypress/e2e/pa/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/pa/wrong_agent.cy.ts',
     vlmSpec: null,
     requiresDashboard: true,
   },

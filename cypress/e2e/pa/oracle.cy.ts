@@ -1,8 +1,15 @@
 import { installAudioCapture } from '../../support/audio/audioCapture';
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
 import { launchTask } from '../../support/launch';
 import {
   advancePaIntro,
   clickPaContinue,
+  clickWrongPaImage,
   correctImageSelector,
   isDashboardReroute,
   isProgressComplete,
@@ -17,10 +24,10 @@ import {
 import { parsePaTrialRecord, type PaTrialRecord } from '../../support/tasks/types';
 
 const TASK = 'pa';
-const LIVE_LOG = 'cypress/logs/_pa_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_pa_${agentLogStem()}_live.jsonl`;
 const NO_GOAL_LOG = 'cypress/logs/_pa_no_goal.jsonl';
 
-describe('PA — oracle (sessionStorage key)', () => {
+describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage key)'}`, () => {
   const records: PaTrialRecord[] = [];
   let step = 0;
   let gameComplete = false;
@@ -40,14 +47,14 @@ describe('PA — oracle (sessionStorage key)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_pa_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_pa_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
 
     cy.wrap(null).then(() => {
       expect(taskComplete || gameComplete, 'PA run reached completion').to.equal(true);
       expect(stats.nItems, 'scored PA item trials').to.be.greaterThan(0);
       expect(nNoGoal, `trials with no sessionStorage goal (see ${NO_GOAL_LOG})`).to.equal(0);
-      expect(stats.accuracy ?? 0, 'oracle accuracy (clicks sessionStorage goal)').to.equal(1);
+      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
       expect(stats.nBreaks, 'observed break screens').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, breaks: ${stats.nBreaks}`);
     });
@@ -75,7 +82,7 @@ describe('PA — oracle (sessionStorage key)', () => {
             breakMarker: endMarker,
             goal: null,
             correct: null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
           });
           return;
         }
@@ -111,10 +118,14 @@ describe('PA — oracle (sessionStorage key)', () => {
               itemType: 'item',
               goal,
               breakMarker: null,
-              correct: true,
-              oracle: true,
+              correct: !isWrongAgentMode(),
+              oracle: trialRecordOracleFlag(),
             });
-            cy.get(sel, { log: false }).first().click({ force: true });
+            if (isWrongAgentMode()) {
+              clickWrongPaImage(goal);
+            } else {
+              cy.get(sel, { log: false }).first().click({ force: true });
+            }
             cy.wait(PA_STEP_MS * 0.05, { log: false });
             cy.get(PROGRESS_INNER, { log: false })
               .invoke('attr', 'style')
@@ -145,7 +156,7 @@ describe('PA — oracle (sessionStorage key)', () => {
       goal: null,
       breakMarker: null,
       correct: null,
-      oracle: true,
+      oracle: trialRecordOracleFlag(),
     });
 
     const [t0, t1, t2, t3, t4, t5] = PA_EN.tutorials;
@@ -156,7 +167,7 @@ describe('PA — oracle (sessionStorage key)', () => {
       goal: `${t0}+${t1}`,
       breakMarker: null,
       correct: true,
-      oracle: true,
+      oracle: trialRecordOracleFlag(),
     });
 
     playTrialsUntilMarker(PA_EN.break1);
@@ -172,7 +183,7 @@ describe('PA — oracle (sessionStorage key)', () => {
       goal: `${t2}+${t3}`,
       breakMarker: null,
       correct: true,
-      oracle: true,
+      oracle: trialRecordOracleFlag(),
     });
 
     playTrialsUntilMarker(PA_EN.break2);
@@ -192,7 +203,7 @@ describe('PA — oracle (sessionStorage key)', () => {
       goal: `${t4}+${t5}`,
       breakMarker: null,
       correct: true,
-      oracle: true,
+      oracle: trialRecordOracleFlag(),
     });
 
     playTrialsUntilMarker(PA_EN.break3);

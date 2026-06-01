@@ -12,6 +12,7 @@
     "cy:open": "cypress open",
     "cy:run": "cypress run",
     "cy:run:oracle": "cypress run --spec 'cypress/e2e/**/oracle.cy.ts'",
+    "cy:run:wrong": "cypress run --spec 'cypress/e2e/**/wrong_agent.cy.ts'",
     "cy:run:vlm": "cypress run --spec 'cypress/e2e/**/vlm_agent.cy.ts'",
     "cy:run:audio": "cypress run --spec 'cypress/e2e/**/audio_assets.cy.ts'",
     "cy:run:egma:oracle": "cypress run --spec 'cypress/e2e/egma_math/oracle.cy.ts'",

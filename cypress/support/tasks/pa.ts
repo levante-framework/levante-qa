@@ -57,6 +57,15 @@ export function correctImageSelector(goal: string): string {
   return `img[src*="${goal}.webp"]`;
 }
 
+/** Click any response image that is not the sessionStorage goal. */
+export function clickWrongPaImage(goal: string): void {
+  cy.get('img[src*=".webp"]', { log: false }).then(($imgs) => {
+    const wrong = [...$imgs].find((el) => !(el.getAttribute('src') ?? '').includes(`${goal}.webp`));
+    expect(wrong, `wrong PA choice for goal=${goal}`).to.exist;
+    cy.wrap(wrong).click({ force: true });
+  });
+}
+
 export function isProgressComplete(doc: Document): boolean {
   const style = doc.querySelector(PROGRESS_INNER)?.getAttribute('style') ?? '';
   return style.includes('width: 100%');

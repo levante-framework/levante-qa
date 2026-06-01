@@ -202,7 +202,7 @@ async function computeRunResults(run) {
   // diagnostic logs).
   const archives = [];
   for (const name of files) {
-    if (!/^(oracle|vlm)_.+\.jsonl$/.test(name)) continue;
+    if (!/^(oracle|vlm|wrong)_.+\.jsonl$/.test(name)) continue;
     try {
       const s = await stat(join(dir, name));
       archives.push({ name, mtime: s.mtimeMs });
@@ -324,12 +324,16 @@ async function finalizeRun(run) {
   }
 }
 
+function specForAgent(task, agent) {
+  if (agent === 'wrong') return task.wrongSpec;
+  if (agent === 'vlm' || agent === 'child') return task.vlmSpec;
+  return task.oracleSpec;
+}
+
 function spawnCypress(run) {
   const task = findTask(run.meta.task);
-  // 'child' is a VLM-backed run (same spec + provider) with the age persona
-  // forced on, so it shares the VLM spec path.
   const isVlmBacked = run.meta.agent === 'vlm' || run.meta.agent === 'child';
-  const spec = isVlmBacked ? task.vlmSpec : task.oracleSpec;
+  const spec = specForAgent(task, run.meta.agent);
   run.meta.spec = spec;
 
   const env = { ...process.env };
@@ -517,8 +521,11 @@ const server = http.createServer(async (req, res) => {
         const p = JSON.parse(body || '{}');
         const task = findTask(p.taskId);
         if (!task) return sendJson(res, 400, { error: `Unknown task: ${p.taskId}` });
-        const agent = p.agent === 'vlm' ? 'vlm' : p.agent === 'child' ? 'child' : 'oracle';
+        const agent = ['vlm', 'child', 'wrong'].includes(p.agent) ? p.agent : 'oracle';
         const isVlmBacked = agent === 'vlm' || agent === 'child';
+        if (agent === 'wrong' && !task.wrongSpec) {
+          return sendJson(res, 400, { error: `${task.label} has no Wrong agent spec.` });
+        }
         if (isVlmBacked && !task.vlmSpec) {
           return sendJson(res, 400, { error: `${task.label} has no VLM agent (oracle only).` });
         }
@@ -538,7 +545,7 @@ const server = http.createServer(async (req, res) => {
           personaAbility,
           ageYears,
           ageMonths,
-          spec: isVlmBacked ? task.vlmSpec : task.oracleSpec,
+          spec: specForAgent(task, agent),
         });
         sendJson(res, 200, { runId });
       } catch (err) {

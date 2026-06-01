@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join, basename, extname } from 'node:path';
 
 import { scoreTrials } from '../cypress/support/tasks/memoryGame';
+import { agentFromRunId } from './logAgent';
 import {
   MemoryGameTrialRecordSchema,
   type MemoryGameTrialRecord,
@@ -65,7 +66,7 @@ function main(): void {
   }
 
   const files = readdirSync(LOGS_DIR)
-    .filter((f) => /^oracle_memory_.*\.jsonl?$/.test(f))
+    .filter((f) => /^(oracle|wrong)_memory_.*\.jsonl?$/.test(f))
     .sort();
 
   if (files.length === 0) {
@@ -86,7 +87,7 @@ function main(): void {
     rows.push(
       [
         runId,
-        'oracle',
+        agentFromRunId(runId, records),
         task,
         String(stats.nSequences),
         String(stats.nForward),

@@ -24,6 +24,13 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
 
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 import {
@@ -53,7 +60,7 @@ const GATE_PERSIST = 18;
 
 // Live, append-as-you-go log so a stalled/killed run still yields the records
 // captured so far (useful for diagnosing where the task got stuck).
-const LIVE_LOG = 'cypress/logs/_egma_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_egma_${agentLogStem()}_live.jsonl`;
 // Full-DOM dumps of items the deterministic solver could not answer, so new/odd
 // item formats can be diagnosed without a live debugging session.
 const UNSOLVED_LOG = 'cypress/logs/_egma_unsolved_dom.jsonl';
@@ -62,7 +69,7 @@ const UNSOLVED_LOG = 'cypress/logs/_egma_unsolved_dom.jsonl';
 // entry is a real bug to investigate — in the task's key or in our solver.
 const MISMATCH_LOG = 'cypress/logs/_egma_key_mismatch.jsonl';
 
-describe('EGMA math — oracle (deterministic)', () => {
+describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`, () => {
   const records: EgmaTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -95,7 +102,7 @@ describe('EGMA math — oracle (deterministic)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_egma_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_egma_${ts}.jsonl`, records });
 
     const stats = scoreTrials(records);
     const typesObserved = new Set<EgmaItemType>(records.map((r) => r.itemType));
@@ -105,23 +112,21 @@ describe('EGMA math — oracle (deterministic)', () => {
       expect(taskComplete, 'task reached the completion screen').to.equal(true);
       expect(stats.nTrials, 'recorded response items').to.be.greaterThan(0);
 
-      // Differential guarantee: where the task exposed its own answer key, our
-      // independently computed answer must have matched it on every item. A
-      // mismatch is a genuine defect (task key or solver) — see MISMATCH_LOG.
-      cy.log(`answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es)`);
-      expect(keyedChecks, "task exposed its answer key (so the cross-check ran)").to.be.greaterThan(0);
-      expect(keyMismatches, `computed answers disagreeing with the task's key (see ${MISMATCH_LOG})`).to.equal(0);
-
-      // Exact accuracy on every multiple-choice item type.
-      expect(stats.accChoice, 'oracle accuracy on multiple-choice items').to.equal(1.0);
-
-      // Number line is proximity-scored: placements must sit within tolerance.
-      if (typesObserved.has('number-line')) {
-        expect(
-          stats.numberLineMeanError ?? 1,
-          'number-line mean placement error',
-        ).to.be.lessThan(NUMBER_LINE_TOLERANCE);
+      if (!isWrongAgentMode()) {
+        cy.log(`answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es)`);
+        expect(keyedChecks, "task exposed its answer key (so the cross-check ran)").to.be.greaterThan(0);
+        expect(keyMismatches, `computed answers disagreeing with the task's key (see ${MISMATCH_LOG})`).to.equal(0);
+        if (typesObserved.has('number-line')) {
+          expect(
+            stats.numberLineMeanError ?? 1,
+            'number-line mean placement error',
+          ).to.be.lessThan(NUMBER_LINE_TOLERANCE);
+        }
       }
+
+      expect(stats.accChoice, `${agentLogStem()} accuracy on multiple-choice items`).to.equal(
+        expectedAccuracy(),
+      );
 
       // Audio is a hard prerequisite: number identification has no on-screen text.
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
@@ -196,7 +201,12 @@ describe('EGMA math — oracle (deterministic)', () => {
       const solution = fraction
         ? solveFractionItem(win)
         : solveItem(itemType, audio.transcript, choices, stim);
-      const index = solution ? solution.index : 0; // fall back to advance; flagged wrong
+      let index = solution ? solution.index : 0;
+      const keyedIndexEarly = appKeyedCorrectIndex(win);
+      if (isWrongAgentMode() && choices.length > 0) {
+        const ref = keyedIndexEarly >= 0 ? keyedIndexEarly : index;
+        index = pickWrongIndex(ref, choices.length);
+      }
       const recordType: EgmaItemType =
         itemType === 'instructions' ? 'unknown' : itemType;
 
@@ -236,7 +246,7 @@ describe('EGMA math — oracle (deterministic)', () => {
       const keyedIndex = appKeyedCorrectIndex(win);
       const hasKey = keyedIndex >= 0;
       const correct = hasKey ? solution !== null && index === keyedIndex : solution !== null;
-      if (hasKey) {
+      if (hasKey && !isWrongAgentMode()) {
         keyedChecks += 1;
         if (index !== keyedIndex) {
           keyMismatches += 1;
@@ -281,7 +291,7 @@ describe('EGMA math — oracle (deterministic)', () => {
         correct,
         keyedIndex: hasKey ? keyedIndex : null,
         keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -340,7 +350,7 @@ describe('EGMA math — oracle (deterministic)', () => {
           itemType: 'number-line',
           promptText: stim || null,
           correct: false,
-          oracle: true,
+          oracle: trialRecordOracleFlag(),
         });
         cy.continueEgma();
         cy.wait(200, { log: false });
@@ -348,7 +358,12 @@ describe('EGMA math — oracle (deterministic)', () => {
         return;
       }
 
-      const error = Math.abs(plan.value - plan.target) / (plan.max - plan.min);
+      const placement = isWrongAgentMode()
+        ? plan.target > (plan.min + plan.max) / 2
+          ? plan.min
+          : plan.max
+        : plan.value;
+      const error = Math.abs(placement - plan.target) / (plan.max - plan.min);
       logRecord({
         timestamp: new Date().toISOString(),
         task: TASK,
@@ -356,13 +371,13 @@ describe('EGMA math — oracle (deterministic)', () => {
         itemType: 'number-line',
         promptText: stim || null,
         correctValue: String(plan.target),
-        chosenValue: String(plan.value),
-        correct: error <= NUMBER_LINE_TOLERANCE,
+        chosenValue: String(placement),
+        correct: isWrongAgentMode() ? false : error <= NUMBER_LINE_TOLERANCE,
         numberLineError: error,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
       });
 
-      cy.placeSlider(plan.value);
+      cy.placeSlider(placement);
       cy.wait(150, { log: false });
       cy.continueEgma();
       cy.wait(200, { log: false });
@@ -423,7 +438,7 @@ describe('EGMA math — oracle (deterministic)', () => {
               step: i,
               itemType: 'instructions',
               promptText: audio.transcript,
-              oracle: true,
+              oracle: trialRecordOracleFlag(),
               audioTranscript: audio.transcript,
               audioSource: audio.source,
             });

@@ -17,6 +17,13 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
 import { parseVocabTrialRecord, type VocabTrialRecord } from '../../support/tasks/types';
 
 // The default corpus is ~171 word items + 3 instruction screens; this cap is
@@ -29,14 +36,14 @@ const TASK = 'vocab';
 const PROMPT_POLLS = 14;
 
 // Live, append-as-you-go log so a stalled/killed run still yields its records.
-const LIVE_LOG = 'cypress/logs/_vocab_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_vocab_${agentLogStem()}_live.jsonl`;
 // Items the audio-driven solver could not match to a choice (for diagnosis).
 const UNSOLVED_LOG = 'cypress/logs/_vocab_unsolved.jsonl';
 // Items where our independently-matched answer disagreed with the task's own
 // answer key (the `.correct` marker). Each is a real bug to investigate.
 const MISMATCH_LOG = 'cypress/logs/_vocab_key_mismatch.jsonl';
 
-describe('Vocab — oracle (deterministic)', () => {
+describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`, () => {
   const records: VocabTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -60,7 +67,7 @@ describe('Vocab — oracle (deterministic)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_vocab_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_vocab_${ts}.jsonl`, records });
 
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
@@ -69,19 +76,20 @@ describe('Vocab — oracle (deterministic)', () => {
       expect(taskComplete, 'task reached the completion screen').to.equal(true);
       expect(stats.nTrials, 'recorded word items').to.be.greaterThan(0);
 
-      // Differential guarantee: our independently audio-matched answer must have
-      // matched the task's own answer key on every item (see MISMATCH_LOG).
-      cy.log(`answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es)`);
-      expect(keyedChecks, 'task exposed its answer key (so the cross-check ran)').to.be.greaterThan(
-        0,
-      );
-      expect(
-        keyMismatches,
-        `audio-matched answers disagreeing with the task's key (see ${MISMATCH_LOG})`,
-      ).to.equal(0);
+      if (!isWrongAgentMode()) {
+        cy.log(`answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es)`);
+        expect(keyedChecks, 'task exposed its answer key (so the cross-check ran)').to.be.greaterThan(
+          0,
+        );
+        expect(
+          keyMismatches,
+          `audio-matched answers disagreeing with the task's key (see ${MISMATCH_LOG})`,
+        ).to.equal(0);
+      }
 
-      // Exact accuracy over scored word items.
-      expect(stats.accuracy ?? 0, 'oracle accuracy on vocab items').to.equal(1.0);
+      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy on vocab items`).to.equal(
+        expectedAccuracy(),
+      );
 
       // Audio is a hard prerequisite: the target word is only in the narration.
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
@@ -118,8 +126,11 @@ describe('Vocab — oracle (deterministic)', () => {
       const hasKey = keyedIndex >= 0;
       // Act on our independently-computed choice; only if we could not match the
       // word do we fall back to the key (purely to advance), flagged incorrect.
-      const actIndex = computed >= 0 ? computed : hasKey ? keyedIndex : 0;
-      const correct = hasKey ? computed >= 0 && computed === keyedIndex : computed >= 0;
+      const rightIndex = computed >= 0 ? computed : hasKey ? keyedIndex : 0;
+      const actIndex = isWrongAgentMode()
+        ? pickWrongIndex(hasKey ? keyedIndex : rightIndex, choices.length)
+        : rightIndex;
+      const correct = hasKey ? actIndex === keyedIndex : computed >= 0 && actIndex === rightIndex;
 
       if (computed < 0) {
         cy.task(
@@ -134,7 +145,7 @@ describe('Vocab — oracle (deterministic)', () => {
         );
       }
 
-      if (hasKey) {
+      if (hasKey && !isWrongAgentMode()) {
         keyedChecks += 1;
         if (computed !== keyedIndex) {
           keyMismatches += 1;
@@ -173,7 +184,7 @@ describe('Vocab — oracle (deterministic)', () => {
         correct,
         keyedIndex: hasKey ? keyedIndex : null,
         keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -225,7 +236,7 @@ describe('Vocab — oracle (deterministic)', () => {
               step: i,
               itemType: 'instructions',
               promptText: audio.transcript,
-              oracle: true,
+              oracle: trialRecordOracleFlag(),
               audioTranscript: audio.transcript,
               audioSource: audio.source,
             });

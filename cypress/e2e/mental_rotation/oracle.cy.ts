@@ -20,6 +20,12 @@ import { installAudioCapture, type AudioWindow } from '../../support/audio/audio
 import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
 import {
+  agentLogStem,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
+import {
   parseMentalRotationTrialRecord,
   type MentalRotationTrialRecord,
 } from '../../support/tasks/types';
@@ -33,13 +39,13 @@ const TASK = 'mental-rotation';
 // than demanding 1.0. Disagreements are logged to MISMATCH_LOG for inspection.
 const MIN_SOLVER_AGREEMENT = 0.9;
 
-const LIVE_LOG = 'cypress/logs/_mr_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_mr_${agentLogStem()}_live.jsonl`;
 // Items that shipped no answer key (a real content/regression bug).
 const NO_KEY_LOG = 'cypress/logs/_mr_no_key.jsonl';
 // Items where the pixel solver disagreed with the app's `.correct` key.
 const MISMATCH_LOG = 'cypress/logs/_mr_key_mismatch.jsonl';
 
-describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
+describe(`Mental Rotation — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (pixel rotation/mirror solver)'}`, () => {
   const records: MentalRotationTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -95,7 +101,7 @@ describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_mr_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_mr_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     const agreement = nSolved > 0 ? nAgree / nSolved : 0;
@@ -109,9 +115,13 @@ describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
       expect(nSolved, 'items the pixel solver decided').to.be.greaterThan(0);
       // The independent solver agrees with the app key on (nearly) every item —
       // the authentic differential check. Disagreements are in MISMATCH_LOG.
-      expect(agreement, `solver/key agreement (mismatches in ${MISMATCH_LOG})`).to.be.greaterThan(
-        MIN_SOLVER_AGREEMENT,
-      );
+      if (!isWrongAgentMode()) {
+        expect(agreement, `solver/key agreement (mismatches in ${MISMATCH_LOG})`).to.be.greaterThan(
+          MIN_SOLVER_AGREEMENT,
+        );
+      } else {
+        expect(nSolved, 'wrong agent acted on scored items').to.be.greaterThan(0);
+      }
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
     });
   }
@@ -146,7 +156,10 @@ describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
       const solved = solverIndex >= 0 && solverIndex < choices.length;
       // Authentic: click the solver's own answer. Fall back to the key only if
       // the solver couldn't decide (decode failure), so the run still advances.
-      const actIndex = solved ? solverIndex : hasKey ? keyedIndex : 0;
+      const rightIndex = solved ? solverIndex : hasKey ? keyedIndex : 0;
+      const actIndex = isWrongAgentMode()
+        ? pickWrongIndex(hasKey ? keyedIndex : rightIndex, choices.length)
+        : rightIndex;
       const agree = solved && hasKey ? solverIndex === keyedIndex : null;
 
       nItems += 1;
@@ -201,7 +214,7 @@ describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
           keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
           solverIndex: solved ? solverIndex : null,
           solverMargin: solve?.margin ?? null,
-          oracle: true,
+          oracle: trialRecordOracleFlag(),
           audioTranscript: audio.transcript,
           audioSource: audio.source,
         });
@@ -261,7 +274,7 @@ describe('Mental Rotation — oracle (pixel rotation/mirror solver)', () => {
             step: i,
             itemType: 'instructions',
             promptText: readPromptText(win) || null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           });

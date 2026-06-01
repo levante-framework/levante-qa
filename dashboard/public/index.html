@@ -46,6 +46,7 @@
             <label>Agent</label>
             <div class="segmented" id="agentToggle">
               <button type="button" class="seg active" data-agent="oracle">Oracle</button>
+              <button type="button" class="seg" data-agent="wrong">Wrong</button>
               <button type="button" class="seg" data-agent="vlm">VLM</button>
               <button type="button" class="seg" data-agent="child">Child</button>
             </div>
@@ -92,6 +93,7 @@
           dashboard. Runs proceed in parallel — launch several at once.
           <strong>Oracle</strong> = deterministic regression;
           <strong>VLM</strong> = raw model in the loop;
+          <strong>Wrong</strong> = deterministic agent that picks the incorrect answer on every scored item (sanity / floor check).
           <strong>Child</strong> = the model simulating a child of the chosen age
           (age-calibrated persona).
         </div>

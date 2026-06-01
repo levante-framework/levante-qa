@@ -18,6 +18,13 @@ import { installAudioCapture, type AudioWindow } from '../../support/audio/audio
 import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
 import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
+import {
   parseMatrixReasoningTrialRecord,
   type MatrixReasoningTrialRecord,
 } from '../../support/tasks/types';
@@ -26,11 +33,11 @@ import {
 const MAX_STEPS = 2500;
 const TASK = 'matrix-reasoning';
 
-const LIVE_LOG = 'cypress/logs/_matrix_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_matrix_${agentLogStem()}_live.jsonl`;
 // Items that shipped no answer key (a real content/regression bug).
 const NO_KEY_LOG = 'cypress/logs/_matrix_no_key.jsonl';
 
-describe('Matrix Reasoning — oracle (key-driven)', () => {
+describe(`Matrix Reasoning — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}`, () => {
   const records: MatrixReasoningTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -86,7 +93,7 @@ describe('Matrix Reasoning — oracle (key-driven)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_matrix_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_matrix_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     cy.wrap(null).then(() => {
@@ -94,7 +101,7 @@ describe('Matrix Reasoning — oracle (key-driven)', () => {
       expect(stats.nItems, 'recorded item trials').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
-      expect(stats.accuracy ?? 0, 'oracle accuracy (clicks the app key)').to.equal(1.0);
+      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
     });
   }
@@ -106,7 +113,11 @@ describe('Matrix Reasoning — oracle (key-driven)', () => {
     const sig = screenSig(win);
     const keyedIndex = appKeyedCorrectIndex(win);
     const hasKey = keyedIndex >= 0;
-    const actIndex = hasKey ? keyedIndex : 0;
+    const actIndex = hasKey
+      ? isWrongAgentMode()
+        ? pickWrongIndex(keyedIndex, choices.length)
+        : keyedIndex
+      : 0;
 
     // Re-presented with no intervening gap ⇒ our prior click didn't advance a
     // gated practice item. Re-click the key; do not re-count.
@@ -139,10 +150,10 @@ describe('Matrix Reasoning — oracle (key-driven)', () => {
         choices,
         chosenIndex: actIndex,
         chosenValue: choices[actIndex] ?? null,
-        correct: hasKey,
+        correct: hasKey ? actIndex === keyedIndex : null,
         keyedIndex: hasKey ? keyedIndex : null,
         keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -199,7 +210,7 @@ describe('Matrix Reasoning — oracle (key-driven)', () => {
             step: i,
             itemType: 'instructions',
             promptText: readPromptText(win) || null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           });

@@ -17,6 +17,13 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
 import { parseStoriesTrialRecord, type StoriesTrialRecord } from '../../support/tasks/types';
 
 // ~60 screens (story beats + ~31 questions) across 6 stories; staggered reveal
@@ -26,12 +33,12 @@ const MAX_STEPS = 4000;
 const TASK = 'theory-of-mind';
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 
-const LIVE_LOG = 'cypress/logs/_stories_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_stories_${agentLogStem()}_live.jsonl`;
 // Question items the task shipped with NO answer key (a real content/regression
 // bug — every scored item must mark its correct choice under Cypress).
 const NO_KEY_LOG = 'cypress/logs/_stories_no_key.jsonl';
 
-describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
+describe(`Stories (Theory of Mind) — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}`, () => {
   const records: StoriesTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -59,7 +66,7 @@ describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_stories_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_stories_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
 
@@ -74,7 +81,7 @@ describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
 
       // The oracle clicks the keyed answer, so accuracy is 1.0 iff every item
       // had a key; this asserts the task is completable end to end.
-      expect(stats.accuracy ?? 0, 'oracle accuracy (clicks the app key)').to.equal(1.0);
+      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
 
       // Audio is exercised: story beats and questions are narrated.
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
@@ -106,7 +113,11 @@ describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
 
     const keyedIndex = appKeyedCorrectIndex(win);
     const hasKey = keyedIndex >= 0;
-    const actIndex = hasKey ? keyedIndex : 0;
+    const actIndex = hasKey
+      ? isWrongAgentMode()
+        ? pickWrongIndex(keyedIndex, choices.length)
+        : keyedIndex
+      : 0;
     const audio = questionAudio.get(key) ?? NO_AUDIO;
 
     nQuestions += 1;
@@ -128,10 +139,10 @@ describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
       choices,
       chosenIndex: actIndex,
       chosenValue: choices[actIndex] ?? null,
-      correct: hasKey,
+      correct: hasKey ? actIndex === keyedIndex : null,
       keyedIndex: hasKey ? keyedIndex : null,
       keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-      oracle: true,
+      oracle: trialRecordOracleFlag(),
       audioTranscript: audio.transcript,
       audioSource: audio.source,
     });
@@ -201,7 +212,7 @@ describe('Stories (Theory of Mind) — oracle (key-driven)', () => {
             step: i,
             itemType: 'instructions',
             promptText: readPromptText(win) || null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           });

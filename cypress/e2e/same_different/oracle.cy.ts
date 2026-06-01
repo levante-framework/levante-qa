@@ -22,17 +22,25 @@ import {
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
 import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+  wrongMatchIndices,
+} from '../../support/agentMode';
 import { parseSdsTrialRecord, type SdsTrialRecord } from '../../support/tasks/types';
 
 // 31 single + 90 match + instructions ≈ 132 screens; this cap is generous.
 const MAX_STEPS = 1500;
 const TASK = 'same-different-selection';
 
-const LIVE_LOG = 'cypress/logs/_sds_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_sds_${agentLogStem()}_live.jsonl`;
 // Single-select items that shipped no answer key (a real content/regression bug).
 const NO_KEY_LOG = 'cypress/logs/_sds_no_key.jsonl';
 
-describe('Same-Different Selection — oracle', () => {
+describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'oracle'}`, () => {
   const records: SdsTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -99,7 +107,7 @@ describe('Same-Different Selection — oracle', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_sds_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_sds_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     cy.wrap(null).then(() => {
@@ -113,7 +121,9 @@ describe('Same-Different Selection — oracle', () => {
 
       // The oracle clicks the keyed card, so single-select accuracy is 1.0 iff
       // every single item had a key; this asserts the run completes end to end.
-      expect(stats.accuracySingle ?? 0, 'oracle single-select accuracy').to.equal(1.0);
+      expect(stats.accuracySingle ?? 0, `${agentLogStem()} single-select accuracy`).to.equal(
+        expectedAccuracy(),
+      );
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
     });
   }
@@ -133,7 +143,11 @@ describe('Same-Different Selection — oracle', () => {
 
     const keyedIndex = appKeyedCorrectIndex(win);
     const hasKey = keyedIndex >= 0;
-    const actIndex = hasKey ? keyedIndex : 0;
+    const actIndex = hasKey
+      ? isWrongAgentMode()
+        ? pickWrongIndex(keyedIndex, choices.length)
+        : keyedIndex
+      : 0;
     nSingle += 1;
     if (!hasKey) {
       nNoKey += 1;
@@ -149,10 +163,10 @@ describe('Same-Different Selection — oracle', () => {
         choices,
         chosenIndex: actIndex,
         chosenValue: choices[actIndex] ?? null,
-        correct: hasKey,
+        correct: hasKey ? actIndex === keyedIndex : null,
         keyedIndex: hasKey ? keyedIndex : null,
         keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -169,8 +183,9 @@ describe('Same-Different Selection — oracle', () => {
     const sig = screenSig(win);
     const { pair, state } = nextMatchPair(choices, match);
     match = state;
-    const a = pair ? pair.a : 0;
-    const b = pair ? pair.b : 1;
+    const [a, b] = isWrongAgentMode()
+      ? wrongMatchIndices(pair, choices.length)
+      : [pair ? pair.a : 0, pair ? pair.b : 1];
     nMatch += 1;
     currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
       logRecord({
@@ -185,7 +200,7 @@ describe('Same-Different Selection — oracle', () => {
         matchedDimension: pair ? pair.dim : null,
         // No answer key for match rounds; completion is the regression signal.
         correct: null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -249,7 +264,7 @@ describe('Same-Different Selection — oracle', () => {
             step: i,
             itemType: 'instructions',
             promptText: readPromptText(win) || null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           });

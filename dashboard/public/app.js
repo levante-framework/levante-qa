@@ -164,6 +164,7 @@
   function agentDisplay(agent, provider) {
     if (agent === 'child') return `Child · ${provider || ''}`;
     if (agent === 'vlm') return `VLM · ${provider || ''}`;
+    if (agent === 'wrong') return 'Wrong';
     return 'Oracle';
   }
 

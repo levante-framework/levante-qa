@@ -20,6 +20,12 @@ import {
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
 import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import {
+  agentLogStem,
+  isWrongAgentMode,
+  trialRecordOracleFlag,
+  wrongReproductionSequence,
+} from '../../support/agentMode';
 import { parseMemoryGameTrialRecord, type MemoryGameTrialRecord } from '../../support/tasks/types';
 
 // ~3 practice + 21 forward + 3 practice + 21 backward input trials, each preceded
@@ -28,7 +34,7 @@ import { parseMemoryGameTrialRecord, type MemoryGameTrialRecord } from '../../su
 const MAX_STEPS = 30000;
 const TASK = 'memory-game';
 
-const LIVE_LOG = 'cypress/logs/_memory_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_memory_${agentLogStem()}_live.jsonl`;
 // Items where the observed flash sequence disagreed with the internal key
 // (a real animation/scoring regression).
 const MISMATCH_LOG = 'cypress/logs/_memory_key_mismatch.jsonl';
@@ -37,7 +43,7 @@ const MISMATCH_LOG = 'cypress/logs/_memory_key_mismatch.jsonl';
 // that so a runaway can never loop forever.
 const MAX_SEQUENCES = 70;
 
-describe('Memory Game — oracle (observe flashes, then reproduce)', () => {
+describe(`Memory Game — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (observe flashes, then reproduce)'}`, () => {
   const records: MemoryGameTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -133,7 +139,7 @@ describe('Memory Game — oracle (observe flashes, then reproduce)', () => {
       }
 
       const ts = Date.now();
-      cy.task('writeJsonl', { path: `cypress/logs/oracle_memory_${ts}.jsonl`, records });
+      cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_memory_${ts}.jsonl`, records });
 
       const stats = scoreTrials(records);
       const appTotal = appScores?.length ?? 0;
@@ -149,12 +155,16 @@ describe('Memory Game — oracle (observe flashes, then reproduce)', () => {
         cy.log(`app scoring: ${appCorrect}/${appTotal} input trials correct`);
         // Authentic check: the flashed animation matched the internal key on
         // every item we observed.
-        expect(nMismatch, `observed≠key items (see ${MISMATCH_LOG})`).to.equal(0);
-        expect(stats.observeKeyAgreement ?? 0, 'observed-sequence / key agreement').to.equal(1.0);
-        // Ground truth: the app accepted every reproduction.
-        if (appScores) {
+        if (!isWrongAgentMode()) {
+          expect(nMismatch, `observed≠key items (see ${MISMATCH_LOG})`).to.equal(0);
+          expect(stats.observeKeyAgreement ?? 0, 'observed-sequence / key agreement').to.equal(1.0);
+          if (appScores) {
+            expect(appTotal, 'app recorded input trials').to.be.greaterThan(20);
+            expect(appCorrect, 'app marked every reproduction correct').to.equal(appTotal);
+          }
+        } else if (appScores) {
           expect(appTotal, 'app recorded input trials').to.be.greaterThan(20);
-          expect(appCorrect, 'app marked every reproduction correct').to.equal(appTotal);
+          expect(appCorrect, 'app rejected wrong reproductions').to.equal(0);
         }
         expect(stats.nWithAudio, 'captured narration transcripts').to.be.greaterThan(0);
       });
@@ -176,7 +186,11 @@ describe('Memory Game — oracle (observe flashes, then reproduce)', () => {
     // Reproduce the OBSERVED sequence (fall back to the key only if observation
     // somehow missed, just to keep the run advancing).
     const baseSeq = observedOk ? observed : keyed ?? [];
-    const clickOrder = backward ? [...baseSeq].reverse() : baseSeq;
+    const clickOrder = isWrongAgentMode()
+      ? wrongReproductionSequence(baseSeq, backward, blockCount(win))
+      : backward
+        ? [...baseSeq].reverse()
+        : baseSeq;
     const observedMatchesKey =
       keyed && observedOk ? sequencesEqual(observed, keyed) : null;
 
@@ -217,7 +231,7 @@ describe('Memory Game — oracle (observe flashes, then reproduce)', () => {
         clickOrder,
         observedMatchesKey,
         correct: null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -285,7 +299,7 @@ describe('Memory Game — oracle (observe flashes, then reproduce)', () => {
             step: i,
             itemType: 'instructions',
             promptText: readPromptText(win) || null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           } as Parameters<typeof parseMemoryGameTrialRecord>[0]);

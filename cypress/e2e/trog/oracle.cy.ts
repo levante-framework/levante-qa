@@ -16,17 +16,24 @@ import {
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
 import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import {
+  agentLogStem,
+  expectedAccuracy,
+  isWrongAgentMode,
+  pickWrongIndex,
+  trialRecordOracleFlag,
+} from '../../support/agentMode';
 import { parseTrogTrialRecord, type TrogTrialRecord } from '../../support/tasks/types';
 
 // ~99 test items + instructions; this cap is generous.
 const MAX_STEPS = 2500;
 const TASK = 'trog';
 
-const LIVE_LOG = 'cypress/logs/_trog_oracle_live.jsonl';
+const LIVE_LOG = `cypress/logs/_trog_${agentLogStem()}_live.jsonl`;
 // Items that shipped no answer key (a real content/regression bug).
 const NO_KEY_LOG = 'cypress/logs/_trog_no_key.jsonl';
 
-describe('TROG — oracle (key-driven)', () => {
+describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}`, () => {
   const records: TrogTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -79,7 +86,7 @@ describe('TROG — oracle (key-driven)', () => {
 
   function finalize(): void {
     const ts = Date.now();
-    cy.task('writeJsonl', { path: `cypress/logs/oracle_trog_${ts}.jsonl`, records });
+    cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_trog_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     cy.wrap(null).then(() => {
@@ -87,7 +94,7 @@ describe('TROG — oracle (key-driven)', () => {
       expect(stats.nItems, 'recorded item trials').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
-      expect(stats.accuracy ?? 0, 'oracle accuracy (clicks the app key)').to.equal(1.0);
+      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
       expect(withAudio.length, 'captured narration (sentence) transcripts').to.be.greaterThan(0);
     });
   }
@@ -98,7 +105,11 @@ describe('TROG — oracle (key-driven)', () => {
     const sig = screenSig(win);
     const keyedIndex = appKeyedCorrectIndex(win);
     const hasKey = keyedIndex >= 0;
-    const actIndex = hasKey ? keyedIndex : 0;
+    const actIndex = hasKey
+      ? isWrongAgentMode()
+        ? pickWrongIndex(keyedIndex, choices.length)
+        : keyedIndex
+      : 0;
 
     // Re-presented with no intervening gap ⇒ our prior click didn't advance a
     // gated practice item. Re-click the key; do not re-count.
@@ -130,10 +141,10 @@ describe('TROG — oracle (key-driven)', () => {
         choices,
         chosenIndex: actIndex,
         chosenValue: choices[actIndex] ?? null,
-        correct: hasKey,
+        correct: hasKey ? actIndex === keyedIndex : null,
         keyedIndex: hasKey ? keyedIndex : null,
         keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-        oracle: true,
+        oracle: trialRecordOracleFlag(),
         audioTranscript: audio.transcript,
         audioSource: audio.source,
       });
@@ -190,7 +201,7 @@ describe('TROG — oracle (key-driven)', () => {
             step: i,
             itemType: 'instructions',
             promptText: readPromptText(win) || null,
-            oracle: true,
+            oracle: trialRecordOracleFlag(),
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           });
