@@ -113,6 +113,9 @@ live, and accumulates run history on a second tab.
 pnpm dashboard          # → http://localhost:4180
 ```
 
+Select one or more tasks (Ctrl/Cmd+click); **Launch** starts a separate provisioned
+participant and Cypress run for each task in parallel.
+
 How it works (per launch):
 
 1. **Provision** — the backend runs

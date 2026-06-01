@@ -37,9 +37,10 @@
       <!-- ───────────────────────── Launch tab ───────────────────────── -->
       <section class="tab-content active" id="tab-launch">
         <form class="launch-form" id="launchForm" autocomplete="off">
-          <div class="field">
-            <label for="taskSelect">Task</label>
-            <select id="taskSelect" name="task"></select>
+          <div class="field field-tasks">
+            <label for="taskSelect">Tasks</label>
+            <select id="taskSelect" name="task" multiple size="6" aria-describedby="taskSelectHint"></select>
+            <span class="field-hint" id="taskSelectHint">Ctrl/Cmd+click to select multiple; one run per task in parallel.</span>
           </div>
 
           <div class="field">
@@ -81,7 +82,7 @@
 
           <div class="field submit-field">
             <button type="submit" class="btn btn-primary" id="launchBtn">
-              <i class="fas fa-play"></i> Launch run
+              <i class="fas fa-play"></i> <span id="launchBtnLabel">Launch run</span>
             </button>
           </div>
         </form>
@@ -90,7 +91,7 @@
           <i class="fas fa-circle-info"></i>
           A unique test participant of the chosen age is created on
           <code>hs-levante-admin-dev</code>, then the task launches via the
-          dashboard. Runs proceed in parallel — launch several at once.
+          dashboard. Select multiple tasks to launch them all in parallel with one click.
           <strong>Oracle</strong> = deterministic regression;
           <strong>VLM</strong> = raw model in the loop;
           <strong>Wrong</strong> = deterministic agent that picks the incorrect answer on every scored item (sanity / floor check).

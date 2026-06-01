@@ -36,14 +36,23 @@
     syncVlmAvailability();
   });
 
-  function currentTaskHasVlm() {
-    const opt = $('#taskSelect').selectedOptions[0];
-    return opt ? opt.dataset.hasVlm === 'true' : false;
+  function selectedTaskOptions() {
+    return [...$('#taskSelect').selectedOptions];
+  }
+
+  function allSelectedHaveVlm() {
+    const selected = selectedTaskOptions();
+    return selected.length > 0 && selected.every((o) => o.dataset.hasVlm === 'true');
   }
 
   function syncVlmAvailability() {
-    const hasVlm = currentTaskHasVlm();
-    // Both VLM and Child are model-backed, so both require a VLM spec.
+    const selected = selectedTaskOptions();
+    const hasVlm = allSelectedHaveVlm();
+    const mixedVlm =
+      selected.length > 1 &&
+      selected.some((o) => o.dataset.hasVlm === 'true') &&
+      selected.some((o) => o.dataset.hasVlm !== 'true');
+    // Both VLM and Child are model-backed, so every selected task needs a VLM spec.
     ['vlm', 'child'].forEach((a) => {
       const seg = document.querySelector(`#agentToggle .seg[data-agent="${a}"]`);
       seg.disabled = !hasVlm;
@@ -57,6 +66,20 @@
     const modelBacked = (state.agent === 'vlm' || state.agent === 'child') && hasVlm;
     $('#providerField').hidden = !modelBacked;
     $('#irtField').hidden = state.agent !== 'child' || !hasVlm;
+    const hint = $('#taskSelectHint');
+    if (hint) {
+      hint.textContent = mixedVlm
+        ? 'VLM/Child need every selected task to support VLM — deselect oracle-only tasks or use Oracle/Wrong.'
+        : 'Ctrl/Cmd+click to select multiple; one run per task in parallel.';
+    }
+    updateLaunchBtnLabel();
+  }
+
+  function updateLaunchBtnLabel() {
+    const n = selectedTaskOptions().length;
+    const label = $('#launchBtnLabel');
+    if (!label) return;
+    label.textContent = n <= 1 ? 'Launch run' : `Launch ${n} runs`;
   }
 
   $('#taskSelect').addEventListener('change', syncVlmAvailability);
@@ -82,6 +105,8 @@
         o.textContent = p;
         provSel.appendChild(o);
       });
+      // Default: first task selected.
+      if (taskSel.options.length) taskSel.options[0].selected = true;
       syncVlmAvailability();
       setHeader('ready', 'ready');
     } catch (err) {
@@ -97,8 +122,19 @@
   // ── Launch ────────────────────────────────────────────────────────────────
   $('#launchForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const payload = {
-      taskId: $('#taskSelect').value,
+    const selected = selectedTaskOptions();
+    if (!selected.length) {
+      alert('Select at least one task.');
+      return;
+    }
+    const isVlmBacked = state.agent === 'vlm' || state.agent === 'child';
+    if (isVlmBacked && !allSelectedHaveVlm()) {
+      alert(
+        'VLM and Child require every selected task to have a VLM spec. Deselect oracle-only tasks or switch agent.',
+      );
+      return;
+    }
+    const shared = {
       agent: state.agent,
       provider: $('#providerSelect').value,
       ageYears: Number($('#ageYears').value),
@@ -109,14 +145,39 @@
     const btn = $('#launchBtn');
     btn.disabled = true;
     try {
-      const res = await fetch('/api/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to launch');
-      trackRun(data.runId, payload);
+      const outcomes = await Promise.all(
+        selected.map(async (opt) => {
+          const payload = { ...shared, taskId: opt.value };
+          const res = await fetch('/api/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json().catch(() => ({}));
+          return {
+            taskLabel: labelFor(opt.value),
+            payload,
+            ok: res.ok,
+            runId: data.runId,
+            error: data.error || res.statusText || 'Failed to launch',
+          };
+        }),
+      );
+      const failed = [];
+      for (const o of outcomes) {
+        if (o.ok && o.runId) {
+          trackRun(o.runId, o.payload);
+        } else {
+          failed.push(`${o.taskLabel}: ${o.error}`);
+        }
+      }
+      if (failed.length) {
+        alert(
+          failed.length === outcomes.length
+            ? `Launch failed:\n${failed.join('\n')}`
+            : `Some launches failed (${failed.length}/${outcomes.length}):\n${failed.join('\n')}`,
+        );
+      }
     } catch (err) {
       alert(`Launch failed: ${err.message}`);
     } finally {

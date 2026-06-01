@@ -153,6 +153,24 @@ input[type='number'] {
   font-size: 14px;
   min-width: 150px;
 }
+.field-tasks select[multiple] {
+  min-width: 220px;
+  min-height: 132px;
+  padding: 6px 8px;
+}
+.field-tasks select[multiple] option {
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+.field-tasks select[multiple] option:checked {
+  background: linear-gradient(0deg, rgba(34, 211, 238, 0.25), rgba(34, 211, 238, 0.25));
+}
+.field-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+  max-width: 240px;
+}
 select:focus,
 input[type='number']:focus {
   outline: none;
