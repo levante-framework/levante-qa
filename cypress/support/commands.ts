@@ -19,6 +19,7 @@ import {
 import {
   SINGLE_CHOICE as SDS_SINGLE_CHOICE,
   MULTI_CHOICE as SDS_MULTI_CHOICE,
+  MATCH_CONFIRM_BUTTON as SDS_MATCH_CONFIRM_BUTTON,
   CONTINUE_BUTTON as SDS_CONTINUE_BUTTON,
 } from './tasks/sameDifferent';
 import {
@@ -138,6 +139,11 @@ Cypress.Commands.add('chooseSdsMatch', (index: number) => {
   cy.get(SDS_MULTI_CHOICE).eq(index).click({ force: true });
 });
 
+/** Confirm a match pair on taskVersion 2 (OK below the card row). */
+Cypress.Commands.add('confirmSdsMatch', () => {
+  cy.get(SDS_MATCH_CONFIRM_BUTTON).should('not.be.disabled').click({ force: true });
+});
+
 /** Advance past an SDS instruction / display screen via its OK button. */
 Cypress.Commands.add('continueSds', () => {
   cy.get('body').then(($body) => {
@@ -170,7 +176,7 @@ Cypress.Commands.add('chooseMatrixOption', (index: number) => {
 Cypress.Commands.add('continueMatrix', () => {
   cy.get('body').then(($body) => {
     if ($body.find(MATRIX_CONTINUE_BUTTON).length > 0) {
-      cy.get(MATRIX_CONTINUE_BUTTON).first().click({ force: true });
+      cy.get(MATRIX_CONTINUE_BUTTON).filter(':enabled').first().click({ force: true });
     }
   });
 });
@@ -229,6 +235,8 @@ declare global {
       chooseSdsSingle(index: number): Chainable<void>;
       /** Click the SDS multi-select (match) card at the given index (0 = leftmost). */
       chooseSdsMatch(index: number): Chainable<void>;
+      /** Confirm a match pair (OK below the card row; taskVersion 2). */
+      confirmSdsMatch(): Chainable<void>;
       /** Click the SDS instruction/display continue (OK) button if present. */
       continueSds(): Chainable<void>;
       /** Click the Mental Rotation image choice at the given index (0 = leftmost). */

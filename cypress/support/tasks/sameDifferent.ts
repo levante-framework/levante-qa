@@ -54,6 +54,9 @@ export const SINGLE_CHOICE_IMG = `${SINGLE_CHOICE} img`;
 export const MULTI_GROUP = '#jspsych-audio-multi-response-btngroup';
 export const MULTI_CHOICE = `${MULTI_GROUP} button.image-medium`;
 export const MULTI_CHOICE_IMG = `${MULTI_CHOICE} img`;
+// taskVersion 2: after selecting required cards, participant must confirm via OK
+// (inserted as the immediate sibling after the multi-response button group).
+export const MATCH_CONFIRM_BUTTON = `${MULTI_GROUP} + button.primary`;
 // Class toggled on a card while it is part of the current selection.
 export const SELECTED_CLASS = 'info-shadow';
 // On-screen prompt / question text (single trials and match-round prompt).
@@ -123,6 +126,13 @@ export function isSingleSelectReady(win: TaskWindow): boolean {
 export function isMultiSelectReady(win: TaskWindow): boolean {
   if (win.document.querySelectorAll(CORRECT_MARKER).length > 0) return false;
   return win.document.querySelectorAll(MULTI_CHOICE).length >= 3;
+}
+
+/** True when the match-round OK confirm button is present (taskVersion 2). */
+export function isMatchConfirmReady(win: TaskWindow): boolean {
+  if (!isMultiSelectReady(win)) return false;
+  const btn = win.document.querySelector(MATCH_CONFIRM_BUTTON);
+  return !!btn && isInteractable(btn);
 }
 
 /** True on a display / instruction / finished screen: an enabled `.primary`
@@ -223,13 +233,34 @@ export function nextMatchPair(
 ): { pair: MatchPair | null; state: MatchState } {
   const nCards = alts.length;
   let { matchedDimensions, numSelections, phaseCount } = state;
-  if (numSelections >= nCards - 1 || phaseCount < nCards) {
+  // Reset only when the card count increases (new match phase), mirroring the
+  // `phaseCount < responseButtons.length` branch in core-tasks — not after n-1
+  // clicks on the same set (that reset is for between trials in their loop).
+  if (phaseCount < nCards) {
     matchedDimensions = [];
     numSelections = 0;
     phaseCount = nCards;
   }
 
   let pair: MatchPair | null = null;
+
+  // Duplicate alts in one set (same image twice): match those indices first, using
+  // an unused dimension on that alt — mirrors core-tasks clicking identical images
+  // before relying on padded tokens like "1"/"white" across different shapes.
+  for (let a = 0; a < nCards && !pair; a++) {
+    const altA = alts[a];
+    if (!altA) continue;
+    for (let b = a + 1; b < nCards; b++) {
+      if (altA !== alts[b]) continue;
+      const dims = cleanDimensions(altA.split('-'), phaseCount);
+      const dim = dims.find((d) => !matchedDimensions.includes(d));
+      if (dim) {
+        pair = { a, b, dim };
+        break;
+      }
+    }
+  }
+
   for (let a = 0; a < nCards && !pair; a++) {
     const fa = cleanDimensions(alts[a].split('-'), phaseCount);
     for (let b = 0; b < nCards; b++) {

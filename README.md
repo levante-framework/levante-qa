@@ -131,7 +131,7 @@ How it works (per launch):
    scoping is handled in `cypress.config.ts` via the `QA_RUN_ID` env var).
 3. **Monitor** — the UI polls per-run status; a run is flagged **failed** on a
    non-zero Cypress exit code or any non-empty diagnostic log
-   (`*_no_key` / `*_key_mismatch` / `*_unsolved`).
+   (`*_no_key` / `*_key_mismatch` / `*_unsolved` / `*_audio_content` / `*_match_stuck`).
 4. **Accumulate** — on completion the backend appends a record (task, agent,
    provider, age, status, accuracy, trials, errors, timings) to
    `results/runs.json`, shown on the **Results** tab.
@@ -453,8 +453,13 @@ under Cypress.
   the narration transcript (article-stripped, e.g. "the acorn" → `acorn`), and
   matches it to a choice — *independently* of the `.correct` marker. It then
   cross-checks against the app key and asserts agreement on every item (a real
-  [differential test](#how-correctness-is-validated)); unmatched items are
-  dumped to `_vocab_unsolved.jsonl` and mismatches to `_vocab_key_mismatch.jsonl`.
+  [differential test](#how-correctness-is-validated)). **Unsolved** = narration
+  does not match any choice `alt` while the task still keys an answer (wrong
+  `audio_file` in the locale corpus — e.g. skimmer screen playing
+  `vocab-item-171.mp3` / "the colander"; see `_vocab_audio_content.jsonl`).
+  **Unsolved** = no keyed answer and no alt match (`_vocab_unsolved.jsonl`). **Mismatch**
+  = solver matched a choice but disagreed with `.correct` (`_vocab_key_mismatch.jsonl`).
+  Both fail the run; fix content/assets, do not loosen the matcher.
 - **VLM**: sees the screenshot + the spoken word and replies with the grid
   position (1–4) of the matching image; the choice is scored against the app
   key. The number of grid choices and the `.correct` marker make this a clean
@@ -520,10 +525,14 @@ image `alt`: `{size}-{color}-{shape}[-{number}][-{bg}]`, e.g. `med-blue-circle`.
 - **Multi-select match (~90 rounds)** — "Touch two cards that are the same in some
   way", with 3/4/5 cards. Rendered in `#jspsych-audio-multi-response-btngroup`, with
   **no answer key**: many pairs are valid, and a pair is scored *relationally* (it
-  must share a dimension not already matched in this card set). Since there is
+  must share a dimension not already matched in this card set). On **taskVersion 2**
+  the participant must tap **OK** after selecting the pair
+  (`#jspsych-audio-multi-response-btngroup + button.primary`); the harness calls
+  `confirmSdsMatch()` after each pair. Since there is
   nothing to recompute against, both agents drive these rounds with a **port of
-  core-tasks' own passing e2e solver** (`nextMatchPair` — a dimension-overlap
-  heuristic with per-set state in `sameDifferent.ts`), and **completing the run is
+  core-tasks' own passing e2e solver** (`nextMatchPair` — prefers identical `alt`
+  pairs when the set repeats an image, then dimension-overlap with per-set state in
+  `sameDifferent.ts`), and **completing the run is
   the regression signal** (the app accepted every pair). See
   [How correctness is validated](#how-correctness-is-validated).
 
@@ -592,8 +601,9 @@ stagger) and every response trial is narrated.
 
 This task preloads a large image bank; startup uses **Continue** / **Next** (not
 a bare `OK`), including optional downex intro screens with disabled buttons until
-audio/animations finish. Specs call `dismissMatrixStartup()` instead of
-`cy.contains('OK')`. `cat=false` pins the fixed timeline and
+audio/animations finish. Specs call `dismissMatrixStartup()` +
+`waitForMatrixTask()` (empty `.jspsych-content` during image-bank load is not
+task end). `cat=false` pins the fixed timeline and
 `maxIncorrect` is raised so a stray miss never early-aborts.
 
 ## TROG
@@ -706,13 +716,15 @@ cypress/logs/_egma_unsolved_dom.jsonl    DOM dumps of items the solver could not
 cypress/logs/_vocab_oracle_live.jsonl    append-as-you-go oracle trial log (Vocab)
 cypress/logs/_vocab_vlm_live.jsonl       append-as-you-go VLM trial log (Vocab)
 cypress/logs/_vocab_key_mismatch.jsonl   vocab items where our answer ≠ the answer key
-cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not match
+cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not match (no key)
+cypress/logs/_vocab_audio_content.jsonl  vocab: narration word ∉ choices (wrong corpus audio_file)
 cypress/logs/_stories_oracle_live.jsonl  append-as-you-go oracle trial log (Stories)
 cypress/logs/_stories_vlm_live.jsonl     append-as-you-go VLM trial log (Stories)
 cypress/logs/_stories_no_key.jsonl       Stories question items that shipped no answer key
 cypress/logs/_sds_oracle_live.jsonl      append-as-you-go oracle trial log (SDS)
 cypress/logs/_sds_vlm_live.jsonl         append-as-you-go VLM trial log (SDS)
 cypress/logs/_sds_no_key.jsonl           SDS single-select items that shipped no answer key
+cypress/logs/_sds_match_stuck.jsonl      SDS match round stuck on the same card set (stall guard)
 cypress/logs/_mr_oracle_live.jsonl       append-as-you-go oracle trial log (Mental Rotation)
 cypress/logs/_mr_vlm_live.jsonl          append-as-you-go VLM trial log (Mental Rotation)
 cypress/logs/_mr_no_key.jsonl            Mental Rotation items that shipped no answer key
@@ -734,7 +746,7 @@ cypress/logs/_memory_key_mismatch.jsonl  Memory Game items where the observed fl
 - **Selectors are defined only** in the per-task support file (`tasks/<task>.ts`), never inline in specs. Unverified selectors carry a `TODO(selectors)` comment — confirm them against the live DOM before relying on a green oracle run.
 - **Provider clients live behind a small interface** (`VLMClient` in `plugins/vlmClients/index.ts`); adding a VLM is one new file plus one dispatch-table entry.
 
-## ROAR literacy tasks (PA, SRE, SWR) — in progress
+## ROAR literacy tasks (PA, SRE, SWR)
 
 These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`, etc.), not on
 `levante-tasks-demo`. They use route `/game/pa` (not `/game/core-tasks/…`) and require
@@ -753,9 +765,27 @@ These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`,
 - **Support:** `cypress/support/tasks/pa.ts` (`advancePaIntro`, `readGoalFromWindow`).
 - **Oracle:** `cypress/e2e/pa/oracle.cy.ts` — full English playthrough (`pnpm cy:run:pa:oracle`).
 - **Score:** `pnpm score:pa` → `results/pa_summary.csv`.
-- **Next:** VLM spec; SRE/SWR one at a time.
+- **Next:** VLM spec.
 
-SRE and SWR follow the same ROAR shell — we will tackle them one at a time after PA.
+**SRE (sentence reading efficiency)** — wired in levante-qa:
+
+- **Launch:** `/game/sre` via `launchRoarTask()`; provision with `--task sre`.
+- **Answer key:** store2 session `correctLR` (`"left"` / `"right"`) → press `{leftarrow}` / `{rightarrow}` when `.stimulus` is visible (from `@bdelab/roar-sre` bundle).
+- **Support:** `cypress/support/tasks/sre.ts` (`advanceSreStartup`, `readCorrectLrFromWindow`).
+- **Oracle:** `cypress/e2e/sre/oracle.cy.ts` — `pnpm cy:run:sre:oracle` (requires `LAUNCH=dashboard` + participant creds).
+- **Explore:** `cypress/e2e/sre/_explore.cy.ts` → `cypress/logs/_sre_explore.jsonl`.
+- **Score:** `pnpm score:sre` → `results/sre_summary.csv`.
+
+**SWR (single word recognition)** — wired in levante-qa:
+
+- **Launch:** `/game/swr` via `launchRoarTask()`; provision with `--task swr`.
+- **Answer key:** store2 session `correctLR` → arrow keys when `.stimulus` is visible; block ends use left + Continue (roar-dashboard `swrHelpers.js`).
+- **Support:** `cypress/support/tasks/swr.ts`.
+- **Oracle:** `cypress/e2e/swr/oracle.cy.ts` — `pnpm cy:run:swr:oracle`.
+- **Explore:** `cypress/e2e/swr/_explore.cy.ts` → `cypress/logs/_swr_explore.jsonl`.
+- **Score:** `pnpm score:swr` → `results/swr_summary.csv`.
+
+All three ROAR literacy tasks (PA, SRE, SWR) are now in the dashboard catalog as oracle-only runs.
 
 ## Adding a new task
 

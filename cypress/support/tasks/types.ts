@@ -563,6 +563,70 @@ export const PaSummaryStatsSchema = z.object({
 });
 export type PaSummaryStats = z.infer<typeof PaSummaryStatsSchema>;
 
+// --- SRE (ROAR Sentence Reading Efficiency) ----------------------------------
+
+export const SreTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['intro', 'item']),
+  correctLr: z.enum(['left', 'right']).nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  provider: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type SreTrialRecord = z.infer<typeof SreTrialRecordSchema>;
+
+export function parseSreTrialRecord(input: unknown): SreTrialRecord {
+  return SreTrialRecordSchema.parse(input);
+}
+
+export const SreSummaryStatsSchema = z.object({
+  nItems: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+});
+export type SreSummaryStats = z.infer<typeof SreSummaryStatsSchema>;
+
+// --- SWR (ROAR Single Word Recognition) ------------------------------------
+
+export const SwrTrialRecordSchema = z.object({
+  timestamp: z.string(),
+  task: z.string(),
+  step: z.number().int().nonnegative(),
+  itemType: z.enum(['intro', 'tutorial', 'item', 'break']),
+  correctLr: z.enum(['left', 'right']).nullable().default(null),
+  breakMarker: z.string().nullable().default(null),
+  correct: z.boolean().nullable().default(null),
+  rtMs: z.number().nonnegative().nullable().default(null),
+  oracle: z.boolean(),
+  audioTranscript: z.string().nullable().default(null),
+  audioSource: AudioSourceSchema.nullable().default(null),
+  provider: z.string().nullable().default(null),
+  latencyMs: z.number().nonnegative().nullable().default(null),
+  timedOut: z.boolean().nullable().default(null),
+});
+export type SwrTrialRecord = z.infer<typeof SwrTrialRecordSchema>;
+
+export function parseSwrTrialRecord(input: unknown): SwrTrialRecord {
+  return SwrTrialRecordSchema.parse(input);
+}
+
+export const SwrSummaryStatsSchema = z.object({
+  nItems: z.number().int().nonnegative(),
+  accuracy: z.number().nullable(),
+  rtMean: z.number().nullable(),
+  timeoutRate: z.number(),
+  nBreaks: z.number().int().nonnegative(),
+});
+export type SwrSummaryStats = z.infer<typeof SwrSummaryStatsSchema>;
+
 /**
  * Aggregate statistics produced by scoreTrials for one run.
  */

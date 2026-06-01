@@ -39,6 +39,9 @@ const TASK = 'same-different-selection';
 const LIVE_LOG = `cypress/logs/_sds_${agentLogStem()}_live.jsonl`;
 // Single-select items that shipped no answer key (a real content/regression bug).
 const NO_KEY_LOG = 'cypress/logs/_sds_no_key.jsonl';
+// Match round that never advanced (same card set + prompt repeatedly).
+const MATCH_STUCK_LOG = 'cypress/logs/_sds_match_stuck.jsonl';
+const MATCH_STALL_LIMIT = 15;
 
 describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'oracle'}`, () => {
   const records: SdsTrialRecord[] = [];
@@ -55,6 +58,8 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   let nSingle = 0;
   let nMatch = 0;
   let nNoKey = 0;
+  let matchScreenSig = '';
+  let matchStallCount = 0;
 
   function logRecord(input: Parameters<typeof parseSdsTrialRecord>[0]): void {
     const rec = parseSdsTrialRecord(input);
@@ -87,8 +92,13 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   }
 
   /** Poll until the screen signature differs from `prevSig` (the trial advanced)
-   * or we give up after ~3s, then take the next step. */
-  function waitChangedThenStep(i: number, prevSig: string, attempts = 30): void {
+   * or we give up after ~3s, then take the next step. Iterative (not recursive)
+   * to avoid blowing the Cypress command-chain stack on long match stalls. */
+  function waitChangedThenStep(i: number, prevSig: string, attemptsLeft = 30): void {
+    if (attemptsLeft <= 0) {
+      step(i + 1);
+      return;
+    }
     cy.wait(100, { log: false });
     cy.window({ log: false }).then((w) => {
       const win = w as unknown as TaskWindow;
@@ -97,11 +107,11 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
         finalize();
         return;
       }
-      if (screenSig(win) !== prevSig || attempts <= 0) {
+      if (screenSig(win) !== prevSig) {
         step(i + 1);
         return;
       }
-      waitChangedThenStep(i, prevSig, attempts - 1);
+      waitChangedThenStep(i, prevSig, attemptsLeft - 1);
     });
   }
 
@@ -181,6 +191,31 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
     const choices = readMatchChoices(win);
     const promptText = readPromptText(win);
     const sig = screenSig(win);
+    const stallKey = `MATCH#${sig}`;
+    if (stallKey !== matchScreenSig) {
+      matchScreenSig = stallKey;
+      matchStallCount = 0;
+      match = newMatchState();
+    } else {
+      matchStallCount += 1;
+    }
+    if (matchStallCount >= MATCH_STALL_LIMIT) {
+      cy.task(
+        'writeJsonl',
+        {
+          path: MATCH_STUCK_LOG,
+          records: [{ step: i, promptText, choices, matchStallCount, match }],
+        },
+        { log: false },
+      );
+      cy.wrap(null).then(() => {
+        expect(
+          matchStallCount,
+          `match round stuck on the same card set (see ${MATCH_STUCK_LOG})`,
+        ).to.be.lessThan(MATCH_STALL_LIMIT);
+      });
+      return;
+    }
     const { pair, state } = nextMatchPair(choices, match);
     match = state;
     const [a, b] = isWrongAgentMode()
@@ -207,7 +242,10 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       cy.get('body', { log: false }).then(($b) => {
         if ($b.find(MULTI_CHOICE).length > Math.max(a, b)) {
           cy.chooseSdsMatch(a);
+          cy.wait(100, { log: false });
           cy.chooseSdsMatch(b);
+          cy.wait(100, { log: false });
+          cy.confirmSdsMatch();
         }
       });
       waitChangedThenStep(i, sig);
@@ -248,6 +286,8 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       emptyStreak = 0;
 
       if (isSingleSelectReady(win)) {
+        matchScreenSig = '';
+        matchStallCount = 0;
         handleSingle(i, win);
         return;
       }

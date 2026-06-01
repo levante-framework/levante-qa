@@ -4,6 +4,8 @@ import {
   buildUrl,
   dismissMatrixStartup,
   isComplete,
+  isMatrixPreloadBlank,
+  waitForMatrixTask,
   isInstructionScreen,
   isItemReady,
   readChoices,
@@ -23,7 +25,7 @@ import {
   type MatrixReasoningTrialRecord,
 } from '../../support/tasks/types';
 
-const MAX_STEPS = 2500;
+const MAX_STEPS = 4000;
 const TASK = 'matrix-reasoning';
 const TIMEOUT_MS = 10000;
 
@@ -175,6 +177,11 @@ describe(`Matrix Reasoning — VLM agent (${provider})`, () => {
         finalize();
         return;
       }
+      if (isMatrixPreloadBlank(win)) {
+        cy.wait(300, { log: false });
+        step(i + 1);
+        return;
+      }
       if (isComplete(win)) {
         if (!started) {
           cy.wait(150, { log: false });
@@ -218,6 +225,7 @@ describe(`Matrix Reasoning — VLM agent (${provider})`, () => {
       onBeforeLoad: installAudioCapture,
     });
     dismissMatrixStartup();
+    waitForMatrixTask();
     step(0);
   });
 });

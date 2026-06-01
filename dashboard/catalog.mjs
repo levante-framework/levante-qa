@@ -85,6 +85,24 @@ export const CATALOG = [
     vlmSpec: null,
     requiresDashboard: true,
   },
+  {
+    id: 'sre',
+    label: 'ROAR — Sentence (SRE)',
+    taskId: 'sre',
+    oracleSpec: 'cypress/e2e/sre/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/sre/wrong_agent.cy.ts',
+    vlmSpec: null,
+    requiresDashboard: true,
+  },
+  {
+    id: 'swr',
+    label: 'ROAR — Word (SWR)',
+    taskId: 'swr',
+    oracleSpec: 'cypress/e2e/swr/oracle.cy.ts',
+    wrongSpec: 'cypress/e2e/swr/wrong_agent.cy.ts',
+    vlmSpec: null,
+    requiresDashboard: true,
+  },
 ];
 
 export const VLM_PROVIDERS = ['gemini', 'openai', 'anthropic'];

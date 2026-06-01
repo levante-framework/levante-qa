@@ -5,6 +5,8 @@ import {
   isInstructionScreen,
   isItemReady,
   dismissMatrixStartup,
+  isMatrixPreloadBlank,
+  waitForMatrixTask,
   readChoices,
   readPromptText,
   readStimulusAlt,
@@ -30,8 +32,8 @@ import {
   type MatrixReasoningTrialRecord,
 } from '../../support/tasks/types';
 
-// ~78 test items + 2 practice + instructions; this cap is generous.
-const MAX_STEPS = 2500;
+// ~78 test items + 2 practice + instructions + transitions.
+const MAX_STEPS = 4000;
 const TASK = 'matrix-reasoning';
 
 const LIVE_LOG = `cypress/logs/_matrix_${agentLogStem()}_live.jsonl`;
@@ -178,6 +180,11 @@ describe(`Matrix Reasoning — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (k
         finalize();
         return;
       }
+      if (isMatrixPreloadBlank(win)) {
+        cy.wait(300, { log: false });
+        step(i + 1);
+        return;
+      }
       if (isComplete(win)) {
         lastActedSig = '';
         if (!started) {
@@ -230,6 +237,7 @@ describe(`Matrix Reasoning — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (k
     resetAudioCapture();
     launchTask({ taskId: 'matrix-reasoning', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     dismissMatrixStartup();
+    waitForMatrixTask();
     step(0);
   });
 });

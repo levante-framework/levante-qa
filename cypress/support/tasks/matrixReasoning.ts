@@ -84,12 +84,27 @@ function isInteractable(el: Element | null): boolean {
   return rect.width > 0 && rect.height > 0;
 }
 
+/** True while the image bank is still loading (empty jsPsych shell). Not task end. */
+export function isMatrixPreloadBlank(win: TaskWindow): boolean {
+  const content = win.document.querySelector(JSPSYCH_CONTENT);
+  return !content || content.children.length === 0;
+}
+
+/** Task is ready for the main step loop (past preload). */
+export function isMatrixTaskReady(win: TaskWindow): boolean {
+  if (isMatrixPreloadBlank(win)) return false;
+  if (isItemReady(win) || isInstructionScreen(win)) return true;
+  const doc = win.document;
+  if (doc.querySelector(EXIT_BUTTON)) return true;
+  const stim = doc.querySelector(STIMULUS_CONTAINER);
+  return !!(stim && stim.querySelector('footer'));
+}
+
 /** True when the timeline has ended (content emptied, or a finished/Exit screen
  * is showing). */
 export function isComplete(win: TaskWindow): boolean {
   const doc = win.document;
-  const content = doc.querySelector(JSPSYCH_CONTENT);
-  if (!content || content.children.length === 0) return true;
+  if (isMatrixPreloadBlank(win)) return false;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   const stim = doc.querySelector(STIMULUS_CONTAINER);
   if (stim && stim.querySelector('footer')) return true;
@@ -148,7 +163,7 @@ export function dismissMatrixStartup(attempt = 0): void {
 
   cy.window({ log: false }).then((w) => {
     const win = w as unknown as TaskWindow;
-    if (isItemReady(win) || isInstructionScreen(win)) return;
+    if (isMatrixTaskReady(win)) return;
 
     const btn = findEnabledStartButton(win.document);
     if (btn) {
@@ -156,6 +171,14 @@ export function dismissMatrixStartup(attempt = 0): void {
     }
     cy.wait(1200, { log: false });
     dismissMatrixStartup(attempt + 1);
+  });
+}
+
+/** Block until preload finishes and the first real trial/intro screen is up. */
+export function waitForMatrixTask(): void {
+  cy.window({ log: false, timeout: 300000 }).should((w) => {
+    const win = w as unknown as TaskWindow;
+    expect(isMatrixTaskReady(win), 'matrix task past asset preload').to.equal(true);
   });
 }
 

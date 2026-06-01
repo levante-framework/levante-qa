@@ -39,6 +39,9 @@ const PROMPT_POLLS = 14;
 const LIVE_LOG = `cypress/logs/_vocab_${agentLogStem()}_live.jsonl`;
 // Items the audio-driven solver could not match to a choice (for diagnosis).
 const UNSOLVED_LOG = 'cypress/logs/_vocab_unsolved.jsonl';
+// Narration names a word not among the choice alts while the task still keys an
+// answer — almost always a wrong audio_file in the locale corpus (not a solver gap).
+const AUDIO_CONTENT_LOG = 'cypress/logs/_vocab_audio_content.jsonl';
 // Items where our independently-matched answer disagreed with the task's own
 // answer key (the `.correct` marker). Each is a real bug to investigate.
 const MISMATCH_LOG = 'cypress/logs/_vocab_key_mismatch.jsonl';
@@ -58,6 +61,8 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
   // Differential cross-check tallies.
   let keyedChecks = 0;
   let keyMismatches = 0;
+  let nUnsolved = 0;
+  let nAudioContent = 0;
 
   function logRecord(input: Parameters<typeof parseVocabTrialRecord>[0]): void {
     const rec = parseVocabTrialRecord(input);
@@ -77,13 +82,23 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
       expect(stats.nTrials, 'recorded word items').to.be.greaterThan(0);
 
       if (!isWrongAgentMode()) {
-        cy.log(`answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es)`);
+        cy.log(
+          `answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es), ${nUnsolved} unsolved, ${nAudioContent} audio/corpus`,
+        );
         expect(keyedChecks, 'task exposed its answer key (so the cross-check ran)').to.be.greaterThan(
           0,
         );
         expect(
+          nAudioContent,
+          `narration word not among choice alts — check audio_file in locale corpus (see ${AUDIO_CONTENT_LOG})`,
+        ).to.equal(0);
+        expect(
+          nUnsolved,
+          `narration could not be matched to any choice alt (see ${UNSOLVED_LOG})`,
+        ).to.equal(0);
+        expect(
           keyMismatches,
-          `audio-matched answers disagreeing with the task's key (see ${MISMATCH_LOG})`,
+          `audio solver picked a different choice than the task key (see ${MISMATCH_LOG})`,
         ).to.equal(0);
       }
 
@@ -130,24 +145,35 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
       const actIndex = isWrongAgentMode()
         ? pickWrongIndex(hasKey ? keyedIndex : rightIndex, choices.length)
         : rightIndex;
-      const correct = hasKey ? actIndex === keyedIndex : computed >= 0 && actIndex === rightIndex;
+      const independentlySolved = computed >= 0;
+      const correct = hasKey
+        ? independentlySolved
+          ? actIndex === keyedIndex
+          : false
+        : independentlySolved && actIndex === rightIndex;
 
       if (computed < 0) {
-        cy.task(
-          'writeJsonl',
-          {
-            path: UNSOLVED_LOG,
-            records: [
-              { step: i, transcript: audio.transcript, choices, keyedIndex },
-            ],
-          },
-          { log: false },
-        );
+        const record = {
+          step: i,
+          audioUrl: audio.url,
+          transcript: audio.transcript,
+          targetWord: targetWordFromTranscript(audio.transcript),
+          choices,
+          keyedIndex,
+          keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
+        };
+        if (hasKey) {
+          nAudioContent += 1;
+          cy.task('writeJsonl', { path: AUDIO_CONTENT_LOG, records: [record] }, { log: false });
+        } else {
+          nUnsolved += 1;
+          cy.task('writeJsonl', { path: UNSOLVED_LOG, records: [record] }, { log: false });
+        }
       }
 
       if (hasKey && !isWrongAgentMode()) {
         keyedChecks += 1;
-        if (computed !== keyedIndex) {
+        if (independentlySolved && computed !== keyedIndex) {
           keyMismatches += 1;
           cy.task(
             'writeJsonl',
@@ -156,11 +182,12 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
               records: [
                 {
                   step: i,
+                  audioUrl: audio.url,
                   transcript: audio.transcript,
                   targetWord: targetWordFromTranscript(audio.transcript),
                   choices,
                   computedIndex: computed,
-                  computedValue: computed >= 0 ? choices[computed] : null,
+                  computedValue: choices[computed] ?? null,
                   keyedIndex,
                   keyedValue: choices[keyedIndex] ?? null,
                 },

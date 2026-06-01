@@ -91,13 +91,18 @@ export function advancePaIntro(startText: string = EN_START_TEXT): void {
   cy.get(CONTINUE).should('be.visible').click({ force: true });
 }
 
-/** Click through a fixed tutorial pair, then Continue (roar-dashboard playFirst/Second/ThirdTutorial). */
+/**
+ * Click through a fixed tutorial pair, then Continue.
+ * Mirrors roar-dashboard `playFirstTutorial` (continueFirst false),
+ * `playSecondTutorial` / `playThirdTutorial` (continueFirst true).
+ */
 export function playPaTutorialPair(
   imgA: string,
   imgB: string,
   opts?: { continueFirst?: boolean },
 ): void {
   if (opts?.continueFirst) {
+    cy.wait(PA_STEP_MS, { log: false });
     cy.get(CONTINUE).click({ force: true });
     cy.wait(PA_STEP_MS * 2, { log: false });
   } else {

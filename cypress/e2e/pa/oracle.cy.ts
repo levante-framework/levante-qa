@@ -176,7 +176,8 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
 
     cy.wait(PA_STEP_MS * 3, { log: false });
     clickPaContinue();
-    playPaTutorialPair(t2, t3, { continueFirst: false });
+    // playSecondTutorial: Continue before the tutorial images (roar-dashboard paHelpers).
+    playPaTutorialPair(t2, t3, { continueFirst: true });
     logRecord({
       timestamp: new Date().toISOString(),
       itemType: 'tutorial',
