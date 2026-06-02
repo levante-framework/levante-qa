@@ -223,6 +223,20 @@ export function dismissSdsStartup(attempt = 0): void {
   });
 }
 
+/**
+ * Dismiss a re-displayed fullscreen / start prompt. The enter-fullscreen trial
+ * ("Switch to fullscreen mode" + OK) can reappear mid- or end-run when the
+ * browser drops out of fullscreen (common under headless Electron); it is not an
+ * SDS trial, so the main loop would otherwise poll it until the step cap.
+ * Returns true (and queues a click) when such a button is present.
+ */
+export function dismissFullscreenReprompt(win: TaskWindow): boolean {
+  const btn = findEnabledStartButton(win.document);
+  if (!btn) return false;
+  cy.wrap(btn, { log: false }).click({ force: true });
+  return true;
+}
+
 /** something-same trials (wide layout): demo narration and/or card pick + OK. */
 export function isSomethingSameScreen(win: TaskWindow): boolean {
   return !!win.document.querySelector('.lev-stimulus-container-wide');
@@ -262,15 +276,31 @@ export function clickSdsInstructionOk(): void {
   });
 }
 
-/** Click the keyed card on something-same-2, then wait for OK and press it. */
+/** Click the keyed card on something-same-2, then wait for OK and press it.
+ *
+ * The correct card is identified by, in priority order:
+ *   1. the `.correct` marker core-tasks adds under Cypress (when present), or
+ *   2. the `pulse` animation core-tasks puts on the correct card after the
+ *      participant gets it wrong twice (see stimulus.ts: `numberOfErrors >= 2`).
+ * Falling back to the first card lets those two wrong tries happen, which arms
+ * the pulse hint — so a practice round always converges instead of looping on
+ * the same wrong card (which previously ran until the command stack overflowed).
+ */
 export function advanceSomethingSameScreen(): void {
   cy.get('body', { log: false }).then(($body) => {
     const $selectable = $body.find(
       '#img-button-container button.image-medium:not(.no-pointer-events)',
     );
     if ($selectable.length) {
-      const $correct = $selectable.filter('.correct');
-      const $target = $correct.length ? $correct.first() : $selectable.first();
+      const $marked = $selectable.filter('.correct');
+      const $pulsing = $selectable.filter((_, el) =>
+        /pulse/i.test((el as HTMLElement).style?.animation ?? ''),
+      );
+      const $target = $marked.length
+        ? $marked.first()
+        : $pulsing.length
+          ? $pulsing.first()
+          : $selectable.first();
       cy.wrap($target).click({ force: true });
       cy.wait(300, { log: false });
     }

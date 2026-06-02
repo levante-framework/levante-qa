@@ -35,6 +35,20 @@ const TASK = 'vocab';
 // before solving (same as EGMA number-identification).
 const PROMPT_POLLS = 14;
 
+// Vocab image alts are English asset identifiers (e.g. "ball", "pitcher")
+// regardless of the narration locale, so the independent transcript→alt
+// cross-check is only meaningful when the narration is also English. For other
+// locales the narration is localized (e.g. "la pelota") and cannot be matched
+// to the English alts without a translation table; there we drive and score the
+// oracle from the app's own answer key (the `.correct` marker) instead.
+function crossCheckEnabled(): boolean {
+  const lang = String(Cypress.env('QA_LANGUAGE') ?? '')
+    .trim()
+    .toLowerCase();
+  return lang === '' || lang.startsWith('en');
+}
+const CROSS_CHECK = crossCheckEnabled();
+
 // Live, append-as-you-go log so a stalled/killed run still yields its records.
 const LIVE_LOG = `cypress/logs/_vocab_${agentLogStem()}_live.jsonl`;
 // Items the audio-driven solver could not match to a choice (for diagnosis).
@@ -85,21 +99,25 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
         cy.log(
           `answer-key cross-checks: ${keyedChecks} items, ${keyMismatches} mismatch(es), ${nUnsolved} unsolved, ${nAudioContent} audio/corpus`,
         );
-        expect(keyedChecks, 'task exposed its answer key (so the cross-check ran)').to.be.greaterThan(
-          0,
-        );
-        expect(
-          nAudioContent,
-          `narration word not among choice alts — check audio_file in locale corpus (see ${AUDIO_CONTENT_LOG})`,
-        ).to.equal(0);
-        expect(
-          nUnsolved,
-          `narration could not be matched to any choice alt (see ${UNSOLVED_LOG})`,
-        ).to.equal(0);
-        expect(
-          keyMismatches,
-          `audio solver picked a different choice than the task key (see ${MISMATCH_LOG})`,
-        ).to.equal(0);
+        expect(keyedChecks, 'task exposed its answer key').to.be.greaterThan(0);
+        if (CROSS_CHECK) {
+          expect(
+            nAudioContent,
+            `narration word not among choice alts — check audio_file in locale corpus (see ${AUDIO_CONTENT_LOG})`,
+          ).to.equal(0);
+          expect(
+            nUnsolved,
+            `narration could not be matched to any choice alt (see ${UNSOLVED_LOG})`,
+          ).to.equal(0);
+          expect(
+            keyMismatches,
+            `audio solver picked a different choice than the task key (see ${MISMATCH_LOG})`,
+          ).to.equal(0);
+        } else {
+          cy.log(
+            'non-English locale: image alts are English asset names, so the narration→alt cross-check is skipped; scored against the app answer key.',
+          );
+        }
       }
 
       expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy on vocab items`).to.equal(
@@ -136,23 +154,32 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
 
     cy.wait(250, { log: false });
     readPrompt(win as unknown as AudioWindow, PROMPT_POLLS, (audio) => {
-      const computed = solveFromTranscript(audio.transcript, choices);
+      // The independent transcript→alt solve only runs in cross-check (English)
+      // locales; elsewhere the oracle is key-driven (see CROSS_CHECK).
+      const computed = CROSS_CHECK ? solveFromTranscript(audio.transcript, choices) : -1;
       const keyedIndex = appKeyedCorrectIndex(win);
       const hasKey = keyedIndex >= 0;
-      // Act on our independently-computed choice; only if we could not match the
-      // word do we fall back to the key (purely to advance), flagged incorrect.
-      const rightIndex = computed >= 0 ? computed : hasKey ? keyedIndex : 0;
+      const independentlySolved = computed >= 0;
+      // Act on our independently-computed choice when available; otherwise the
+      // app key (cross-check off, or solver miss) purely to advance.
+      const rightIndex = independentlySolved ? computed : hasKey ? keyedIndex : 0;
       const actIndex = isWrongAgentMode()
         ? pickWrongIndex(hasKey ? keyedIndex : rightIndex, choices.length)
         : rightIndex;
-      const independentlySolved = computed >= 0;
-      const correct = hasKey
-        ? independentlySolved
+      // Correctness: cross-check locales score the independent solve against the
+      // key; key-driven locales score the (keyed) action against the key.
+      const correct = !CROSS_CHECK
+        ? hasKey
           ? actIndex === keyedIndex
-          : false
-        : independentlySolved && actIndex === rightIndex;
+          : null
+        : hasKey
+          ? independentlySolved
+            ? actIndex === keyedIndex
+            : false
+          : independentlySolved && actIndex === rightIndex;
 
-      if (computed < 0) {
+      // Transcript-match diagnostics are only meaningful when cross-checking.
+      if (CROSS_CHECK && computed < 0) {
         const record = {
           step: i,
           audioUrl: audio.url,
@@ -173,7 +200,7 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
 
       if (hasKey && !isWrongAgentMode()) {
         keyedChecks += 1;
-        if (independentlySolved && computed !== keyedIndex) {
+        if (CROSS_CHECK && independentlySolved && computed !== keyedIndex) {
           keyMismatches += 1;
           cy.task(
             'writeJsonl',

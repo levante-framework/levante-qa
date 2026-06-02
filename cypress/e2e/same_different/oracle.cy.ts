@@ -4,6 +4,7 @@ import {
   isComplete,
   isInstructionScreen,
   advanceSomethingSameScreen,
+  dismissFullscreenReprompt,
   dismissSdsStartup,
   isMultiSelectReady,
   isSingleSelectReady,
@@ -47,6 +48,11 @@ const NO_KEY_LOG = 'cypress/logs/_sds_no_key.jsonl';
 // Match round that never advanced (same card set + prompt repeatedly).
 const MATCH_STUCK_LOG = 'cypress/logs/_sds_match_stuck.jsonl';
 const MATCH_STALL_LIMIT = 15;
+// Any screen (instructions / something-same / unclassified) that never advances.
+// Bounds the recursive step loop so a genuine stall fails fast with a diagnostic
+// instead of running until the Cypress command-chain stack overflows.
+const SCREEN_STUCK_LOG = 'cypress/logs/_sds_screen_stuck.jsonl';
+const SCREEN_STALL_LIMIT = 40;
 
 describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'oracle'}`, () => {
   const records: SdsTrialRecord[] = [];
@@ -66,6 +72,8 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   let matchLayoutSig = '';
   let lastMatchStallSig = '';
   let matchStallCount = 0;
+  let lastScreenSig = '';
+  let screenStallCount = 0;
 
   function logRecord(input: Parameters<typeof parseSdsTrialRecord>[0]): void {
     const rec = parseSdsTrialRecord(input);
@@ -298,6 +306,46 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       started = true;
       emptyStreak = 0;
 
+      // Global no-progress guard: if the same screen presents unchanged for too
+      // many consecutive steps it will never advance on its own (a stuck
+      // practice/instruction screen). Fail fast with a diagnostic rather than
+      // recursing until the command-chain stack overflows.
+      const curSig = screenSig(win);
+      if (curSig === lastScreenSig) {
+        screenStallCount += 1;
+      } else {
+        screenStallCount = 0;
+        lastScreenSig = curSig;
+      }
+      if (screenStallCount >= SCREEN_STALL_LIMIT) {
+        const promptText = readPromptText(win);
+        cy.task(
+          'writeJsonl',
+          {
+            path: SCREEN_STUCK_LOG,
+            records: [
+              {
+                step: i,
+                promptText,
+                screenSig: curSig,
+                somethingSame: isSomethingSameScreen(win),
+                instruction: isInstructionScreen(win),
+                singleChoices: readSingleChoices(win),
+                matchChoices: readMatchChoices(win),
+              },
+            ],
+          },
+          { log: false },
+        );
+        cy.wrap(null).then(() => {
+          expect(
+            screenStallCount,
+            `screen never advanced for ${SCREEN_STALL_LIMIT} steps — likely an unhandled SDS screen (see ${SCREEN_STUCK_LOG})`,
+          ).to.be.lessThan(SCREEN_STALL_LIMIT);
+        });
+        return;
+      }
+
       if (isSingleSelectReady(win)) {
         matchLayoutSig = '';
         lastMatchStallSig = '';
@@ -343,6 +391,15 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
           cy.continueSds();
           waitChangedThenStep(i, sig);
         });
+        return;
+      }
+
+      // A re-displayed fullscreen / start prompt (the browser left fullscreen)
+      // is not a trial — dismiss it so the run can reach the finish screen
+      // instead of polling here until the step cap.
+      if (dismissFullscreenReprompt(win)) {
+        cy.wait(250, { log: false });
+        step(i + 1);
         return;
       }
 

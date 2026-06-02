@@ -67,6 +67,21 @@ Cypress.Commands.add('actOnTrial', (action: Action) => {
     if ($body.find(selector).length > 0) {
       cy.get(selector).first().click({ force: true });
     }
+    if (action === 'LEFT' || action === 'RIGHT') {
+      // hfV2 picks its input mode from the device: a touch device taps the
+      // response buttons (clicked above), a non-touch device (navigator
+      // .maxTouchPoints === 0, as in headless Electron) plays a "Looks like you
+      // have a keyboard!" intro and registers responses via Arrow keys ONLY —
+      // the button click does nothing, so without this the hearts practice loops
+      // forever on the same stimulus. Touch / v1 builds have no key listener, so
+      // the keypress is harmless there.
+      cy.window({ log: false }).then((win) => {
+        if ((win.navigator?.maxTouchPoints ?? 0) === 0) {
+          const arrow = action === 'LEFT' ? '{leftarrow}' : '{rightarrow}';
+          cy.get('body').type(arrow, { force: true, log: false });
+        }
+      });
+    }
     if (action === 'CONTINUE') {
       // hfV2 in keyboard mode (non-touch: navigator.maxTouchPoints === 0, as in
       // headless Electron) renders NO `.primary` continue button. Text instruction
