@@ -363,8 +363,11 @@ function spawnCypress(run) {
   env.PARTICIPANT_USER = run.creds.email;
   env.PARTICIPANT_PASS = run.creds.password;
   env.QA_RUN_ID = run.runId;
-  // Pin the narration language so the ID3 lang_code audio check asserts it.
+  // Drive the app's UI + narration locale (QA_LANGUAGE, read by the launch
+  // helper → sessionStorage) and assert it on the audio side
+  // (QA_EXPECTED_AUDIO_LANG, read by the ID3 reader).
   if (run.meta.language) {
+    env.QA_LANGUAGE = run.meta.language;
     env.QA_EXPECTED_AUDIO_LANG = run.meta.language;
   }
   if (isVlmBacked && run.meta.provider) {

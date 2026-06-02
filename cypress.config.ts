@@ -164,7 +164,13 @@ export default defineConfig({
       // Surface dashboard-launch settings (.env) to specs via Cypress.env(...).
       // LAUNCH=dashboard switches specs from the standalone demo to logging in
       // to the -dev dashboard and starting the assigned task.
-      for (const key of ['LAUNCH', 'DASHBOARD_URL', 'PARTICIPANT_USER', 'PARTICIPANT_PASS']) {
+      for (const key of [
+        'LAUNCH',
+        'DASHBOARD_URL',
+        'PARTICIPANT_USER',
+        'PARTICIPANT_PASS',
+        'QA_LANGUAGE',
+      ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];
         }

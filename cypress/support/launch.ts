@@ -40,6 +40,33 @@ function dashboardBase(): string {
   return String(Cypress.env('DASHBOARD_URL') ?? DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
 }
 
+/** App UI + narration locale for this run (set by the dashboard language picker). */
+function qaLocale(): string {
+  return String(Cypress.env('QA_LANGUAGE') ?? '').trim();
+}
+
+/**
+ * Wrap an `onBeforeLoad` hook so it also pins the LEVANTE platform locale in
+ * sessionStorage before the app boots. This is what drives the task's UI and
+ * audio-narration language (assets are served per-locale, e.g. `audio/es-CO/…`).
+ * It must run on the FIRST visit (signin/demo) so the app reads it during init.
+ * No-op when QA_LANGUAGE is unset (manual runs keep the app default).
+ */
+function withQaLocale(onBeforeLoad: (win: Window) => void): (win: Window) => void {
+  const locale = qaLocale();
+  return (win: Window) => {
+    if (locale) {
+      try {
+        win.sessionStorage.setItem('levantePlatformLocale', locale);
+        win.sessionStorage.setItem('roarPlatformLocale', locale);
+      } catch {
+        // sessionStorage may be unavailable this early; locale pin is best-effort.
+      }
+    }
+    onBeforeLoad(win);
+  };
+}
+
 /**
  * Log in to the dashboard as a participant. Credentials come from the
  * `PARTICIPANT_USER` / `PARTICIPANT_PASS` env vars.
@@ -50,7 +77,7 @@ export function loginToDashboard(onBeforeLoad: (win: Window) => void): void {
   expect(user, 'PARTICIPANT_USER env is set').to.not.equal('');
   expect(pass, 'PARTICIPANT_PASS env is set').to.not.equal('');
 
-  cy.visit(`${dashboardBase()}/signin`, { onBeforeLoad });
+  cy.visit(`${dashboardBase()}/signin`, { onBeforeLoad: withQaLocale(onBeforeLoad) });
   cy.get('[data-cy=input-username-email]', { timeout: 60000 })
     .should('be.visible')
     .clear()
@@ -107,5 +134,5 @@ export function launchTask(opts: LaunchOptions): void {
     launchCoreTask(opts.taskId);
     return;
   }
-  cy.visit(opts.demoUrl, { onBeforeLoad: opts.onBeforeLoad });
+  cy.visit(opts.demoUrl, { onBeforeLoad: withQaLocale(opts.onBeforeLoad) });
 }
