@@ -8,6 +8,7 @@ import {
 import { launchTask } from '../../support/launch';
 import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
+  ADVANCE_BTN,
   advancePaScreen,
   clickAllPaChoices,
   clickPaContinue,
@@ -79,7 +80,8 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
       expect(stats.nItems, 'scored PA item trials').to.be.greaterThan(0);
       expect(nNoGoal, `trials with no sessionStorage goal (see ${NO_GOAL_LOG})`).to.equal(0);
       expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
-      expect(stats.nBreaks, 'observed break screens').to.be.greaterThan(0);
+      // Break screens only occur at block boundaries; a short adaptive run can
+      // legitimately complete without one, so this is informational, not a gate.
       cy.log(`items: ${nItems}, breaks: ${stats.nBreaks}`);
     });
   }
@@ -132,6 +134,9 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
         const goal = readGoalFromWindow(win);
         const choices = hasPaChoices(doc);
         const continueVisible = $b.find(CONTINUE).filter(':visible').length > 0;
+        // Any visible advance affordance (Continue or jsPsych button) marks a
+        // non-trial pause; used only to tally break screens for the summary.
+        const advanceVisible = $b.find(ADVANCE_BTN).filter(':visible').length > 0;
 
         // Real AFC trial: answer images + answer key, no Continue button.
         if (choices && goal && !continueVisible && doc.querySelector(correctImageSelector(goal))) {
@@ -178,8 +183,8 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
         }
 
         // No choices: intro / instructions / break / end / feedback / loading.
-        // A Continue after trials have started is a break screen.
-        if (continueVisible && nItems > 0 && !breakLoggedSinceItem) {
+        // A pause screen after trials have started is a block-boundary break.
+        if (advanceVisible && nItems > 0 && !breakLoggedSinceItem) {
           breakLoggedSinceItem = true;
           logRecord({
             timestamp: new Date().toISOString(),

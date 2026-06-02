@@ -65,6 +65,17 @@ Cypress.Commands.add('actOnTrial', (action: Action) => {
     if ($body.find(selector).length > 0) {
       cy.get(selector).first().click({ force: true });
     }
+    if (action === 'CONTINUE') {
+      // hfV2 in keyboard mode (non-touch: navigator.maxTouchPoints === 0, as in
+      // headless Electron) renders NO `.primary` continue button. Instead, text
+      // instruction screens advance on the SPACEBAR and the left/right "learn the
+      // keys" demos advance on Arrow keys. Touch / v1 builds use the button above
+      // and have no key listeners, so these presses are harmless there. The
+      // caller polls and calls CONTINUE repeatedly, which is required because the
+      // spacebar listener is only armed once the screen's narration audio ends.
+      cy.get('body').type(' ', { force: true, log: false });
+      cy.get('body').type('{leftarrow}{rightarrow}', { force: true, log: false });
+    }
   });
 });
 

@@ -137,35 +137,59 @@ export function hasPaChoices(doc: Document): boolean {
  */
 export function advancePaScreen(): void {
   cy.get('body', { log: false }).then(($b) => {
-    const $fs = $b.find(FULLSCREEN_BTN).filter(':visible');
-    if ($fs.length) {
-      cy.wrap($fs.first()).click({ force: true });
-      return;
-    }
-    const $canvas = $b.find(INTRO_CANVAS).filter(':visible');
-    if ($canvas.length) {
-      cy.wrap($canvas.first()).click({ force: true });
-      return;
-    }
-    const $btn = $b.find(ADVANCE_BTN).filter(':visible');
-    if ($btn.length) cy.wrap($btn.first()).click({ force: true });
+    const visible = (sel: string): boolean => $b.find(sel).filter(':visible').length > 0;
+    // Prefer an explicit advance control (fullscreen prompt → Continue / jsPsych
+    // button) over the instruction canvas: instruction screens render a clickable
+    // Continue *and* a decorative, animating canvas, and only the bare "click the
+    // screen" intro has a canvas with no button. Clicking the animating canvas
+    // when a button exists both mis-targets and detaches mid-render.
+    let target: string | null = null;
+    if (visible(FULLSCREEN_BTN)) target = FULLSCREEN_BTN;
+    else if (visible(ADVANCE_BTN)) target = ADVANCE_BTN;
+    else if (visible(INTRO_CANVAS)) target = INTRO_CANVAS;
+    if (!target) return;
+
+    // Click via a FRESH `cy.get` (never a captured node): these screens animate /
+    // auto-advance, so a node captured in this `.then` can detach before the click
+    // ("element has detached from the DOM"). Re-querying re-resolves the current
+    // node. Re-check existence first so a screen that advanced on its own no-ops
+    // instead of hard-failing the 4s default `cy.get` retry.
+    const sel = target;
+    cy.get('body', { log: false }).then(($b2) => {
+      if ($b2.find(sel).filter(':visible').length === 0) return;
+      cy.get(sel, { log: false }).filter(':visible').first().click({ force: true });
+    });
   });
 }
 
 /**
- * Tutorial / guided-demo escape: click every visible answer image, then the
- * Continue button. roar-pa's tutorials highlight the demonstrated image(s) and
- * gate on a click; clicking all of them (the correct one included) advances the
- * demo regardless of language, mirroring the old scripted two-image tutorial
- * without needing the hardcoded English image stems.
+ * Tutorial / guided-demo escape: click each visible answer image in turn, then
+ * Continue. roar-pa's tutorials highlight the demonstrated image(s) and gate on a
+ * click; clicking all of them (the correct one included) advances the demo
+ * regardless of language, mirroring the old scripted two-image tutorial without
+ * needing the hardcoded English image stems.
+ *
+ * Each click is preceded by a FRESH query (never a captured element) because the
+ * first click re-renders the demo and detaches the other image nodes — clicking a
+ * stale reference throws "element has detached from the DOM". The loop stops once
+ * the images are gone (screen advanced) and is bounded so it can't spin forever.
  */
-export function clickAllPaChoices(): void {
-  cy.get('body', { log: false }).then(($b) => {
-    const $imgs = $b.find(CHOICE_IMG).filter(':visible');
-    $imgs.each((_i, el) => {
-      cy.wrap(el).click({ force: true });
+export function clickAllPaChoices(maxClicks = 6): void {
+  const clickNext = (i: number): void => {
+    if (i >= maxClicks) return;
+    cy.get('body', { log: false }).then(($b) => {
+      const count = $b.find(CHOICE_IMG).filter(':visible').length;
+      // Stop once images are gone (screen advanced) or every distinct image on
+      // the current screen has been clicked once.
+      if (count === 0 || i >= count) return;
+      // Fresh `cy.get` (not a captured node): the first click re-renders the demo
+      // and detaches the other image nodes.
+      cy.get(CHOICE_IMG, { log: false }).filter(':visible').eq(i).click({ force: true });
+      cy.wait(400, { log: false });
+      clickNext(i + 1);
     });
-  });
+  };
+  clickNext(0);
 }
 
 export function clickPaContinue(): void {
