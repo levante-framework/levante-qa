@@ -6,6 +6,7 @@ import {
   trialRecordOracleFlag,
 } from '../../support/agentMode';
 import { launchTask } from '../../support/launch';
+import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
   advancePaIntro,
   clickPaContinue,
@@ -148,7 +149,7 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
       onBeforeLoad: installAudioCapture,
     });
 
-    cy.get('.jspsych-content', { timeout: 300000 }).should('exist');
+    waitForRoarJsPsych();
     advancePaIntro();
     logRecord({
       timestamp: new Date().toISOString(),

@@ -758,7 +758,7 @@ These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`,
 
 **PA (phonological awareness)** — first task under investigation:
 
-- **Launch:** `cypress/support/launch.ts` → `launchRoarTask()` (home tab → “Click to start” → `/game/pa`).
+- **Launch:** `waitForParticipantHomeReady()` → click `a.game-btn[href*="/game/<id>"]` (no cold `/game/*` visit); `waitForRoarJsPsych()` polls until jsPsych leaves the spinner (`cypress/support/tasks/roar.ts`).
 - **Explore spec:** `cypress/e2e/pa/_explore.cy.ts` logs DOM snapshots to `cypress/logs/_pa_explore.jsonl`.
 - **Flow discovered:** custom intro (“click the button on the screen”) → fullscreen **Continue** →
   audio-calibration screens → then `jspsych-audio-button-response-button` trials (phoneme audio +

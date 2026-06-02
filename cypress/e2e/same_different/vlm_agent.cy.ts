@@ -4,9 +4,11 @@ import {
   buildUrl,
   isComplete,
   isInstructionScreen,
+  advanceSomethingSameScreen,
   dismissSdsStartup,
   isMultiSelectReady,
   isSingleSelectReady,
+  isSomethingSameScreen,
   nextMatchPair,
   newMatchState,
   readMatchChoices,
@@ -281,6 +283,12 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
       }
       if (isMultiSelectReady(win)) {
         handleMatch(i, win);
+        return;
+      }
+      if (isSomethingSameScreen(win)) {
+        const sig = screenSig(win);
+        advanceSomethingSameScreen();
+        waitChangedThenStep(i, sig);
         return;
       }
       if (isInstructionScreen(win)) {

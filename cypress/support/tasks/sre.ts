@@ -67,9 +67,78 @@ export function waitForSreReady(): void {
   cy.get(JSPSYCH_BTN, { timeout: 120000 }).should('exist');
 }
 
+const FULLSCREEN_BTN = '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn';
+
+function bodyHasSreWelcome(text: string): boolean {
+  const norm = text.replace(/\s+/g, ' ');
+  return (
+    text.includes(SRE_EN.welcome) ||
+    text.includes('Sentence Reading Efficiency') ||
+    text.includes('Satzleseeffizienz') ||
+    text.includes('eficiencia de lectura') ||
+    /Sentence Reading/i.test(norm)
+  );
+}
+
+/** End-of-task thank-you screen (en / de / es). */
+export function bodyHasSreCompletion(text: string): boolean {
+  return (
+    text.includes(SRE_EN.endThankYou) ||
+    /thank you so much/i.test(text) ||
+    /vielen dank/i.test(text) ||
+    /muchas gracias/i.test(text)
+  );
+}
+
+function progressStarted(doc: Document): boolean {
+  const style = doc.querySelector(PROGRESS_INNER)?.getAttribute('style') ?? '';
+  return /width:\s*([1-9]|[1-9]\d)/.test(style);
+}
+
+function sreStartupComplete(doc: Document, bodyText: string, win: Window): boolean {
+  return (
+    bodyHasSreWelcome(bodyText) ||
+    hasActiveStimulus(doc) ||
+    progressStarted(doc) ||
+    !!readCorrectLrFromWindow(win)
+  );
+}
+
+function dismissSreUntilWelcome(attempt = 0): void {
+  const MAX = 90;
+  if (attempt >= MAX) {
+    cy.window({ log: false }).then((win) => {
+      cy.get('body', { timeout: 30 * SRE_STEP_MS, log: false }).should(($b) => {
+        const doc = $b[0].ownerDocument;
+        expect(sreStartupComplete(doc, $b.text(), win), 'SRE welcome or active trials').to.equal(
+          true,
+        );
+      });
+    });
+    return;
+  }
+  cy.window({ log: false }).then((win) => {
+    cy.get('body', { log: false }).then(($b) => {
+      const doc = $b[0].ownerDocument;
+      if (sreStartupComplete(doc, $b.text(), win)) return;
+      const $fs = $b.find(FULLSCREEN_BTN).filter(':visible');
+      if ($fs.length) cy.wrap($fs.first()).click({ force: true });
+      else {
+        const $btn = $b.find(`${JSPSYCH_BTN}:visible`);
+        if ($btn.length) cy.wrap($btn.first()).click({ force: true });
+        else if (attempt % 5 === 0) {
+          cy.get('body', { log: false }).type('{enter}', { log: false });
+        }
+      }
+      cy.wait(1000, { log: false });
+      dismissSreUntilWelcome(attempt + 1);
+    });
+  });
+}
+
 /**
- * Startup after dashboard launch: first jspsych button + fullscreen permission
- * workarounds from roar-dashboard `playSRE`.
+ * Startup after dashboard launch: first jspsych button + fullscreen / audio chrome
+ * (roar-dashboard `playSRE` enter + 1), then welcome text or first trial.
  */
 export function advanceSreStartup(): void {
   waitForSreReady();
@@ -78,7 +147,8 @@ export function advanceSreStartup(): void {
   cy.get('body', { log: false }).type('{enter}', { log: false });
   cy.wait(200, { log: false });
   cy.get('body', { log: false }).type('1', { log: false });
-  cy.contains(SRE_EN.welcome, { timeout: 120000 }).should('be.visible');
+  cy.wait(200, { log: false });
+  dismissSreUntilWelcome();
 }
 
 /** Click a visible jsPsych button when present (block transitions / continue). */

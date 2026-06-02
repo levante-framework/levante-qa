@@ -185,14 +185,49 @@ export function dismissSdsStartup(attempt = 0): void {
   });
 }
 
+/** something-same trials (wide layout): demo narration and/or card pick + OK. */
+export function isSomethingSameScreen(win: TaskWindow): boolean {
+  return !!win.document.querySelector('.lev-stimulus-container-wide');
+}
+
+/** something-same-2: participant must select a card before OK enables. */
+export function isSomethingSameCardSelect(win: TaskWindow): boolean {
+  const doc = win.document;
+  return (
+    doc.querySelectorAll('#img-button-container button.image-medium:not(.no-pointer-events)')
+      .length >= 2
+  );
+}
+
 /** True on a display / instruction / finished screen: an enabled `.primary`
  * (OK/Exit) and no selectable cards. */
 export function isInstructionScreen(win: TaskWindow): boolean {
   const doc = win.document;
+  if (isSomethingSameScreen(win)) return false;
   if (doc.querySelectorAll(SINGLE_CHOICE).length >= 2) return false;
   if (doc.querySelectorAll(MULTI_CHOICE).length >= 3) return false;
   const primary = doc.querySelector(CONTINUE_BUTTON);
   return !!primary && isInteractable(primary);
+}
+
+/** Click the keyed card on something-same-2, then wait for OK and press it. */
+export function advanceSomethingSameScreen(): void {
+  cy.get('body', { log: false }).then(($body) => {
+    const $selectable = $body.find(
+      '#img-button-container button.image-medium:not(.no-pointer-events)',
+    );
+    if ($selectable.length) {
+      const $correct = $selectable.filter('.correct');
+      const $target = $correct.length ? $correct.first() : $selectable.first();
+      cy.wrap($target).click({ force: true });
+      cy.wait(300, { log: false });
+    }
+  });
+  cy.get(`${CONTINUE_BUTTON}, button.primary`, { log: false })
+    .filter(':visible')
+    .first()
+    .should('not.be.disabled', { timeout: 120000 })
+    .click({ force: true });
 }
 
 /** The single-select cards' `alt`, in DOM order (index === choice index). */
@@ -283,10 +318,9 @@ export function nextMatchPair(
 ): { pair: MatchPair | null; state: MatchState } {
   const nCards = alts.length;
   let { matchedDimensions, numSelections, phaseCount } = state;
-  // Reset only when the card count increases (new match phase), mirroring the
-  // `phaseCount < responseButtons.length` branch in core-tasks — not after n-1
-  // clicks on the same set (that reset is for between trials in their loop).
-  if (phaseCount < nCards) {
+  // Mirror core-tasks multiAfc: reset when the set grows or after n-1 pair picks
+  // on the same card layout (new dimension round on the same four cards).
+  if (numSelections >= nCards - 1 || phaseCount < nCards) {
     matchedDimensions = [];
     numSelections = 0;
     phaseCount = nCards;

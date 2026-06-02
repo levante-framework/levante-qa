@@ -3,9 +3,11 @@ import {
   buildUrl,
   isComplete,
   isInstructionScreen,
+  advanceSomethingSameScreen,
   dismissSdsStartup,
   isMultiSelectReady,
   isSingleSelectReady,
+  isSomethingSameScreen,
   nextMatchPair,
   newMatchState,
   readMatchChoices,
@@ -255,7 +257,9 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
 
   function step(i: number): void {
     if (i >= MAX_STEPS) {
-      finalize();
+      cy.wrap(null).then(() => {
+        expect(taskComplete, 'SDS reached completion before step cap').to.equal(true);
+      });
       return;
     }
     cy.window({ log: false }).then((w) => {
@@ -294,6 +298,24 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       }
       if (isMultiSelectReady(win)) {
         handleMatch(i, win);
+        return;
+      }
+      if (isSomethingSameScreen(win)) {
+        const sig = screenSig(win);
+        currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+          logRecord({
+            timestamp: new Date().toISOString(),
+            task: TASK,
+            step: i,
+            itemType: 'instructions',
+            promptText: readPromptText(win) || null,
+            oracle: trialRecordOracleFlag(),
+            audioTranscript: audio.transcript,
+            audioSource: audio.source,
+          });
+          advanceSomethingSameScreen();
+          waitChangedThenStep(i, sig);
+        });
         return;
       }
       if (isInstructionScreen(win)) {

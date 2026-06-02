@@ -6,6 +6,7 @@
  */
 import { installAudioCapture } from '../../support/audio/audioCapture';
 import { launchTask } from '../../support/launch';
+import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
   advanceSwrLexicalityTutorial,
   advanceSwrStartup,
@@ -44,7 +45,7 @@ describe('SWR — explore DOM (dashboard)', () => {
       onBeforeLoad: installAudioCapture,
     });
 
-    cy.get('.jspsych-content, .jspsych-display-element', { timeout: 300000 }).should('exist');
+    waitForRoarJsPsych();
     advanceSwrStartup();
     advanceSwrLexicalityTutorial();
     cy.window().then((w) => snapshot(w, 0, 'after_lexicality_tutorial'));

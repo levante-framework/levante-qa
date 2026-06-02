@@ -150,11 +150,21 @@ Cypress.Commands.add('confirmSdsMatch', () => {
 
 /** Advance past an SDS instruction / display screen via its OK button. */
 Cypress.Commands.add('continueSds', () => {
-  cy.get('body').then(($body) => {
-    if ($body.find(SDS_CONTINUE_BUTTON).length > 0) {
-      cy.get(SDS_CONTINUE_BUTTON).first().click({ force: true });
+  cy.get('body', { log: false }).then(($body) => {
+    const $enabled = $body
+      .find(`${SDS_CONTINUE_BUTTON}, button.primary`)
+      .filter(':visible')
+      .filter((_, el) => !(el as HTMLButtonElement).disabled);
+    if ($enabled.length) {
+      cy.wrap($enabled.first()).click({ force: true });
+      return;
     }
   });
+  cy.get(`${SDS_CONTINUE_BUTTON}, button.primary`, { log: false })
+    .filter(':visible')
+    .first()
+    .should('not.be.disabled', { timeout: 120000 })
+    .click({ force: true });
 });
 
 /** Click the Mental Rotation image choice at `index` (0 = leftmost). */

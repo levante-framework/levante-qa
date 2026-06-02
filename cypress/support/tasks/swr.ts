@@ -52,12 +52,45 @@ export function waitForSwrReady(): void {
   cy.get(JSPSYCH_BTN, { timeout: 120000 }).should('exist');
 }
 
-/** Body text markers for the Lexicality gate (en + es variants on dev). */
+/** Body text markers for the Lexicality gate (en / de / es variants on dev). */
 export function bodyHasSwrLexicalityIntro(text: string): boolean {
+  const norm = text.replace(/\s+/g, ' ');
   return (
     text.includes(SWR_EN.introText) ||
     text.includes('Lexicalidad') ||
-    text.includes('Lexicality')
+    text.includes('Lexicality') ||
+    text.includes('Lexikalität') ||
+    /Willkommen.{0,40}Welt der/i.test(norm)
+  );
+}
+
+/** True when real SWR trials (or arrow-choice items) are on screen — past intro gates. */
+export function isSwrPlayableScreen(doc: Document): boolean {
+  if (doc.querySelectorAll(STIMULUS).length > 0) return true;
+  return !!doc.querySelector(
+    '.lexicality-trial-arrows, .btn-arrows, #countdown-arrows-wrapper',
+  );
+}
+
+function progressStarted(doc: Document): boolean {
+  const style = doc.querySelector(PROGRESS_INNER)?.getAttribute('style') ?? '';
+  return /width:\s*([1-9]|[1-9]\d)/.test(style);
+}
+
+/** Startup finished: Lexicality intro, trials, or assessment progress has begun. */
+export function swrStartupComplete(doc: Document, bodyText: string, win: Window): boolean {
+  if (bodyHasSwrLexicalityIntro(bodyText)) return true;
+  if (isSwrPlayableScreen(doc)) return true;
+  if (hasActiveStimulus(doc)) return true;
+  if (progressStarted(doc)) return true;
+  if (readCorrectLrFromWindow(win)) return true;
+  return false;
+}
+
+function bodyLooksLikeSwrBlockBreak(text: string): boolean {
+  return (
+    /Vorgang abgeschlossen|Press ANY KEY|beliebige Taste|presiona cualquier tecla/i.test(text) ||
+    SWR_EN.blockEndMarkers.some((m) => text.includes(m))
   );
 }
 
@@ -65,32 +98,48 @@ const FULLSCREEN_BTN = '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn';
 
 /**
  * After the first jsPsych button, roar-swr may show fullscreen consent and/or
- * audio checks before the Lexicality tutorial. Mirrors SRE `playSRE` (enter + 1)
- * plus clicking through `#jspsych-fullscreen-btn` when present.
+ * audio checks before the Lexicality tutorial. Exits once intro or trials are
+ * visible (locale-agnostic; dev often serves de-DE even for en-US provision).
  */
 function dismissSwrUntilLexicality(attempt = 0): void {
   const MAX = 120;
   if (attempt >= MAX) {
-    cy.contains(SWR_EN.introText, { timeout: 30 * SWR_STEP_MS }).should('be.visible');
+    cy.window({ log: false }).then((win) => {
+      cy.get('body', { timeout: 30 * SWR_STEP_MS, log: false }).should(($b) => {
+        const doc = $b[0].ownerDocument;
+        expect(swrStartupComplete(doc, $b.text(), win), 'SWR intro or trials started').to.equal(
+          true,
+        );
+      });
+    });
     return;
   }
 
-  cy.get('body', { log: false }).then(($b) => {
-    if (bodyHasSwrLexicalityIntro($b.text())) return;
+  cy.window({ log: false }).then((win) => {
+    cy.get('body', { log: false }).then(($b) => {
+      const doc = $b[0].ownerDocument;
+      const text = $b.text();
+      if (swrStartupComplete(doc, text, win)) return;
 
-    const $fs = $b.find(FULLSCREEN_BTN).filter(':visible');
-    if ($fs.length) {
-      cy.wrap($fs.first()).click({ force: true });
-    } else {
-      const $btn = $b.find(`${JSPSYCH_BTN}:visible`);
-      if ($btn.length) {
-        cy.wrap($btn.first()).click({ force: true });
-      } else if (attempt % 5 === 0) {
-        cy.get('body', { log: false }).type('{enter}', { log: false });
+      if (bodyLooksLikeSwrBlockBreak(text) && !hasActiveStimulus(doc)) {
+        cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+        clickSwrContinue();
+      } else {
+        const $fs = $b.find(FULLSCREEN_BTN).filter(':visible');
+        if ($fs.length) {
+          cy.wrap($fs.first()).click({ force: true });
+        } else {
+          const $btn = $b.find(`${JSPSYCH_BTN}:visible`);
+          if ($btn.length) {
+            cy.wrap($btn.first()).click({ force: true });
+          } else if (attempt % 5 === 0) {
+            cy.get('body', { log: false }).type('{enter}', { log: false });
+          }
+        }
       }
-    }
-    cy.wait(1000, { log: false });
-    dismissSwrUntilLexicality(attempt + 1);
+      cy.wait(1000, { log: false });
+      dismissSwrUntilLexicality(attempt + 1);
+    });
   });
 }
 
@@ -108,37 +157,66 @@ export function advanceSwrStartup(): void {
 
 /** Lexicality tutorial: intro text, three left presses, then Continue. */
 export function advanceSwrLexicalityTutorial(): void {
-  cy.get('body', { log: false }).then(($b) => {
-    if (!bodyHasSwrLexicalityIntro($b.text())) dismissSwrUntilLexicality();
+  cy.window({ log: false }).then((win) => {
+    cy.get('body', { log: false }).then(($b) => {
+      const doc = $b[0].ownerDocument;
+      if (isSwrPlayableScreen(doc) || hasActiveStimulus(doc) || readCorrectLrFromWindow(win)) {
+        return;
+      }
+      if (!bodyHasSwrLexicalityIntro($b.text()) && !isSwrPlayableScreen(doc)) {
+        dismissSwrUntilLexicality();
+      }
+      cy.window({ log: false }).then((w2) => {
+        const d2 = w2.document;
+        if (isSwrPlayableScreen(d2) || hasActiveStimulus(d2) || readCorrectLrFromWindow(w2)) {
+          return;
+        }
+        for (let i = 0; i < 3; i++) {
+          cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+        }
+        cy.get(JSPSYCH_BTN, { timeout: 10 * SWR_STEP_MS }).should('be.visible').click({ force: true });
+      });
+    });
   });
-  cy.get('body', { timeout: 30 * SWR_STEP_MS, log: false }).should(($b) => {
-    expect(bodyHasSwrLexicalityIntro($b.text()), 'Lexicality tutorial intro').to.equal(true);
-  });
-  for (let i = 0; i < 3; i++) {
-    cy.get('body', { log: false }).type('{leftarrow}', { log: false });
-  }
-  cy.get(JSPSYCH_BTN, { timeout: 10 * SWR_STEP_MS }).should('be.visible').click({ force: true });
 }
 
 /** Practice intro: alternate arrows then click Continue (mirrors `playIntro`). */
 export function advanceSwrPracticeIntro(): void {
-  for (let i = 0; i <= 5; i++) {
-    cy.wait(SWR_STEP_MS * 0.2, { log: false });
-    cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
-    cy.wait(SWR_STEP_MS * 0.2, { log: false });
-    cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
-    cy.wait(SWR_STEP_MS * 0.2, { log: false });
-  }
-  cy.get(JSPSYCH_BTN, { timeout: 5 * SWR_STEP_MS })
-    .contains(SWR_EN.continue)
-    .click({ force: true });
+  cy.window({ log: false }).then((win) => {
+    if (isSwrPlayableScreen(win.document) || hasActiveStimulus(win.document) || readCorrectLrFromWindow(win)) {
+      return;
+    }
+    for (let i = 0; i <= 5; i++) {
+      cy.wait(SWR_STEP_MS * 0.2, { log: false });
+      cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
+      cy.wait(SWR_STEP_MS * 0.2, { log: false });
+      cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
+      cy.wait(SWR_STEP_MS * 0.2, { log: false });
+    }
+    clickSwrContinue();
+  });
 }
 
 /** Click Continue when the visible jspsych button label matches. */
 export function clickSwrContinue(): void {
-  cy.get(JSPSYCH_BTN, { timeout: 5 * SWR_STEP_MS })
-    .contains(SWR_EN.continue)
-    .click({ force: true });
+  cy.get('body', { log: false }).then(($b) => {
+    const $btn = $b.find(`${JSPSYCH_BTN}:visible`);
+    const $match = $btn.filter((_, el) => {
+      const t = (el.textContent ?? '').trim();
+      return (
+        new RegExp(SWR_EN.continue, 'i').test(t) ||
+        /^continue$|^continuar$|^weiter$/i.test(t)
+      );
+    });
+    if ($match.length) cy.wrap($match.first()).click({ force: true });
+    else if ($btn.length) cy.wrap($btn.first()).click({ force: true });
+  });
+}
+
+/** Block transition with no `.stimulus`: left arrow + Continue (any locale). */
+export function advanceSwrBreakScreen(): void {
+  cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+  clickSwrContinue();
 }
 
 function mean(values: number[]): number | null {

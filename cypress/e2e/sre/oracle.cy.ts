@@ -6,9 +6,11 @@ import {
   trialRecordOracleFlag,
 } from '../../support/agentMode';
 import { launchTask } from '../../support/launch';
+import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
   advanceSreStartup,
   arrowKeyForLr,
+  bodyHasSreCompletion,
   clickSreContinueIfPresent,
   hasActiveStimulus,
   isDashboardReroute,
@@ -16,7 +18,6 @@ import {
   readCorrectLrFromWindow,
   scoreTrials,
   SRE_ASSET_WAIT_MS,
-  SRE_EN,
   SRE_STEP_MS,
 } from '../../support/tasks/sre';
 import { parseSreTrialRecord, type SreTrialRecord } from '../../support/tasks/types';
@@ -73,7 +74,7 @@ describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
           finalize();
           return;
         }
-        if (text.includes(SRE_EN.endThankYou)) {
+        if (bodyHasSreCompletion(text)) {
           gameComplete = true;
           finalize();
           return;
@@ -134,7 +135,7 @@ describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
       onBeforeLoad: installAudioCapture,
     });
 
-    cy.get('.jspsych-content, .jspsych-display-element', { timeout: 300000 }).should('exist');
+    waitForRoarJsPsych();
     advanceSreStartup();
     logRecord({
       timestamp: new Date().toISOString(),

@@ -80,15 +80,26 @@ export function waitForPaReady(): void {
   cy.get(`${JSPSYCH_BTN}, ${INTRO_CANVAS}`, { timeout: 120000 }).should('exist');
 }
 
+function clickVisibleContinue(): void {
+  cy.get(CONTINUE, { log: false }).filter(':visible').first().click({ force: true });
+}
+
+function clickVisibleTutorialImage(stem: string): void {
+  cy.get(`img[src*="${stem}.webp"]`, { timeout: 120000, log: false })
+    .filter(':visible')
+    .first()
+    .click({ force: true });
+}
+
 /** Standard PA intro: canvas → jspsych btn → continue → start text → continue. */
 export function advancePaIntro(startText: string = EN_START_TEXT): void {
   waitForPaReady();
-  cy.get(INTRO_CANVAS, { timeout: 60000 }).should('be.visible').click({ force: true });
-  cy.get(JSPSYCH_BTN).should('be.visible').click({ force: true });
-  cy.get(CONTINUE).should('be.visible').click({ force: true });
+  cy.get(INTRO_CANVAS, { timeout: 60000 }).should('be.visible').first().click({ force: true });
+  cy.get(JSPSYCH_BTN).filter(':visible').first().should('be.visible').click({ force: true });
+  clickVisibleContinue();
   cy.wait(500, { log: false });
-  cy.contains(startText, { timeout: 120000 }).should('be.visible').click({ force: true });
-  cy.get(CONTINUE).should('be.visible').click({ force: true });
+  cy.contains(startText, { timeout: 120000 }).filter(':visible').first().click({ force: true });
+  clickVisibleContinue();
 }
 
 /**
@@ -103,20 +114,20 @@ export function playPaTutorialPair(
 ): void {
   if (opts?.continueFirst) {
     cy.wait(PA_STEP_MS, { log: false });
-    cy.get(CONTINUE).click({ force: true });
+    clickVisibleContinue();
     cy.wait(PA_STEP_MS * 2, { log: false });
   } else {
     cy.wait(PA_STEP_MS, { log: false });
   }
-  cy.get(`img[src*="${imgA}.webp"]`, { timeout: 120000 }).click({ force: true });
+  clickVisibleTutorialImage(imgA);
   cy.wait(PA_STEP_MS * 2, { log: false });
-  cy.get(`img[src*="${imgB}.webp"]`).click({ force: true });
+  clickVisibleTutorialImage(imgB);
   cy.wait(PA_STEP_MS, { log: false });
-  cy.get(CONTINUE).click({ force: true });
+  clickVisibleContinue();
 }
 
 export function clickPaContinue(): void {
-  cy.get(CONTINUE).click({ force: true });
+  clickVisibleContinue();
 }
 
 function mean(values: number[]): number | null {

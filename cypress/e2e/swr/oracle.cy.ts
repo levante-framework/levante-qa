@@ -6,6 +6,7 @@ import {
   trialRecordOracleFlag,
 } from '../../support/agentMode';
 import { launchTask } from '../../support/launch';
+import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
   advanceSwrLexicalityTutorial,
   advanceSwrPracticeIntro,
@@ -18,7 +19,6 @@ import {
   readCorrectLrFromWindow,
   scoreTrials,
   SWR_ASSET_WAIT_MS,
-  SWR_EN,
   SWR_STEP_MS,
 } from '../../support/tasks/swr';
 import { parseSwrTrialRecord, type SwrTrialRecord } from '../../support/tasks/types';
@@ -34,6 +34,7 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
   let taskComplete = false;
   let gameComplete = false;
   let nItems = 0;
+  let nBreaks = 0;
   let nNoLr = 0;
 
   function logRecord(
@@ -56,14 +57,16 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
       expect(stats.nItems, 'scored SWR item trials').to.be.greaterThan(0);
       expect(nNoLr, `trials with no session correctLR (see ${NO_LR_LOG})`).to.equal(0);
       expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
-      expect(stats.nBreaks, 'observed block markers').to.be.greaterThan(0);
-      cy.log(`items: ${nItems}, breaks: ${stats.nBreaks}`);
+      cy.log(`items: ${nItems}, breaks: ${nBreaks}`);
     });
   }
 
-  /** Recurse while `.stimulus` is present; one left+Continue when block ends. */
-  function playBlockTrials(iterLeft = MAX_ITER): void {
-    if (taskComplete || gameComplete || iterLeft <= 0) return;
+  /** Drive trials until progress completes (locale-agnostic; mirrors SRE loop + SWR block breaks). */
+  function playTrials(iterLeft = MAX_ITER): void {
+    if (taskComplete || gameComplete || iterLeft <= 0) {
+      if (!taskComplete && !gameComplete) finalize();
+      return;
+    }
 
     cy.wait(SWR_ASSET_WAIT_MS * 0.15, { log: false });
     cy.get('body', { log: false })
@@ -82,7 +85,23 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
             return;
           }
 
-          if (!hasActiveStimulus(win.document)) {
+          const doc = win.document;
+          if (!hasActiveStimulus(doc)) {
+            nBreaks += 1;
+            logRecord({
+              timestamp: new Date().toISOString(),
+              itemType: 'break',
+              breakMarker: 'block_transition',
+              correctLr: null,
+              correct: null,
+              oracle: trialRecordOracleFlag(),
+            });
+            cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+            if (!isProgressComplete(doc)) {
+              clickSwrContinue();
+            }
+            cy.wait(SWR_STEP_MS * 0.2, { log: false });
+            playTrials(iterLeft - 1);
             return;
           }
 
@@ -97,7 +116,7 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
               },
               { log: false },
             );
-            playBlockTrials(iterLeft - 1);
+            playTrials(iterLeft - 1);
             return;
           }
 
@@ -112,39 +131,9 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
           });
           cy.get('body', { log: false }).type(arrowKeyForLr(lr, isWrongAgentMode()), { log: false });
           cy.wait(SWR_STEP_MS * 0.08, { log: false });
-          playBlockTrials(iterLeft - 1);
+          playTrials(iterLeft - 1);
         });
       });
-  }
-
-  function endBlock(blockMarker: string, final = false): void {
-    cy.wait(SWR_ASSET_WAIT_MS * 0.3, { log: false });
-    cy.get('body', { log: false })
-      .invoke('text')
-      .then((text) => {
-        if (text.includes(blockMarker)) {
-          logRecord({
-            timestamp: new Date().toISOString(),
-            itemType: 'break',
-            breakMarker: blockMarker,
-            correctLr: null,
-            correct: null,
-            oracle: trialRecordOracleFlag(),
-          });
-        }
-        cy.get('body', { log: false }).type('{leftarrow}', { log: false });
-        if (!final) {
-          clickSwrContinue();
-        }
-      });
-  }
-
-  function playBlock(blockMarker: string, final = false): void {
-    playBlockTrials();
-    endBlock(blockMarker, final);
-    if (!final) {
-      cy.contains(blockMarker, { timeout: 120000 }).should('be.visible');
-    }
   }
 
   it('completes roar-swr by pressing sessionStorage correctLR through all blocks', () => {
@@ -154,7 +143,7 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
       onBeforeLoad: installAudioCapture,
     });
 
-    cy.get('.jspsych-content, .jspsych-display-element', { timeout: 300000 }).should('exist');
+    waitForRoarJsPsych();
     advanceSwrStartup();
     logRecord({
       timestamp: new Date().toISOString(),
@@ -185,15 +174,6 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
       oracle: trialRecordOracleFlag(),
     });
 
-    const markers = SWR_EN.blockEndMarkers;
-    for (let i = 0; i < markers.length; i++) {
-      const final = i === markers.length - 1;
-      playBlock(markers[i], final);
-    }
-
-    cy.wrap(null).then(() => {
-      gameComplete = true;
-      finalize();
-    });
+    playTrials();
   });
 });

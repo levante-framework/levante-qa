@@ -6,6 +6,7 @@
  */
 import { installAudioCapture } from '../../support/audio/audioCapture';
 import { launchTask } from '../../support/launch';
+import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
   advanceSreStartup,
   readCorrectLrFromWindow,
@@ -43,7 +44,7 @@ describe('SRE — explore DOM (dashboard)', () => {
       onBeforeLoad: installAudioCapture,
     });
 
-    cy.get('.jspsych-content, .jspsych-display-element', { timeout: 300000 }).should('exist');
+    waitForRoarJsPsych();
     advanceSreStartup();
     cy.window().then((w) => snapshot(w, 0, 'after_startup'));
 

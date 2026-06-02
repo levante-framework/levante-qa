@@ -1,3 +1,5 @@
+import { waitForParticipantHomeReady } from './tasks/roar';
+
 /**
  * Task launch strategies.
  *
@@ -73,18 +75,17 @@ export function launchCoreTask(taskId: string): void {
 }
 
 /**
- * From the participant home, start an assigned **ROAR** task (`/game/pa`, etc.).
- * GameTabs renders a router-link (class `game-btn`) to `/game/<taskId>` — same
- * pattern as levante-dashboard's testTasks.cy.ts.
+ * From the participant home, start an assigned **ROAR** task via its game-btn
+ * (never cold-navigate — assignment + Firekit must be ready on home first).
  */
 export function launchRoarTask(taskId: string): void {
-  // PrimeVue tabs: select first tab, then the game-btn router-link in the active panel
-  // (matches levante-dashboard/cypress/e2e/testTasks.cy.ts).
-  cy.get('[data-pc-section=tablist]', { timeout: 300000 }).should('exist').children().first().click();
-  cy.get('[data-pc-name=tabpanel][data-p-active=true]', { timeout: 120000 })
-    .find('a.game-btn')
-    .contains(/click to start/i)
+  waitForParticipantHomeReady(taskId);
+
+  cy.get(`a.game-btn[href*="/game/${taskId}"]`, { timeout: 120000 })
+    .first()
+    .scrollIntoView()
     .click({ force: true });
+
   cy.location('pathname', { timeout: 120000 }).should('include', `/game/${taskId}`);
 }
 
