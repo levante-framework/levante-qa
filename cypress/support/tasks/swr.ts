@@ -52,16 +52,68 @@ export function waitForSwrReady(): void {
   cy.get(JSPSYCH_BTN, { timeout: 120000 }).should('exist');
 }
 
-/** First jspsych button after dashboard launch (no fullscreen enter hack). */
+/** Body text markers for the Lexicality gate (en + es variants on dev). */
+export function bodyHasSwrLexicalityIntro(text: string): boolean {
+  return (
+    text.includes(SWR_EN.introText) ||
+    text.includes('Lexicalidad') ||
+    text.includes('Lexicality')
+  );
+}
+
+const FULLSCREEN_BTN = '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn';
+
+/**
+ * After the first jsPsych button, roar-swr may show fullscreen consent and/or
+ * audio checks before the Lexicality tutorial. Mirrors SRE `playSRE` (enter + 1)
+ * plus clicking through `#jspsych-fullscreen-btn` when present.
+ */
+function dismissSwrUntilLexicality(attempt = 0): void {
+  const MAX = 120;
+  if (attempt >= MAX) {
+    cy.contains(SWR_EN.introText, { timeout: 30 * SWR_STEP_MS }).should('be.visible');
+    return;
+  }
+
+  cy.get('body', { log: false }).then(($b) => {
+    if (bodyHasSwrLexicalityIntro($b.text())) return;
+
+    const $fs = $b.find(FULLSCREEN_BTN).filter(':visible');
+    if ($fs.length) {
+      cy.wrap($fs.first()).click({ force: true });
+    } else {
+      const $btn = $b.find(`${JSPSYCH_BTN}:visible`);
+      if ($btn.length) {
+        cy.wrap($btn.first()).click({ force: true });
+      } else if (attempt % 5 === 0) {
+        cy.get('body', { log: false }).type('{enter}', { log: false });
+      }
+    }
+    cy.wait(1000, { log: false });
+    dismissSwrUntilLexicality(attempt + 1);
+  });
+}
+
+/** First jspsych button + pre-Lexicality chrome (fullscreen / continue chain). */
 export function advanceSwrStartup(): void {
   waitForSwrReady();
   cy.get(JSPSYCH_BTN, { timeout: 18 * SWR_STEP_MS }).should('be.visible').click({ force: true });
   cy.wait(SWR_STEP_MS * 0.1, { log: false });
+  cy.get('body', { log: false }).type('{enter}', { log: false });
+  cy.wait(200, { log: false });
+  cy.get('body', { log: false }).type('1', { log: false });
+  cy.wait(200, { log: false });
+  dismissSwrUntilLexicality();
 }
 
 /** Lexicality tutorial: intro text, three left presses, then Continue. */
 export function advanceSwrLexicalityTutorial(): void {
-  cy.contains(SWR_EN.introText, { timeout: SWR_STEP_MS }).should('be.visible');
+  cy.get('body', { log: false }).then(($b) => {
+    if (!bodyHasSwrLexicalityIntro($b.text())) dismissSwrUntilLexicality();
+  });
+  cy.get('body', { timeout: 30 * SWR_STEP_MS, log: false }).should(($b) => {
+    expect(bodyHasSwrLexicalityIntro($b.text()), 'Lexicality tutorial intro').to.equal(true);
+  });
   for (let i = 0; i < 3; i++) {
     cy.get('body', { log: false }).type('{leftarrow}', { log: false });
   }

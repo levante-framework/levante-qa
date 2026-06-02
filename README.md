@@ -784,7 +784,7 @@ These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`,
 
 - **Launch:** `/game/swr` via `launchRoarTask()`; provision with `--task swr`.
 - **Answer key:** store2 session `correctLR` → arrow keys when `.stimulus` is visible; block ends use left + Continue (roar-dashboard `swrHelpers.js`).
-- **Support:** `cypress/support/tasks/swr.ts`.
+- **Support:** `cypress/support/tasks/swr.ts` (`advanceSwrStartup` dismisses fullscreen/audio before Lexicality).
 - **Oracle:** `cypress/e2e/swr/oracle.cy.ts` — `pnpm cy:run:swr:oracle`.
 - **Explore:** `cypress/e2e/swr/_explore.cy.ts` → `cypress/logs/_swr_explore.jsonl`.
 - **Score:** `pnpm score:swr` → `results/swr_summary.csv`.
