@@ -105,7 +105,8 @@ export function advancePaIntro(startText: string = EN_START_TEXT): void {
 /**
  * Click through a fixed tutorial pair, then Continue.
  * Mirrors roar-dashboard `playFirstTutorial` (continueFirst false),
- * `playSecondTutorial` / `playThirdTutorial` (continueFirst true).
+ * `playSecondTutorial` / `playThirdTutorial` (continueFirst true: Continue first,
+ * then the two tutorial images — do not wait for images before that Continue).
  */
 export function playPaTutorialPair(
   imgA: string,

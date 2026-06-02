@@ -46,6 +46,14 @@ export const DEFAULT_PARAMS = {
 export const JSPSYCH_CONTENT = '.jspsych-content';
 // Instruction / display / task-finished continue button ("OK"/"Exit").
 export const CONTINUE_BUTTON = 'button.primary';
+/** OK on instruction / something-same screens — not the match-round confirm below the card row. */
+export const INSTRUCTION_OK_BUTTON = [
+  '#jspsych-html-multi-response-btngroup button.primary',
+  '#jspsych-audio-multi-response-btngroup button.primary',
+  '#ok-button-container button.primary',
+  '.lev-stimulus-container-wide button.primary',
+  '.lev-stimulus-container button.primary',
+].join(', ');
 // Single-select response group + its cards (one card is keyed `.correct`).
 export const SINGLE_GROUP = '#jspsych-html-multi-response-btngroup';
 export const SINGLE_CHOICE = `${SINGLE_GROUP} button.image-medium`;
@@ -154,10 +162,43 @@ function findEnabledStartButton(doc: Document): HTMLElement | null {
   return null;
 }
 
+/**
+ * Instruction / demo chrome (OK may be disabled until narration ends).
+ * Includes heavy-instruction screens (`lev-stimulus-container`) and something-same.
+ */
+export function hasSdsInstructionChrome(win: TaskWindow): boolean {
+  const doc = win.document;
+  if (isSingleSelectReady(win) || isMultiSelectReady(win)) return false;
+  if (isSomethingSameScreen(win)) return true;
+  if (doc.querySelectorAll(MULTI_CHOICE).length >= 3) return false;
+  if (doc.querySelectorAll(SINGLE_CHOICE).length >= 2) return false;
+  return (
+    doc.querySelectorAll(INSTRUCTION_OK_BUTTON).length > 0 ||
+    !!doc.querySelector(
+      '.lev-stimulus-container .instruction, .lev-stimulus-container-wide .instruction',
+    )
+  );
+}
+
 /** True once the task is past preload/fullscreen and showing a real SDS screen. */
 export function isSdsTaskReady(win: TaskWindow): boolean {
   if (isComplete(win)) return false;
-  return isSingleSelectReady(win) || isMultiSelectReady(win) || isInstructionScreen(win);
+  return isSingleSelectReady(win) || isMultiSelectReady(win) || hasSdsInstructionChrome(win);
+}
+
+function clickSdsStartupChrome(win: TaskWindow): void {
+  const btn = findEnabledStartButton(win.document);
+  if (btn) {
+    cy.wrap(btn).click({ force: true });
+    return;
+  }
+  const doc = win.document;
+  const okButtons = doc.querySelectorAll(INSTRUCTION_OK_BUTTON);
+  if (okButtons.length) {
+    cy.wrap(okButtons[okButtons.length - 1]).click({ force: true });
+    return;
+  }
+  cy.get('body', { log: false }).type('{enter}', { log: false });
 }
 
 /**
@@ -176,10 +217,7 @@ export function dismissSdsStartup(attempt = 0): void {
     const win = w as unknown as TaskWindow;
     if (isSdsTaskReady(win)) return;
 
-    const btn = findEnabledStartButton(win.document);
-    if (btn) {
-      cy.wrap(btn).click({ force: true });
-    }
+    clickSdsStartupChrome(win);
     cy.wait(1200, { log: false });
     dismissSdsStartup(attempt + 1);
   });
@@ -199,15 +237,29 @@ export function isSomethingSameCardSelect(win: TaskWindow): boolean {
   );
 }
 
-/** True on a display / instruction / finished screen: an enabled `.primary`
- * (OK/Exit) and no selectable cards. */
+/** Instruction / demo screen (OK may still be disabled until audio finishes). */
 export function isInstructionScreen(win: TaskWindow): boolean {
-  const doc = win.document;
-  if (isSomethingSameScreen(win)) return false;
-  if (doc.querySelectorAll(SINGLE_CHOICE).length >= 2) return false;
-  if (doc.querySelectorAll(MULTI_CHOICE).length >= 3) return false;
-  const primary = doc.querySelector(CONTINUE_BUTTON);
-  return !!primary && isInteractable(primary);
+  return hasSdsInstructionChrome(win);
+}
+
+/** Click an instruction OK (scoped away from the disabled match confirm button). */
+export function clickSdsInstructionOk(): void {
+  cy.get('body', { log: false }).then(($body) => {
+    const $buttons = $body.find(INSTRUCTION_OK_BUTTON).filter(':visible');
+    const $enabled = $buttons.filter((_, el) => !(el as HTMLButtonElement).disabled);
+    const $target = ($enabled.length ? $enabled : $buttons).last();
+    if (!$target.length) {
+      cy.contains('button', /^OK$/i, { timeout: 120000, log: false })
+        .filter(':visible')
+        .first()
+        .click({ force: true });
+      return;
+    }
+    if (($target[0] as HTMLButtonElement).disabled) {
+      cy.wrap($target).should('not.be.disabled', { timeout: 120000 });
+    }
+    cy.wrap($target).click({ force: true });
+  });
 }
 
 /** Click the keyed card on something-same-2, then wait for OK and press it. */
@@ -222,12 +274,8 @@ export function advanceSomethingSameScreen(): void {
       cy.wrap($target).click({ force: true });
       cy.wait(300, { log: false });
     }
+    clickSdsInstructionOk();
   });
-  cy.get(`${CONTINUE_BUTTON}, button.primary`, { log: false })
-    .filter(':visible')
-    .first()
-    .should('not.be.disabled', { timeout: 120000 })
-    .click({ force: true });
 }
 
 /** The single-select cards' `alt`, in DOM order (index === choice index). */

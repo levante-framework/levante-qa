@@ -20,7 +20,7 @@ import {
   SINGLE_CHOICE as SDS_SINGLE_CHOICE,
   MULTI_CHOICE as SDS_MULTI_CHOICE,
   MATCH_CONFIRM_BUTTON as SDS_MATCH_CONFIRM_BUTTON,
-  CONTINUE_BUTTON as SDS_CONTINUE_BUTTON,
+  clickSdsInstructionOk,
 } from './tasks/sameDifferent';
 import {
   CHOICE_BUTTON as MR_CHOICE_BUTTON,
@@ -142,29 +142,20 @@ Cypress.Commands.add('chooseSdsMatch', (index: number) => {
 /** Confirm a match pair on taskVersion 2 (OK below the card row). No-op on v1. */
 Cypress.Commands.add('confirmSdsMatch', () => {
   cy.get('body', { log: false }).then(($body) => {
-    const $ok = $body.find(SDS_MATCH_CONFIRM_BUTTON);
+    const $ok = $body.find(SDS_MATCH_CONFIRM_BUTTON).filter(':visible');
     if ($ok.length === 0) return;
-    cy.wrap($ok.first()).should('not.be.disabled', { timeout: 60000 }).click({ force: true });
+    const $enabled = $ok.filter((_, el) => !(el as HTMLButtonElement).disabled);
+    const $target = ($enabled.length ? $enabled : $ok).first();
+    if (($target[0] as HTMLButtonElement).disabled) {
+      cy.wrap($target).should('not.be.disabled', { timeout: 60000 });
+    }
+    cy.wrap($target).click({ force: true });
   });
 });
 
 /** Advance past an SDS instruction / display screen via its OK button. */
 Cypress.Commands.add('continueSds', () => {
-  cy.get('body', { log: false }).then(($body) => {
-    const $enabled = $body
-      .find(`${SDS_CONTINUE_BUTTON}, button.primary`)
-      .filter(':visible')
-      .filter((_, el) => !(el as HTMLButtonElement).disabled);
-    if ($enabled.length) {
-      cy.wrap($enabled.first()).click({ force: true });
-      return;
-    }
-  });
-  cy.get(`${SDS_CONTINUE_BUTTON}, button.primary`, { log: false })
-    .filter(':visible')
-    .first()
-    .should('not.be.disabled', { timeout: 120000 })
-    .click({ force: true });
+  clickSdsInstructionOk();
 });
 
 /** Click the Mental Rotation image choice at `index` (0 = leftmost). */

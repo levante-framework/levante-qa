@@ -26,7 +26,70 @@ export const SRE_EN = {
 
 export type CorrectLr = 'left' | 'right';
 
-/** Read store2 session `correctLR` from sessionStorage (key suffix varies). */
+interface SreCorpusItem {
+  direction?: string;
+  correct_response?: string;
+}
+
+function parseStore2Scalar(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const stripped = raw.replace(/^"|"$/g, '').trim();
+    try {
+      return JSON.parse(stripped);
+    } catch {
+      return stripped;
+    }
+  }
+}
+
+function lrFromDirection(value: unknown): CorrectLr | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim().toLowerCase();
+  if (v === 'left' || v === 'right') return v;
+  if (v === 'arrowleft') return 'left';
+  if (v === 'arrowright') return 'right';
+  return null;
+}
+
+/** Practice trials set store2 `correctLR`; scored trials use `currentCorpus[i].direction`. */
+function readSreDirectionFromCorpus(win: Window): CorrectLr | null {
+  try {
+    const storage = win.sessionStorage;
+    let index: number | null = null;
+    let corpus: SreCorpusItem[] | null = null;
+
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i) ?? '';
+      const raw = storage.getItem(key);
+      if (!raw) continue;
+      const parsed = parseStore2Scalar(raw);
+
+      if (/indexTracking/i.test(key) && index === null) {
+        const n = Number(parsed);
+        if (!Number.isNaN(n)) index = n;
+      }
+      if (/currentCorpus/i.test(key) && corpus === null && Array.isArray(parsed)) {
+        corpus = parsed as SreCorpusItem[];
+      }
+    }
+
+    if (index !== null && corpus?.[index]) {
+      const item = corpus[index];
+      return lrFromDirection(item.direction ?? item.correct_response ?? null);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+/**
+ * Read the correct arrow for the current trial.
+ * SWR sets `correctLR` in store2 session; SRE practice does too, but scored SRE
+ * trials use `currentCorpus` + `indexTracking` (see @bdelab/roar-sre@3.0.2).
+ */
 export function readCorrectLrFromWindow(win: Window): CorrectLr | null {
   try {
     const storage = win.sessionStorage;
@@ -35,13 +98,13 @@ export function readCorrectLrFromWindow(win: Window): CorrectLr | null {
       if (!key.includes('correctLR')) continue;
       const raw = storage.getItem(key);
       if (!raw) continue;
-      const v = raw.replace(/^"|"$/g, '').trim().toLowerCase();
-      if (v === 'left' || v === 'right') return v;
+      const lr = lrFromDirection(parseStore2Scalar(raw));
+      if (lr) return lr;
     }
   } catch {
     // ignore
   }
-  return null;
+  return readSreDirectionFromCorpus(win);
 }
 
 export function isProgressComplete(doc: Document): boolean {
