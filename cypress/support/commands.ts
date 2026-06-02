@@ -2,6 +2,8 @@ import {
   CONTINUE_BUTTON,
   LEFT_BUTTON,
   RIGHT_BUTTON,
+  RESPONSE_BUTTON as HF_RESPONSE_BUTTON,
+  STIMULUS_CONTAINER as HF_STIMULUS_CONTAINER,
 } from './tasks/heartsAndFlowers';
 import {
   CHOICE_BUTTON as EGMA_CHOICE_BUTTON,
@@ -67,14 +69,28 @@ Cypress.Commands.add('actOnTrial', (action: Action) => {
     }
     if (action === 'CONTINUE') {
       // hfV2 in keyboard mode (non-touch: navigator.maxTouchPoints === 0, as in
-      // headless Electron) renders NO `.primary` continue button. Instead, text
-      // instruction screens advance on the SPACEBAR and the left/right "learn the
-      // keys" demos advance on Arrow keys. Touch / v1 builds use the button above
-      // and have no key listeners, so these presses are harmless there. The
-      // caller polls and calls CONTINUE repeatedly, which is required because the
-      // spacebar listener is only armed once the screen's narration audio ends.
+      // headless Electron) renders NO `.primary` continue button. Text instruction
+      // screens advance on the SPACEBAR; the left/right "learn the keys" demos
+      // advance on Arrow keys. Touch / v1 builds use the button above and have no
+      // key listeners, so these presses are harmless there. The caller polls and
+      // calls CONTINUE repeatedly, which is required because the spacebar listener
+      // is only armed once the screen's narration audio ends.
+      //
+      // SPACEBAR is always safe — response trials only listen for ArrowLeft/Right,
+      // never space. ARROW keys, by contrast, ARE live trial responses in keyboard
+      // mode, so firing them indiscriminately races through (and skips) real
+      // trials. Only press arrows on a genuine demo screen: demo response buttons
+      // present (`.secondary--green`) AND no real stimulus container
+      // (`.haf-stimulus-container`), which a live trial always has.
       cy.get('body').type(' ', { force: true, log: false });
-      cy.get('body').type('{leftarrow}{rightarrow}', { force: true, log: false });
+      cy.get('body').then(($scope) => {
+        const isKeyboardDemo =
+          $scope.find(HF_RESPONSE_BUTTON).length > 0 &&
+          $scope.find(HF_STIMULUS_CONTAINER).length === 0;
+        if (isKeyboardDemo) {
+          cy.get('body').type('{leftarrow}{rightarrow}', { force: true, log: false });
+        }
+      });
     }
   });
 });
