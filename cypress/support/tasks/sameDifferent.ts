@@ -55,8 +55,8 @@ export const MULTI_GROUP = '#jspsych-audio-multi-response-btngroup';
 export const MULTI_CHOICE = `${MULTI_GROUP} button.image-medium`;
 export const MULTI_CHOICE_IMG = `${MULTI_CHOICE} img`;
 // taskVersion 2: after selecting required cards, participant must confirm via OK
-// (inserted as the immediate sibling after the multi-response button group).
-export const MATCH_CONFIRM_BUTTON = `${MULTI_GROUP} + button.primary`;
+// (inserted after the multi-response button group in afcMatch.ts on_load).
+export const MATCH_CONFIRM_BUTTON = `${MULTI_GROUP} ~ button.primary`;
 // Class toggled on a card while it is part of the current selection.
 export const SELECTED_CLASS = 'info-shadow';
 // On-screen prompt / question text (single trials and match-round prompt).
@@ -128,11 +128,61 @@ export function isMultiSelectReady(win: TaskWindow): boolean {
   return win.document.querySelectorAll(MULTI_CHOICE).length >= 3;
 }
 
-/** True when the match-round OK confirm button is present (taskVersion 2). */
+/** True when the match-round OK confirm button is present and clickable (taskVersion 2). */
 export function isMatchConfirmReady(win: TaskWindow): boolean {
   if (!isMultiSelectReady(win)) return false;
-  const btn = win.document.querySelector(MATCH_CONFIRM_BUTTON);
-  return !!btn && isInteractable(btn);
+  const btn = win.document.querySelector(MATCH_CONFIRM_BUTTON) as HTMLButtonElement | null;
+  return !!btn && isInteractable(btn) && !btn.disabled;
+}
+
+/** Fullscreen / preload / intro labels (not always the literal "OK"). */
+const START_CONTINUE_LABEL = /^(ok|continue|next)$/i;
+
+function findEnabledStartButton(doc: Document): HTMLElement | null {
+  const fullscreen = doc.querySelector(
+    '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn',
+  ) as HTMLElement | null;
+  if (fullscreen && isInteractable(fullscreen) && !(fullscreen as HTMLButtonElement).disabled) {
+    return fullscreen;
+  }
+  for (const el of doc.querySelectorAll('button.primary, button.jspsych-btn')) {
+    const btn = el as HTMLButtonElement;
+    const label = (btn.textContent ?? '').trim();
+    if (!START_CONTINUE_LABEL.test(label)) continue;
+    if (isInteractable(btn) && !btn.disabled) return btn;
+  }
+  return null;
+}
+
+/** True once the task is past preload/fullscreen and showing a real SDS screen. */
+export function isSdsTaskReady(win: TaskWindow): boolean {
+  if (isComplete(win)) return false;
+  return isSingleSelectReady(win) || isMultiSelectReady(win) || isInstructionScreen(win);
+}
+
+/**
+ * Advance through asset preload, fullscreen, and intro screens. SDS on the
+ * dashboard can sit on loading or use Continue/Next before the first trial.
+ */
+export function dismissSdsStartup(attempt = 0): void {
+  const MAX = 200;
+  if (attempt >= MAX) return;
+
+  if (attempt === 0) {
+    cy.get('.jspsych-content-wrapper, .jspsych-content', { timeout: 300000 }).should('exist');
+  }
+
+  cy.window({ log: false }).then((w) => {
+    const win = w as unknown as TaskWindow;
+    if (isSdsTaskReady(win)) return;
+
+    const btn = findEnabledStartButton(win.document);
+    if (btn) {
+      cy.wrap(btn).click({ force: true });
+    }
+    cy.wait(1200, { log: false });
+    dismissSdsStartup(attempt + 1);
+  });
 }
 
 /** True on a display / instruction / finished screen: an enabled `.primary`

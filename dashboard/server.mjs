@@ -7,7 +7,8 @@
  *   1. provisions a unique, age-specific participant on hs-levante-admin-dev
  *      (via levante-support/scripts/e2e-init/provision-participant.mjs), then
  *   2. spawns `cypress run` in LAUNCH=dashboard mode as that participant, with
- *      logs/screenshots scoped per run so parallel launches never collide.
+ *      logs/screenshots scoped per run and a per-run TMPDIR so Cypress lock
+ *      files in /tmp do not collide when many tasks launch in parallel.
  * Runs are tracked in-memory; on completion a record is appended to
  * results/runs.json for the Results tab.
  *
@@ -18,7 +19,9 @@
  */
 import http from 'node:http';
 import { spawn } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
@@ -340,6 +343,13 @@ function spawnCypress(run) {
   // Match the WSL workaround used for direct cypress runs in this environment.
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.CYPRESS_CACHE_FOLDER;
+  // Cypress uses $TMPDIR/cypress-<uid>/*.lock; parallel dashboard launches need
+  // isolated temp dirs or the second+ instance fails immediately (EEXIST).
+  const cypressTmp = join(tmpdir(), 'levante-qa-cypress', run.runId);
+  mkdirSync(cypressTmp, { recursive: true });
+  env.TMPDIR = cypressTmp;
+  env.TEMP = cypressTmp;
+  env.TMP = cypressTmp;
   env.LAUNCH = 'dashboard';
   env.DASHBOARD_URL = DASHBOARD_URL;
   env.PARTICIPANT_USER = run.creds.email;

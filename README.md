@@ -128,7 +128,9 @@ How it works (per launch):
 2. **Run** — the backend spawns `cypress run` in `LAUNCH=dashboard` mode as that
    participant, with logs scoped to `cypress/logs/runs/<runId>/` and screenshots
    to `cypress/screenshots/runs/<runId>/` so parallel runs never collide (the
-   scoping is handled in `cypress.config.ts` via the `QA_RUN_ID` env var).
+   scoping is handled in `cypress.config.ts` via the `QA_RUN_ID` env var). Each
+   run also gets its own `TMPDIR` under `/tmp/levante-qa-cypress/<runId>/` so
+   Cypress lock files do not trip `EEXIST` when launching many tasks at once.
 3. **Monitor** — the UI polls per-run status; a run is flagged **failed** on a
    non-zero Cypress exit code or any non-empty diagnostic log
    (`*_no_key` / `*_key_mismatch` / `*_unsolved` / `*_audio_content` / `*_match_stuck`).
@@ -527,8 +529,10 @@ image `alt`: `{size}-{color}-{shape}[-{number}][-{bg}]`, e.g. `med-blue-circle`.
   **no answer key**: many pairs are valid, and a pair is scored *relationally* (it
   must share a dimension not already matched in this card set). On **taskVersion 2**
   the participant must tap **OK** after selecting the pair
-  (`#jspsych-audio-multi-response-btngroup + button.primary`); the harness calls
-  `confirmSdsMatch()` after each pair. Since there is
+  (`#jspsych-audio-multi-response-btngroup ~ button.primary`); the harness calls
+  `confirmSdsMatch()` after each pair (waits until enabled; no-op on taskVersion 1).
+  Startup uses `dismissSdsStartup()` (preload / fullscreen / Continue), not a bare
+  `cy.contains('OK')`. Since there is
   nothing to recompute against, both agents drive these rounds with a **port of
   core-tasks' own passing e2e solver** (`nextMatchPair` — prefers identical `alt`
   pairs when the set repeats an image, then dimension-overlap with per-set state in

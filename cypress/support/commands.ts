@@ -139,9 +139,13 @@ Cypress.Commands.add('chooseSdsMatch', (index: number) => {
   cy.get(SDS_MULTI_CHOICE).eq(index).click({ force: true });
 });
 
-/** Confirm a match pair on taskVersion 2 (OK below the card row). */
+/** Confirm a match pair on taskVersion 2 (OK below the card row). No-op on v1. */
 Cypress.Commands.add('confirmSdsMatch', () => {
-  cy.get(SDS_MATCH_CONFIRM_BUTTON).should('not.be.disabled').click({ force: true });
+  cy.get('body', { log: false }).then(($body) => {
+    const $ok = $body.find(SDS_MATCH_CONFIRM_BUTTON);
+    if ($ok.length === 0) return;
+    cy.wrap($ok.first()).should('not.be.disabled', { timeout: 60000 }).click({ force: true });
+  });
 });
 
 /** Advance past an SDS instruction / display screen via its OK button. */
