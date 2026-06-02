@@ -122,14 +122,46 @@ body {
 
 /* Launch form */
 .launch-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  align-items: start;
+  gap: 22px 28px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 22px;
+}
+/* Other launch options sit in a multi-column grid to the right of the tasks. */
+.launch-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  align-items: end;
+  gap: 18px 24px;
+}
+/* The 4-button agent toggle is wider than a single column — span the full row
+   so VLM/Child are never clipped. */
+.launch-options .field-agent {
+  grid-column: 1 / -1;
+}
+/* Keep the IRT checkbox directly to the right of the Child age inputs. */
+.launch-options .age-irt-group {
+  grid-column: span 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px 32px;
+}
+.launch-options .age-irt-group #irtField {
+  max-width: 220px;
+}
+.launch-options .submit-field {
+  grid-column: 1 / -1;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .launch-form {
+    grid-template-columns: 1fr;
+  }
 }
 .field {
   display: flex;
@@ -155,8 +187,11 @@ input[type='number'] {
 }
 .field-tasks select[multiple] {
   min-width: 220px;
-  min-height: 132px;
+  min-height: 220px;
   padding: 6px 8px;
+}
+.launch-options select {
+  width: 100%;
 }
 .field-tasks select[multiple] option {
   padding: 6px 8px;

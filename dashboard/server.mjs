@@ -25,7 +25,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { CATALOG, VLM_PROVIDERS, findTask } from './catalog.mjs';
+import {
+  CATALOG,
+  VLM_PROVIDERS,
+  LANGUAGES,
+  DEFAULT_LANGUAGE,
+  isSupportedLanguage,
+  findTask,
+} from './catalog.mjs';
 import {
   downloadIndex,
   uploadIndex,
@@ -299,6 +306,7 @@ async function finalizeRun(run) {
     taskLabel: run.meta.taskLabel,
     agent: run.meta.agent,
     provider: run.meta.provider,
+    language: run.meta.language ?? null,
     ageYears: run.meta.ageYears,
     ageMonths: run.meta.ageMonths,
     persona: !!run.meta.persona,
@@ -355,6 +363,10 @@ function spawnCypress(run) {
   env.PARTICIPANT_USER = run.creds.email;
   env.PARTICIPANT_PASS = run.creds.password;
   env.QA_RUN_ID = run.runId;
+  // Pin the narration language so the ID3 lang_code audio check asserts it.
+  if (run.meta.language) {
+    env.QA_EXPECTED_AUDIO_LANG = run.meta.language;
+  }
   if (isVlmBacked && run.meta.provider) {
     env.VLM_PROVIDER = run.meta.provider;
   }
@@ -410,6 +422,8 @@ function provisionThenRun(run) {
     PROVISIONER,
     '--task',
     findTask(run.meta.task).taskId,
+    '--language',
+    run.meta.language || DEFAULT_LANGUAGE,
     '--age-years',
     String(run.meta.ageYears),
     '--age-months',
@@ -522,6 +536,7 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 200, {
       tasks: CATALOG.map((t) => ({ id: t.id, label: t.label, taskId: t.taskId, hasVlm: !!t.vlmSpec })),
       providers: VLM_PROVIDERS,
+      languages: LANGUAGES,
     });
     return;
   }
@@ -543,6 +558,7 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 400, { error: `${task.label} has no VLM agent (oracle only).` });
         }
         const provider = isVlmBacked ? String(p.provider || VLM_PROVIDERS[0]) : null;
+        const language = isSupportedLanguage(p.language) ? p.language : DEFAULT_LANGUAGE;
         const ageYears = Number.isFinite(Number(p.ageYears)) ? Math.max(0, Math.floor(Number(p.ageYears))) : 8;
         const ageMonths = Number.isFinite(Number(p.ageMonths)) ? Math.max(0, Math.floor(Number(p.ageMonths))) : 0;
         // 'child' always simulates the participant's age; persona is intrinsic to it.
@@ -554,6 +570,7 @@ const server = http.createServer(async (req, res) => {
           taskLabel: task.label,
           agent,
           provider,
+          language,
           persona,
           personaAbility,
           ageYears,

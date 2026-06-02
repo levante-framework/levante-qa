@@ -1,4 +1,4 @@
-import sdsVlmAgent from '../../support/agents/sdsVlmAgent';
+import sdsVlmAgent, { type SdsVlmDecision } from '../../support/agents/sdsVlmAgent';
 import {
   appKeyedCorrectIndex,
   buildUrl,
@@ -25,7 +25,7 @@ import {
   type TaskWindow,
 } from '../../support/tasks/sameDifferent';
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
-import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
+import { currentAudioTranscript, resetAudioCapture, type CurrentAudio } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
 import { parseSdsTrialRecord, type SdsTrialRecord } from '../../support/tasks/types';
 
@@ -84,25 +84,34 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
   /** Poll until the screen signature differs from `prevSig` (trial advanced) or
    * we give up after ~3s, then take the next step. Avoids double-acting on one
    * render (which would corrupt the match heuristic's per-set state). */
-  function waitChangedThenStep(i: number, prevSig: string, attemptsLeft = 30): void {
-    if (attemptsLeft <= 0) {
-      step(i + 1);
-      return;
-    }
-    cy.wait(100, { log: false });
-    cy.window({ log: false }).then((w) => {
-      const win = w as unknown as TaskWindow;
-      if (finished(win)) {
-        taskComplete = true;
-        finalize();
-        return;
-      }
-      if (screenSig(win) !== prevSig) {
+  function waitChangedThenStep(i: number, prevSig: string): void {
+    // Poll for the trial to advance with a native promise (free) instead of a
+    // recursive cy.wait/cy.window chain that nests a fresh command per attempt
+    // and deepens the subject chain. Resolves on change, completion, or ~3s.
+    cy.window({ log: false })
+      .then(
+        (w) =>
+          new Cypress.Promise<TaskWindow>((resolve) => {
+            const win = w as unknown as TaskWindow;
+            const deadline = Date.now() + 3000;
+            const poll = (): void => {
+              if (finished(win) || screenSig(win) !== prevSig || Date.now() >= deadline) {
+                resolve(win);
+                return;
+              }
+              setTimeout(poll, 100);
+            };
+            poll();
+          }),
+      )
+      .then((win: TaskWindow) => {
+        if (finished(win)) {
+          taskComplete = true;
+          finalize();
+          return;
+        }
         step(i + 1);
-        return;
-      }
-      waitChangedThenStep(i, prevSig, attemptsLeft - 1);
-    });
+      });
   }
 
   function finalize(): void {
@@ -144,44 +153,59 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
       },
     });
 
-    cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
-      sdsVlmAgent.decide(pngBase64, promptText || null, choices.length).then((decision) => {
+    // Resolve the VLM decision and audio transcript as awaited promises (the
+    // provider call can take seconds), stashing the results in closures. We must
+    // NOT queue cy commands (logRecord → cy.task) and return a sync value from the
+    // same callback — Cypress rejects that ("mixing async and sync code"). So the
+    // logging/click happens in a final, command-only `cy.then`. Awaiting the
+    // promises here also keeps the subject chain flat (native `.then`s are free),
+    // avoiding the stack overflow from un-awaited callbacks.
+    let decision!: SdsVlmDecision;
+    let audio!: CurrentAudio;
+    cy.then(() => cy.readFile(shotPath, 'base64'))
+      .then((pngBase64: string) =>
+        sdsVlmAgent.decide(pngBase64, promptText || null, choices.length),
+      )
+      .then((d) => {
+        decision = d;
+        return currentAudioTranscript(win as unknown as AudioWindow);
+      })
+      .then((a) => {
+        audio = a;
+      })
+      .then(() => {
         const vlmIndex = decision.index;
         const inRange = vlmIndex !== null && vlmIndex >= 0 && vlmIndex < choices.length;
         const correct = hasKey ? inRange && vlmIndex === keyedIndex : null;
         // Click the model's choice (benchmark); fall back to the key if it's out
         // of range so the run still advances.
         const actIndex = inRange ? (vlmIndex as number) : hasKey ? keyedIndex : 0;
-
-        currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
-          logRecord({
-            timestamp: new Date().toISOString(),
-            task: TASK,
-            step: i,
-            itemType: 'single',
-            promptText: promptText || null,
-            choices,
-            chosenIndex: inRange ? vlmIndex : null,
-            chosenValue: inRange ? (choices[vlmIndex as number] ?? null) : null,
-            correct,
-            keyedIndex: hasKey ? keyedIndex : null,
-            keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
-            rtMs: decision.latencyMs,
-            oracle: false,
-            provider,
-            modelRaw: decision.raw,
-            latencyMs: decision.latencyMs,
-            timedOut: decision.latencyMs > TIMEOUT_MS,
-            audioTranscript: audio.transcript,
-            audioSource: audio.source,
-          });
-          cy.get('body', { log: false }).then(($b) => {
-            if ($b.find(SINGLE_CHOICE).length > actIndex) cy.chooseSdsSingle(actIndex);
-          });
-          waitChangedThenStep(i, sig);
+        logRecord({
+          timestamp: new Date().toISOString(),
+          task: TASK,
+          step: i,
+          itemType: 'single',
+          promptText: promptText || null,
+          choices,
+          chosenIndex: inRange ? vlmIndex : null,
+          chosenValue: inRange ? (choices[vlmIndex as number] ?? null) : null,
+          correct,
+          keyedIndex: hasKey ? keyedIndex : null,
+          keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
+          rtMs: decision.latencyMs,
+          oracle: false,
+          provider,
+          modelRaw: decision.raw,
+          latencyMs: decision.latencyMs,
+          timedOut: decision.latencyMs > TIMEOUT_MS,
+          audioTranscript: audio.transcript,
+          audioSource: audio.source,
         });
+        cy.get('body', { log: false }).then(($b) => {
+          if ($b.find(SINGLE_CHOICE).length > actIndex) cy.chooseSdsSingle(actIndex);
+        });
+        waitChangedThenStep(i, sig);
       });
-    });
   }
 
   // Match rounds expose no answer key, so the VLM can't be scored on them; we

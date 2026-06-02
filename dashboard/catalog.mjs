@@ -107,6 +107,27 @@ export const CATALOG = [
 
 export const VLM_PROVIDERS = ['gemini', 'openai', 'anthropic'];
 
+/**
+ * Languages our tasks ship variants for on hs-levante-admin-dev. `code` is sent
+ * to the provisioner (variant selection) and exposed as QA_EXPECTED_AUDIO_LANG
+ * (narration language check). The first entry is the default.
+ */
+export const LANGUAGES = [
+  { code: 'en-US', label: 'English (North America)' },
+  { code: 'de-DE', label: 'German (Germany)' },
+  { code: 'es-CO', label: 'Spanish (Colombia)' },
+  { code: 'es-AR', label: 'Spanish (Argentina)' },
+  // Flagged "testing" on the LEVANTE platform (RTL, in-progress translations).
+  { code: 'ar-IL', label: 'Arabic (Israel)', testing: true },
+  { code: 'he-IL', label: 'Hebrew (Israel)', testing: true },
+];
+
+export const DEFAULT_LANGUAGE = LANGUAGES[0].code;
+
+export function isSupportedLanguage(code) {
+  return LANGUAGES.some((l) => l.code === code);
+}
+
 export function findTask(id) {
   return CATALOG.find((t) => t.id === id) ?? null;
 }

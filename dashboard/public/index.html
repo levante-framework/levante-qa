@@ -40,51 +40,60 @@
         <form class="launch-form" id="launchForm" autocomplete="off">
           <div class="field field-tasks">
             <label for="taskSelect">Tasks</label>
-            <select id="taskSelect" name="task" multiple size="6" aria-describedby="taskSelectHint"></select>
+            <select id="taskSelect" name="task" multiple size="10" aria-describedby="taskSelectHint"></select>
             <span class="field-hint" id="taskSelectHint">Ctrl/Cmd+click to select multiple; one run per task in parallel.</span>
           </div>
 
-          <div class="field">
-            <label>Agent</label>
-            <div class="segmented" id="agentToggle">
-              <button type="button" class="seg active" data-agent="oracle">Oracle</button>
-              <button type="button" class="seg" data-agent="wrong">Wrong</button>
-              <button type="button" class="seg" data-agent="vlm">VLM</button>
-              <button type="button" class="seg" data-agent="child">Child</button>
-            </div>
-          </div>
-
-          <div class="field" id="providerField" hidden>
-            <label for="providerSelect">Model provider</label>
-            <select id="providerSelect" name="provider"></select>
-          </div>
-
-          <div class="field" id="irtField" hidden>
-            <label>IRT calibration</label>
-            <label class="checkbox-row">
-              <input type="checkbox" id="irtToggle" />
-              <span>Include mean child ability (θ) from IRT</span>
-            </label>
-          </div>
-
-          <div class="field age-field">
-            <label>Child age</label>
-            <div class="age-inputs">
-              <div class="age-box">
-                <input type="number" id="ageYears" name="ageYears" min="0" max="18" value="8" />
-                <span>years</span>
-              </div>
-              <div class="age-box">
-                <input type="number" id="ageMonths" name="ageMonths" min="0" max="11" value="0" />
-                <span>months</span>
+          <div class="launch-options">
+            <div class="field field-agent">
+              <label>Agent</label>
+              <div class="segmented" id="agentToggle">
+                <button type="button" class="seg active" data-agent="oracle">Oracle</button>
+                <button type="button" class="seg" data-agent="wrong">Wrong</button>
+                <button type="button" class="seg" data-agent="vlm">VLM</button>
+                <button type="button" class="seg" data-agent="child">Child</button>
               </div>
             </div>
-          </div>
 
-          <div class="field submit-field">
-            <button type="submit" class="btn btn-primary" id="launchBtn">
-              <i class="fas fa-play"></i> <span id="launchBtnLabel">Launch run</span>
-            </button>
+            <div class="field">
+              <label for="languageSelect">Language</label>
+              <select id="languageSelect" name="language"></select>
+            </div>
+
+            <div class="field" id="providerField" hidden>
+              <label for="providerSelect">Model provider</label>
+              <select id="providerSelect" name="provider"></select>
+            </div>
+
+            <div class="age-irt-group">
+              <div class="field age-field">
+                <label>Child age</label>
+                <div class="age-inputs">
+                  <div class="age-box">
+                    <input type="number" id="ageYears" name="ageYears" min="0" max="18" value="8" />
+                    <span>years</span>
+                  </div>
+                  <div class="age-box">
+                    <input type="number" id="ageMonths" name="ageMonths" min="0" max="11" value="0" />
+                    <span>months</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field" id="irtField" hidden>
+                <label>IRT calibration</label>
+                <label class="checkbox-row">
+                  <input type="checkbox" id="irtToggle" />
+                  <span>Include mean child ability (θ) from IRT</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field submit-field">
+              <button type="submit" class="btn btn-primary" id="launchBtn">
+                <i class="fas fa-play"></i> <span id="launchBtnLabel">Launch run</span>
+              </button>
+            </div>
           </div>
         </form>
 

@@ -105,6 +105,13 @@
         o.textContent = p;
         provSel.appendChild(o);
       });
+      const langSel = $('#languageSelect');
+      (data.languages || [{ code: 'en-US', label: 'English' }]).forEach((l) => {
+        const o = el('option');
+        o.value = l.code;
+        o.textContent = l.label + (l.testing ? ' (testing)' : '');
+        langSel.appendChild(o);
+      });
       // Default: first task selected.
       if (taskSel.options.length) taskSel.options[0].selected = true;
       syncVlmAvailability();
@@ -137,6 +144,7 @@
     const shared = {
       agent: state.agent,
       provider: $('#providerSelect').value,
+      language: $('#languageSelect').value,
       ageYears: Number($('#ageYears').value),
       ageMonths: Number($('#ageMonths').value),
       personaAbility:
@@ -247,7 +255,7 @@
       <div class="run-card-head">
         <div>
           <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}${irtTag}</div>
-          <div class="run-card-sub">${agentLabel} · age ${m.ageYears ?? '?'}y ${m.ageMonths ?? 0}m${s.email ? ' · ' + escapeHtml(s.email) : ''}</div>
+          <div class="run-card-sub">${agentLabel}${m.language ? ' · ' + escapeHtml(m.language) : ''} · age ${m.ageYears ?? '?'}y ${m.ageMonths ?? 0}m${s.email ? ' · ' + escapeHtml(s.email) : ''}</div>
           <div class="run-card-time"><i class="fas fa-clock"></i> ${fmtTime(startedAt)}</div>
         </div>
         <div class="run-card-head-right">
@@ -395,6 +403,7 @@
         summaryRow('Trials', escapeHtml(String(r.nTrials || 0))),
         summaryRow('Duration', escapeHtml(fmtDuration(r.durationMs))),
         summaryRow('Age', escapeHtml(`${r.ageYears ?? '?'}y ${r.ageMonths ?? 0}m`)),
+        r.language ? summaryRow('Language', escapeHtml(r.language)) : '',
         r.personaAbility === 'irt'
           ? summaryRow('Persona', 'Child + IRT θ')
           : r.persona || r.agent === 'child'
