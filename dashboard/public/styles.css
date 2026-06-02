@@ -200,6 +200,12 @@ input[type='number'] {
 .field-tasks select[multiple] option:checked {
   background: linear-gradient(0deg, rgba(34, 211, 238, 0.25), rgba(34, 211, 238, 0.25));
 }
+/* Tasks not supported in the selected language: grayed out and non-selectable. */
+.field-tasks select[multiple] option:disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  font-style: italic;
+}
 .field-hint {
   font-size: 11px;
   color: var(--muted);

@@ -11,6 +11,10 @@
   const state = {
     agent: 'oracle',
     providers: [],
+    /** { langCode: [supported task id, ...] } from /api/tasks. */
+    taskSupport: {},
+    /** langCode -> display label, for messages. */
+    langLabels: {},
     /** runId -> { meta, pollTimer } tracked for the Launch tab. */
     tracked: new Map(),
   };
@@ -84,6 +88,56 @@
 
   $('#taskSelect').addEventListener('change', syncVlmAvailability);
 
+  function optionText(o, supported, langLabel) {
+    let text = o.dataset.baseLabel + (o.dataset.hasVlm === 'true' ? '' : ' (oracle only)');
+    if (!supported) text += ` — not supported in ${langLabel}`;
+    return text;
+  }
+
+  /**
+   * Gray out (disable) tasks the selected language doesn't support, annotating
+   * them inline, and ensure a supported task stays selected. Levante task
+   * support comes from languageoptions.json (via /api/tasks); ROAR tasks ship in
+   * en/de/es. When support for a language is unknown, everything stays enabled.
+   */
+  function applyLanguageSupport() {
+    const lang = $('#languageSelect').value;
+    const langLabel = state.langLabels[lang] || lang;
+    const supported = state.taskSupport[lang]; // array of ids, or undefined
+    const opts = [...$('#taskSelect').options];
+    let supportedCount = 0;
+
+    opts.forEach((o) => {
+      const ok = !supported || supported.includes(o.value);
+      o.disabled = !ok;
+      if (!ok) o.selected = false;
+      else supportedCount += 1;
+      o.textContent = optionText(o, ok, langLabel);
+    });
+
+    // If the language knocked out the current selection, pick the first
+    // supported task so the form stays launchable.
+    if (supported && !opts.some((o) => o.selected)) {
+      const first = opts.find((o) => !o.disabled);
+      if (first) first.selected = true;
+    }
+
+    const note = $('#langSupportNote');
+    if (note) {
+      if (supported && supportedCount === 0) {
+        note.textContent = `No tasks are supported in ${langLabel} yet.`;
+      } else if (supported && supportedCount < opts.length) {
+        note.textContent = `${supportedCount} of ${opts.length} tasks supported in ${langLabel}.`;
+      } else {
+        note.textContent = '';
+      }
+    }
+
+    syncVlmAvailability();
+  }
+
+  $('#languageSelect').addEventListener('change', applyLanguageSupport);
+
   // ── Bootstrap: load catalog ───────────────────────────────────────────────
   async function init() {
     try {
@@ -93,10 +147,12 @@
       data.tasks.forEach((t) => {
         const o = el('option');
         o.value = t.id;
-        o.textContent = t.label + (t.hasVlm ? '' : ' (oracle only)');
         o.dataset.hasVlm = String(t.hasVlm);
+        o.dataset.baseLabel = t.label;
+        o.textContent = t.label + (t.hasVlm ? '' : ' (oracle only)');
         taskSel.appendChild(o);
       });
+      state.taskSupport = data.taskSupport || {};
       state.providers = data.providers || [];
       const provSel = $('#providerSelect');
       state.providers.forEach((p) => {
@@ -111,10 +167,12 @@
         o.value = l.code;
         o.textContent = l.label + (l.testing ? ' (testing)' : '');
         langSel.appendChild(o);
+        state.langLabels[l.code] = l.label + (l.testing ? ' (testing)' : '');
       });
-      // Default: first task selected.
+      // Default: first task selected, then gray out any unsupported in the
+      // default language and re-select a supported one if needed.
       if (taskSel.options.length) taskSel.options[0].selected = true;
-      syncVlmAvailability();
+      applyLanguageSupport();
       setHeader('ready', 'ready');
     } catch (err) {
       setHeader('error', 'backend offline');
@@ -212,7 +270,8 @@
 
   function labelFor(id) {
     const opt = [...$('#taskSelect').options].find((o) => o.value === id);
-    return opt ? opt.textContent.replace(' (oracle only)', '') : id;
+    if (!opt) return id;
+    return opt.dataset.baseLabel || opt.textContent.replace(' (oracle only)', '');
   }
 
   const STATUS_LABEL = {
@@ -477,6 +536,7 @@
           <td>${fmtTime(r.startedAt)}</td>
           <td>${escapeHtml(r.taskLabel || r.task)}</td>
           <td>${agent}</td>
+          <td>${escapeHtml(r.language || '—')}</td>
           <td>${r.ageYears ?? '?'}y ${r.ageMonths ?? 0}m</td>
           <td><span class="pill pill-${r.status}">${STATUS_LABEL[r.status] || r.status}</span></td>
           <td>${acc}</td>

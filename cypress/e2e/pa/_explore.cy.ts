@@ -10,10 +10,11 @@
 import { installAudioCapture } from '../../support/audio/audioCapture';
 import { launchTask } from '../../support/launch';
 import {
-  advancePaIntro,
+  advancePaScreen,
   AUDIO_CHOICE,
   correctImageSelector,
   readGoalFromWindow,
+  waitForPaReady,
 } from '../../support/tasks/pa';
 
 const LIVE_LOG = 'cypress/logs/_pa_explore.jsonl';
@@ -63,7 +64,13 @@ describe('PA — explore DOM (dashboard)', () => {
     });
 
     cy.get('.jspsych-content-wrapper, .jspsych-content', { timeout: 300000 }).should('exist');
-    advancePaIntro();
+    waitForPaReady();
+    // Structurally click through the intro (canvas / fullscreen / Continue) a few
+    // times until the first tutorial / trial chrome appears.
+    Cypress._.times(6, () => {
+      advancePaScreen();
+      cy.wait(1500, { log: false });
+    });
     cy.window().then((w) => snapshotStep(w, 0, 'after_pa_intro'));
 
     // First tutorial pair (map + rope) — from roar-dashboard paHelpers.

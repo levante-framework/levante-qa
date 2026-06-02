@@ -131,3 +131,64 @@ export function isSupportedLanguage(code) {
 export function findTask(id) {
   return CATALOG.find((t) => t.id === id) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Per-language task support
+//
+// Which LEVANTE tasks ship in each language is documented in the platform's
+// languageoptions.json (`taskOptions`, by kebab taskId). ROAR tasks (pa/sre/swr)
+// are NOT in that file — they have no regional dialects and are available
+// wherever their bare language (en/de/es) exists.
+// ---------------------------------------------------------------------------
+
+/** ROAR literacy tasks: no dialects, keyed on the primary language subtag. */
+export const ROAR_TASK_IDS = new Set(['pa', 'sre', 'swr']);
+/** Primary language subtags ROAR ships (es covers es-CO/es-AR, etc.). */
+const ROAR_PRIMARIES = new Set(['en', 'de', 'es']);
+
+export function isRoarTask(taskId) {
+  return ROAR_TASK_IDS.has(taskId);
+}
+
+/**
+ * Snapshot of languageoptions.json `taskOptions` (kebab taskIds) used as a
+ * fallback when the live file can't be fetched. Keep in sync opportunistically;
+ * the server prefers the live file. (`intro`/`hostile-attribution`/`child-survey`
+ * are platform entries with no QA task and are simply ignored.)
+ */
+export const FALLBACK_TASK_OPTIONS = {
+  'en-US': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
+  'de-DE': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
+  'es-CO': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
+  'es-AR': ['hearts-and-flowers', 'same-different-selection', 'trog', 'theory-of-mind'],
+  'ar-IL': [],
+  'he-IL': [],
+};
+
+const primaryOf = (code) => String(code ?? '').toLowerCase().split(/[-_]/)[0];
+
+/**
+ * Is `task` (a CATALOG entry) supported in `langCode`?
+ *  - ROAR: yes iff the primary language is one ROAR ships (en/de/es).
+ *  - LEVANTE: yes iff its taskId is in that language's taskOptions.
+ * `taskOptionsByLang` is the languageoptions.json map (or the fallback).
+ */
+export function isTaskSupportedInLanguage(task, langCode, taskOptionsByLang) {
+  if (isRoarTask(task.taskId)) return ROAR_PRIMARIES.has(primaryOf(langCode));
+  const opts = taskOptionsByLang?.[langCode];
+  return Array.isArray(opts) ? opts.includes(task.taskId) : false;
+}
+
+/**
+ * Build `{ [langCode]: [catalogId, ...] }` — the CATALOG ids supported in each
+ * configured language — for the dashboard to gray out the rest.
+ */
+export function buildTaskSupport(taskOptionsByLang) {
+  const out = {};
+  for (const lang of LANGUAGES) {
+    out[lang.code] = CATALOG.filter((t) =>
+      isTaskSupportedInLanguage(t, lang.code, taskOptionsByLang),
+    ).map((t) => t.id);
+  }
+  return out;
+}

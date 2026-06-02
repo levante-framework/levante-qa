@@ -49,15 +49,16 @@
               <label>Agent</label>
               <div class="segmented" id="agentToggle">
                 <button type="button" class="seg active" data-agent="oracle">Oracle</button>
-                <button type="button" class="seg" data-agent="wrong">Wrong</button>
                 <button type="button" class="seg" data-agent="vlm">VLM</button>
                 <button type="button" class="seg" data-agent="child">Child</button>
+                <button type="button" class="seg" data-agent="wrong">(all wrong)</button>
               </div>
             </div>
 
             <div class="field">
               <label for="languageSelect">Language</label>
               <select id="languageSelect" name="language"></select>
+              <span class="field-hint" id="langSupportNote"></span>
             </div>
 
             <div class="field" id="providerField" hidden>
@@ -130,6 +131,7 @@
                 <th>When</th>
                 <th>Task</th>
                 <th>Agent</th>
+                <th>Language</th>
                 <th>Age</th>
                 <th>Status</th>
                 <th>Accuracy</th>

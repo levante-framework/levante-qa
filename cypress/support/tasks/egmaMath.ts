@@ -159,14 +159,51 @@ export function isFeedbackTranscript(transcript: string | null): boolean {
 
 // --- Classification + solving ----------------------------------------------
 
-/** Parse the first signed integer in a string, or null. */
+// Eastern Arabic-Indic (٠-٩) and Persian/Urdu (۰-۹) numerals → ASCII, so digit
+// matching works for ar/fa/ur narration and choice labels. Western digits and
+// all other characters pass through unchanged.
+const NON_WESTERN_DIGITS: Record<string, string> = {
+  '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+  '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+  '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+  '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+};
+
+/** Map non-Western numerals to ASCII so digit parsing is locale-independent. */
+export function normalizeDigits(text: string): string {
+  return text.replace(/[٠-٩۰-۹]/g, (d) => NON_WESTERN_DIGITS[d] ?? d);
+}
+
+/** Parse the first signed integer in a string, or null (numerals normalized). */
 function firstInt(text: string): number | null {
-  const m = text.match(/-?\d+/);
+  const m = normalizeDigits(text).match(/-?\d+/);
   return m ? Number(m[0]) : null;
 }
 
 function choiceNumbers(choices: string[]): (number | null)[] {
   return choices.map(firstInt);
+}
+
+/**
+ * Index of the choice whose numeric value is named in the narration, or -1 when
+ * none — or more than one — choice is mentioned (ambiguous). This is the
+ * language-agnostic core of number identification: the spoken target is always
+ * one of the digit choices, so we match digits against the choices and need no
+ * per-locale verb list. Non-Western numerals are normalized first.
+ */
+export function choiceMentionedInTranscript(
+  transcript: string | null,
+  choices: string[],
+): number {
+  if (!transcript) return -1;
+  const spoken = (normalizeDigits(transcript).match(/-?\d+/g) ?? []).map(Number);
+  if (!spoken.length) return -1;
+  const nums = choiceNumbers(choices);
+  const hits: number[] = [];
+  nums.forEach((n, i) => {
+    if (n !== null && spoken.includes(n)) hits.push(i);
+  });
+  return hits.length === 1 ? hits[0] : -1;
 }
 
 // Arithmetic stimulus like "2+3", "12-4", "1x5", "8÷2" (EGMA renders × as a
@@ -175,6 +212,28 @@ const ARITHMETIC_RE = /(-?\d+)\s*([+\-x×*/÷])\s*(-?\d+)/;
 // A sequence stimulus is a comma-separated list with exactly one blank ("_"),
 // e.g. "5, 10, 15, _" or "1, 2, _, 4".
 const SEQUENCE_RE = /(?:[\d_]+\s*,\s*){1,}[\d_]+/;
+
+// FALLBACK "pick the number N" narration matcher. The primary number-id path is
+// language-agnostic (choiceMentionedInTranscript: the spoken digit equals a
+// choice). This verb regex is only used when that is ambiguous — e.g. the
+// narration names a number that is NOT among the choices — and is best-effort
+// for the locales we have samples for:
+//   en — choose/find/select/tap/touch/point to/pick
+//   es — elige/escoge/selecciona/toca/señala/busca/encuentra/muestra and their
+//        Argentine voseo forms (elegí/escogé/seleccioná/tocá/señalá/buscá/
+//        encontrá/mostrá), plus muéstrame
+//   de — wähle/finde/tippe/zeige/suche
+const NUMBER_ID_RE =
+  /(?:choose|find|select|tap|touch|point to|pick|elij[ae]|elig[eé]|eleg[íi]|escog[eé]|seleccion[ae]|seleccioná|toc[ae]|tocá|señal[ae]|señalá|busc[ae]|buscá|encuentra|encontrá|mu[eé]stra(?:me)?|mostrá|w[äa]hle?|finde|tippe|zeig[te]?|suche?)[^\d]*?(-?\d+)/i;
+
+// Size words that flip a number-comparison to "pick the smallest", localized for
+// en/es/de. Absent any of these, comparison defaults to "largest" (EGMA's number
+// discrimination asks for the larger value and late items play no narration).
+const COMPARISON_SMALLER_RE = /\b(small|less|few|fewer|least|low|menor|menos|pequeñ|chic|m[áa]s\s+chic|klein|wenig)/i;
+// Any comparison size word (either direction), used only to recognize that an
+// item is a number-comparison from its narration.
+const COMPARISON_ANY_RE =
+  /\b(larg|bigg|great|more|most|high|small|less|few|fewer|least|low|mayor|menor|m[áa]s|menos|grande|pequeñ|alto|bajo|chic|gr[oö]ß|klein|mehr|weniger|h[oö]h|niedrig)/i;
 
 /**
  * Classify the current item. EGMA delivers visual item types (arithmetic,
@@ -202,17 +261,22 @@ export function classifyItem(
   if (stim.includes('_') && SEQUENCE_RE.test(stim)) {
     return 'missing-number';
   }
-  // Audio-driven number identification.
+  // Audio-driven number identification. Primary signal is language-agnostic: a
+  // multi-choice item whose narration names exactly one of the numeric choices.
+  // (Comparison has only 2 numeric choices and is handled below.) The localized
+  // verb regex is a fallback for narration that names a non-choice number.
+  const numericChoiceCount = choiceNumbers(choices).filter((n) => n !== null).length;
   if (
     transcript &&
-    /(?:choose|find|select|tap|touch|point to)\s+the\s+(?:number\s+)?-?\d+/i.test(transcript)
+    ((numericChoiceCount >= 3 && choiceMentionedInTranscript(transcript, choices) >= 0) ||
+      NUMBER_ID_RE.test(transcript))
   ) {
     return 'number-identification';
   }
   // Audio-driven comparison, or its silent variant: a two-numeric-choice item
   // with no stimulus is always a number-comparison ("which is larger?") in this
   // corpus, even when the per-item narration was missed.
-  if (transcript && /\b(larg|bigg|great|more|most|high|small|less|few|fewer|least|low)/i.test(transcript)) {
+  if (transcript && COMPARISON_ANY_RE.test(transcript)) {
     return 'number-comparison';
   }
   const numeric = choiceNumbers(choices).filter((n) => n !== null);
@@ -312,18 +376,20 @@ export function solveItem(
   }
 
   if (itemType === 'number-identification' && transcript) {
-    const m = transcript
-      .toLowerCase()
-      .match(/(?:choose|find|select|tap|touch|point to)\s+the\s+(?:number\s+)?(-?\d+)/);
+    // Primary: the narration names exactly one of the choices (locale-agnostic).
+    const mentioned = choiceMentionedInTranscript(transcript, choices);
+    if (mentioned >= 0) return { index: mentioned, value: choices[mentioned] };
+    // Fallback: localized "pick the N" verb anchor (numerals normalized).
+    const m = normalizeDigits(transcript).match(NUMBER_ID_RE);
     if (!m) return null;
     return matchValue(Number(m[1]));
   }
 
   if (itemType === 'number-comparison') {
-    const p = (transcript ?? '').toLowerCase();
+    const p = transcript ?? '';
     // Default to "larger": EGMA number discrimination always asks for the larger
     // value, and later items in the section play no narration.
-    const wantSmallest = /\b(small|less|few|fewer|least|low)/.test(p);
+    const wantSmallest = COMPARISON_SMALLER_RE.test(p);
     let bestIdx = -1;
     let best = wantSmallest ? Infinity : -Infinity;
     nums.forEach((n, i) => {

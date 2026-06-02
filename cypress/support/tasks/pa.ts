@@ -15,24 +15,15 @@ export const JSPSYCH_BTN = '.jspsych-btn';
 export const CONTINUE = '.continue';
 export const AUDIO_CHOICE = '.jspsych-audio-button-response-button';
 export const PROGRESS_INNER = '#jspsych-progressbar-inner';
-
-export const EN_START_TEXT =
-  'In this game we are going to look for words that BEGIN with the same sound';
+export const FULLSCREEN_BTN = '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn';
+// Answer-choice images on an AFC trial (also rendered on tutorial demo screens).
+export const CHOICE_IMG = 'img[src*=".webp"]';
+// Any button that advances a non-trial screen (intro / tutorial / break / end).
+export const ADVANCE_BTN = `${CONTINUE}, ${JSPSYCH_BTN}`;
 
 /** Matches roar-dashboard `Cypress.env('timeout')` default (10s). */
 export const PA_STEP_MS = 10_000;
 export const PA_ASSET_WAIT_MS = PA_STEP_MS * 1.5;
-
-/** English break / end markers from roar-dashboard `languageOptions.en`. */
-export const PA_EN = {
-  break1: 'Great job',
-  breakRest: 'Take a break if needed',
-  break2: 'Look at all those carrots',
-  end2: 'I have been swimming so much',
-  break3: 'You are doing great',
-  end3: 'You have helped me and all my friends!',
-  tutorials: ['map', 'rope', 'nut', 'wash', 'ball', 'rain'] as const,
-} as const;
 
 export interface PaStimulus {
   goal?: string;
@@ -55,6 +46,20 @@ export function readGoalFromWindow(win: Window): string | null {
 /** CSS selector for the correct image choice on an AFC trial. */
 export function correctImageSelector(goal: string): string {
   return `img[src*="${goal}.webp"]`;
+}
+
+/**
+ * Raw `currentStimulus` string — a stable identity for the on-screen trial.
+ * The structural loop uses it to tell "I already answered this trial, the screen
+ * just hasn't advanced yet" (same signature) from "a new trial loaded" (changed
+ * signature), so it never double-clicks during the inter-trial render window.
+ */
+export function readStimulusSignature(win: Window): string | null {
+  try {
+    return win.sessionStorage.getItem('currentStimulus');
+  } catch {
+    return null;
+  }
 }
 
 /** Click any response image that is not the sessionStorage goal. */
@@ -118,53 +123,49 @@ export function isPaFinished(win: Window): boolean {
   return isProgressComplete(win.document) || isDashboardReroute(win.document.body.innerText ?? '');
 }
 
+/** Answer-choice images present (real AFC trial *or* a tutorial demo screen). */
+export function hasPaChoices(doc: Document): boolean {
+  return doc.querySelectorAll(CHOICE_IMG).length > 0;
+}
+
 /**
- * Click a tutorial choice image if it is on screen. The preceding scripted wait
- * already allows the asset to load (mirrors roar-dashboard's fixed waits before
- * each click), so a missing image here means the tutorial isn't present on this
- * build — skip it rather than hard-waiting 120s and failing the whole run.
+ * Advance one non-trial screen (intro / instructions / break / end / feedback)
+ * without depending on any localized text. Clicks the first affordance present,
+ * in the order roar-pa renders them: fullscreen prompt → instruction canvas →
+ * Continue / jsPsych button. No-ops when nothing is clickable (loading frames),
+ * so the caller's poll just tries again on the next pass.
  */
-function clickVisibleTutorialImage(stem: string): void {
+export function advancePaScreen(): void {
   cy.get('body', { log: false }).then(($b) => {
-    const $img = $b.find(`img[src*="${stem}.webp"]`).filter(':visible');
-    if ($img.length) cy.wrap($img.first()).click({ force: true });
+    const $fs = $b.find(FULLSCREEN_BTN).filter(':visible');
+    if ($fs.length) {
+      cy.wrap($fs.first()).click({ force: true });
+      return;
+    }
+    const $canvas = $b.find(INTRO_CANVAS).filter(':visible');
+    if ($canvas.length) {
+      cy.wrap($canvas.first()).click({ force: true });
+      return;
+    }
+    const $btn = $b.find(ADVANCE_BTN).filter(':visible');
+    if ($btn.length) cy.wrap($btn.first()).click({ force: true });
   });
 }
 
-/** Standard PA intro: canvas → jspsych btn → continue → start text → continue. */
-export function advancePaIntro(startText: string = EN_START_TEXT): void {
-  waitForPaReady();
-  cy.get(INTRO_CANVAS, { timeout: 60000 }).should('be.visible').first().click({ force: true });
-  cy.get(JSPSYCH_BTN).filter(':visible').first().should('be.visible').click({ force: true });
-  clickVisibleContinue();
-  cy.wait(500, { log: false });
-  cy.contains(startText, { timeout: 120000 }).filter(':visible').first().click({ force: true });
-  clickVisibleContinue();
-}
-
 /**
- * Click through a fixed tutorial pair, then Continue.
- * Mirrors roar-dashboard `playFirstTutorial` (continueFirst false),
- * `playSecondTutorial` / `playThirdTutorial` (continueFirst true: Continue first,
- * then the two tutorial images — do not wait for images before that Continue).
+ * Tutorial / guided-demo escape: click every visible answer image, then the
+ * Continue button. roar-pa's tutorials highlight the demonstrated image(s) and
+ * gate on a click; clicking all of them (the correct one included) advances the
+ * demo regardless of language, mirroring the old scripted two-image tutorial
+ * without needing the hardcoded English image stems.
  */
-export function playPaTutorialPair(
-  imgA: string,
-  imgB: string,
-  opts?: { continueFirst?: boolean },
-): void {
-  if (opts?.continueFirst) {
-    cy.wait(PA_STEP_MS, { log: false });
-    clickVisibleContinue();
-    cy.wait(PA_STEP_MS * 2, { log: false });
-  } else {
-    cy.wait(PA_STEP_MS, { log: false });
-  }
-  clickVisibleTutorialImage(imgA);
-  cy.wait(PA_STEP_MS * 2, { log: false });
-  clickVisibleTutorialImage(imgB);
-  cy.wait(PA_STEP_MS, { log: false });
-  clickVisibleContinue();
+export function clickAllPaChoices(): void {
+  cy.get('body', { log: false }).then(($b) => {
+    const $imgs = $b.find(CHOICE_IMG).filter(':visible');
+    $imgs.each((_i, el) => {
+      cy.wrap(el).click({ force: true });
+    });
+  });
 }
 
 export function clickPaContinue(): void {

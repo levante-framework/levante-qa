@@ -6,7 +6,7 @@ import {
   isItemReady,
   dismissMatrixStartup,
   isMatrixPreloadBlank,
-  waitForMatrixTask,
+  waitForMatrixTaskResilient,
   readChoices,
   readPromptText,
   readStimulusAlt,
@@ -237,7 +237,7 @@ describe(`Matrix Reasoning — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (k
     resetAudioCapture();
     launchTask({ taskId: 'matrix-reasoning', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     dismissMatrixStartup();
-    waitForMatrixTask();
+    waitForMatrixTaskResilient(installAudioCapture);
     step(0);
   });
 });

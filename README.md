@@ -766,8 +766,8 @@ These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`,
 - **Bench data:** `levante-bench` has ~10k `pa` trials in `trials.csv`; no `pa` IRT ability file yet.
 - **Answer key:** `sessionStorage.currentStimulus` → JSON `.goal` (image stem); oracle clicks
   `img[src*="<goal>.webp"]` (same as `roar-dashboard` `paHelpers.js`). No `.correct` DOM class.
-- **Support:** `cypress/support/tasks/pa.ts` (`advancePaIntro`, `readGoalFromWindow`).
-- **Oracle:** `cypress/e2e/pa/oracle.cy.ts` — full English playthrough (`pnpm cy:run:pa:oracle`).
+- **Support:** `cypress/support/tasks/pa.ts` (`advancePaScreen`, `clickAllPaChoices`, `hasPaChoices`, `readGoalFromWindow`).
+- **Oracle:** `cypress/e2e/pa/oracle.cy.ts` — structural, language-agnostic loop (mirrors SRE/SWR): trial = choice images + `currentStimulus.goal`; tutorial = images + Continue; break/intro/end = advance any visible affordance; done = progress 100% or reroute. Runs en/de/es unchanged (`pnpm cy:run:pa:oracle`).
 - **Score:** `pnpm score:pa` → `results/pa_summary.csv`.
 - **Next:** VLM spec.
 

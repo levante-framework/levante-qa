@@ -182,6 +182,50 @@ export function waitForMatrixTask(): void {
   });
 }
 
+/**
+ * Resilient startup: block until the task is past asset preload, but if the
+ * preload screen stalls (the jsPsych preload bar can hang indefinitely when an
+ * asset request stalls — common under heavy parallel-run contention), reload
+ * the page so assets re-fetch and try again. The stall is detected before any
+ * trial is recorded, so a reload is always safe. `reinstallAudio` re-applies the
+ * Web Audio capture hook on the fresh document (it was installed via the initial
+ * visit's onBeforeLoad, which a reload would otherwise drop). Falls back to the
+ * standard 300s wait once reloads are exhausted, so genuine failures still fail.
+ */
+export function waitForMatrixTaskResilient(
+  reinstallAudio: (win: Window) => void,
+  maxReloads = 2,
+): void {
+  // ~90s of a non-ready preload screen before we treat it as stalled. A healthy
+  // load reaches the intro in seconds, so this never trips on normal runs.
+  const STALL_POLLS = 90;
+
+  const poll = (attempt: number, reloadsLeft: number): void => {
+    cy.window({ log: false }).then((w) => {
+      const win = w as unknown as TaskWindow;
+      if (isMatrixTaskReady(win)) return;
+
+      if (attempt >= STALL_POLLS && reloadsLeft > 0) {
+        cy.reload();
+        cy.window({ log: false }).then((w2) => reinstallAudio(w2 as unknown as Window));
+        dismissMatrixStartup();
+        poll(0, reloadsLeft - 1);
+        return;
+      }
+      if (attempt >= STALL_POLLS) {
+        // Reloads exhausted: fall back to the plain long wait so a real stall
+        // still ends in a clear, single assertion failure.
+        waitForMatrixTask();
+        return;
+      }
+      cy.wait(1000, { log: false });
+      poll(attempt + 1, reloadsLeft);
+    });
+  };
+
+  poll(0, maxReloads);
+}
+
 /** The image choices' asset keys, in DOM order (index === choice index). */
 export function readChoices(win: TaskWindow): string[] {
   return Array.from(win.document.querySelectorAll(CHOICE_IMG)).map((img) =>

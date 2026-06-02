@@ -32,6 +32,9 @@ import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
   findTask,
+  isTaskSupportedInLanguage,
+  buildTaskSupport,
+  FALLBACK_TASK_OPTIONS,
 } from './catalog.mjs';
 import {
   downloadIndex,
@@ -55,6 +58,38 @@ const PROVISIONER = join(SUPPORT_DIR, 'scripts', 'e2e-init', 'provision-particip
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://hs-levante-admin-dev.web.app';
 const PORT = Number(process.env.QA_DASHBOARD_PORT || 4180);
 const MAX_LOG_LINES = 2000;
+
+// ---------------------------------------------------------------------------
+// Per-language task support (from the platform's languageoptions.json)
+// ---------------------------------------------------------------------------
+// Assets bucket env follows the dashboard target (admin-dev → levante-assets-dev).
+const ASSETS_ENV =
+  process.env.LEVANTE_ASSETS_ENV || (/admin-(\w+)/.exec(DASHBOARD_URL)?.[1] ?? 'dev');
+const LANGUAGE_OPTIONS_URL = `https://storage.googleapis.com/levante-assets-${ASSETS_ENV}/translations/dashboard-consolidated-flat/languageoptions.json`;
+
+/** taskOptions-by-language; seeded with the fallback, refreshed from the bucket. */
+let taskOptionsByLang = FALLBACK_TASK_OPTIONS;
+
+/** Fetch the live languageoptions.json once at startup; keep fallback on failure. */
+async function loadLanguageOptions() {
+  try {
+    const res = await fetch(LANGUAGE_OPTIONS_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const next = {};
+    for (const [code, entry] of Object.entries(json)) {
+      if (Array.isArray(entry?.taskOptions)) next[code] = entry.taskOptions;
+    }
+    if (Object.keys(next).length) {
+      // Merge so any language missing taskOptions (e.g. testing locales) keeps
+      // its fallback, while configured languages take the live list.
+      taskOptionsByLang = { ...FALLBACK_TASK_OPTIONS, ...next };
+      console.log(`[dashboard] loaded task support for ${Object.keys(next).length} language(s) from languageoptions.json`);
+    }
+  } catch (err) {
+    console.warn(`[dashboard] languageoptions.json fetch failed (${err?.message}); using built-in fallback.`);
+  }
+}
 
 /** runId -> run record */
 const runs = new Map();
@@ -540,6 +575,8 @@ const server = http.createServer(async (req, res) => {
       tasks: CATALOG.map((t) => ({ id: t.id, label: t.label, taskId: t.taskId, hasVlm: !!t.vlmSpec })),
       providers: VLM_PROVIDERS,
       languages: LANGUAGES,
+      // { langCode: [supported catalog id, ...] } so the UI can gray out the rest.
+      taskSupport: buildTaskSupport(taskOptionsByLang),
     });
     return;
   }
@@ -562,6 +599,11 @@ const server = http.createServer(async (req, res) => {
         }
         const provider = isVlmBacked ? String(p.provider || VLM_PROVIDERS[0]) : null;
         const language = isSupportedLanguage(p.language) ? p.language : DEFAULT_LANGUAGE;
+        if (!isTaskSupportedInLanguage(task, language, taskOptionsByLang)) {
+          return sendJson(res, 400, {
+            error: `${task.label} is not supported in ${language}.`,
+          });
+        }
         const ageYears = Number.isFinite(Number(p.ageYears)) ? Math.max(0, Math.floor(Number(p.ageYears))) : 8;
         const ageMonths = Number.isFinite(Number(p.ageMonths)) ? Math.max(0, Math.floor(Number(p.ageMonths))) : 0;
         // 'child' always simulates the participant's age; persona is intrinsic to it.
@@ -683,6 +725,7 @@ server.listen(PORT, () => {
   console.log(`  provisioner: ${PROVISIONER}`);
   console.log(`  runs index:  ${RUNS_INDEX}`);
   console.log(`  gcs store:   ${gcsTarget() || '(disabled)'}\n`);
+  loadLanguageOptions();
   hydrateIndexFromGcs().catch((err) => {
     console.warn(`[gcs] index hydrate failed: ${err?.message || err}`);
   });
