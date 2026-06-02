@@ -226,6 +226,71 @@ async function parseArchive(filePath) {
 }
 
 /**
+ * Pull a concise, human-readable failure out of the raw Cypress console output
+ * so the UI can show "what broke" instead of just an exit code. Returns
+ * `{ summary, detail }` where `summary` is a one-liner (the assertion / error
+ * message) and `detail` is the surrounding failing-test block for an info popout.
+ *
+ * Handles the two common mocha spec-reporter shapes:
+ *   N) <describe>                          N) <describe>
+ *        <test>:                                <test>:
+ *      AssertionError: <msg>          or      <bare assertion message>
+ *       at <stack>                            + expected - actual
+ *                                              at <stack>
+ */
+function extractCypressFailure(logText) {
+  if (!logText) return null;
+  const lines = logText.split('\n');
+
+  // Last numbered failing-test header (there may be several runs in one log).
+  let start = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/^\s{0,6}\d+\)\s+\S/.test(lines[i])) {
+      start = i;
+      break;
+    }
+  }
+
+  // Collect the failing block (cap length; stop at the results table / summary).
+  const block = [];
+  if (start >= 0) {
+    for (let i = start; i < lines.length && block.length < 30; i++) {
+      const l = lines[i];
+      if (/[┌─│└]/.test(l) || /\(Results\)|\(Run Finished\)|Spec Ran:|\d+ passing/.test(l)) break;
+      block.push(l.replace(/\s+$/, ''));
+    }
+  }
+  const scope = block.length ? block : lines;
+
+  let summary = null;
+  // 1) Explicit error class with a message.
+  for (const l of scope) {
+    const m = l.match(
+      /\b(AssertionError|CypressError|TypeError|ReferenceError|SyntaxError|RangeError|Error)\b:\s*(.+)/,
+    );
+    if (m) {
+      summary = `${m[1]}: ${m[2].trim()}`;
+      break;
+    }
+  }
+  // 2) Bare assertion message printed under the test title.
+  if (!summary && block.length > 1) {
+    for (let i = 1; i < block.length; i++) {
+      const t = block[i].trim();
+      if (!t || t.endsWith(':')) continue; // blank or the test-title line
+      if (/^[+-]\s|^at\s|^expected\b|^actual\b/.test(t)) continue;
+      summary = t;
+      break;
+    }
+  }
+  if (!summary) return null;
+
+  if (summary.length > 180) summary = `${summary.slice(0, 177)}…`;
+  const detail = (block.length ? block : scope.slice(-30)).join('\n').trim();
+  return { summary, detail: detail.slice(0, 4000) };
+}
+
+/**
  * Inspects the run's scoped log dir for the final archive (accuracy/counts) and
  * any non-empty diagnostic logs (serious errors). Combined with the Cypress
  * exit code, this yields the pass/fail verdict.
@@ -278,11 +343,18 @@ async function computeRunResults(run) {
     if (n > 0) errors.push(`${name}: ${n} entr${n === 1 ? 'y' : 'ies'}`);
   }
 
+  let failureDetail = null;
   if (run.exitCode !== 0) {
-    errors.push(`cypress exited with code ${run.exitCode}`);
+    const failure = extractCypressFailure(run.logLines.join(''));
+    if (failure) {
+      errors.push(failure.summary);
+      failureDetail = failure.detail;
+    } else {
+      errors.push(`Cypress exited with code ${run.exitCode} (see log for details)`);
+    }
   }
 
-  return { accuracy, nTrials, errors, logDir: `cypress/logs/runs/${run.runId}` };
+  return { accuracy, nTrials, errors, failureDetail, logDir: `cypress/logs/runs/${run.runId}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +403,7 @@ async function finalizeRun(run) {
   run.accuracy = results.accuracy;
   run.nTrials = results.nTrials;
   run.errors = results.errors;
+  run.failureDetail = results.failureDetail ?? null;
   run.logDir = results.logDir;
   if (run.status !== 'error') {
     run.status = run.exitCode === 0 && results.errors.length === 0 ? 'passed' : 'failed';
@@ -350,6 +423,7 @@ async function finalizeRun(run) {
     accuracy: run.accuracy,
     nTrials: run.nTrials,
     errors: run.errors,
+    failureDetail: run.failureDetail ?? null,
     email: run.creds?.email ?? null,
     exitCode: run.exitCode,
     startedAt: run.startedAt,
@@ -538,6 +612,7 @@ function statusPayload(run) {
     accuracy: run.accuracy,
     nTrials: run.nTrials,
     errors: run.errors,
+    failureDetail: run.failureDetail ?? null,
     startedAt: run.startedAt,
     finishedAt: run.finishedAt,
     email: run.creds?.email ?? null,

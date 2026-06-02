@@ -308,7 +308,11 @@
     const startedAt = card.dataset.startedAt || s.startedAt;
     const errBlock =
       (s.errors && s.errors.length)
-        ? `<div class="run-errors"><b><i class="fas fa-flag"></i> ${s.errors.length} issue${s.errors.length > 1 ? 's' : ''}</b><br>${s.errors.map(escapeHtml).join('<br>')}</div>`
+        ? `<div class="run-errors"><b><i class="fas fa-flag"></i> ${s.errors.length} issue${s.errors.length > 1 ? 's' : ''}</b>${
+            s.failureDetail
+              ? `<details class="error-detail"><summary title="Show failure details"><i class="fas fa-circle-info"></i></summary><pre>${escapeHtml(s.failureDetail)}</pre></details>`
+              : ''
+          }<br>${s.errors.map(escapeHtml).join('<br>')}</div>`
         : '';
     card.innerHTML = `
       <div class="run-card-head">
@@ -477,7 +481,11 @@
 
       if (r.errors && r.errors.length) {
         $('#modalErrorsSection').hidden = false;
-        $('#modalErrors').innerHTML = r.errors.map((e) => `<li>${escapeHtml(e)}</li>`).join('');
+        $('#modalErrors').innerHTML =
+          r.errors.map((e) => `<li>${escapeHtml(e)}</li>`).join('') +
+          (r.failureDetail
+            ? `<li><details class="error-detail"><summary><i class="fas fa-circle-info"></i> failure details</summary><pre>${escapeHtml(r.failureDetail)}</pre></details></li>`
+            : '');
       }
 
       const arts = data.artifacts || [];
