@@ -53,58 +53,99 @@ function lrFromDirection(value: unknown): CorrectLr | null {
   return null;
 }
 
-/** Practice trials set store2 `correctLR`; scored trials use `currentCorpus[i].direction`. */
-function readSreDirectionFromCorpus(win: Window): CorrectLr | null {
-  try {
-    const storage = win.sessionStorage;
-    let index: number | null = null;
-    let corpus: SreCorpusItem[] | null = null;
-
-    for (let i = 0; i < storage.length; i++) {
-      const key = storage.key(i) ?? '';
-      const raw = storage.getItem(key);
-      if (!raw) continue;
-      const parsed = parseStore2Scalar(raw);
-
-      if (/indexTracking/i.test(key) && index === null) {
-        const n = Number(parsed);
-        if (!Number.isNaN(n)) index = n;
+/**
+ * Flatten store2's persisted state into one lookup. roar-sre / roar-swr use
+ * store2's session area (`store.session.set(key, val)`), but the actual
+ * sessionStorage layout varies: individual keys, namespaced keys
+ * (`<ns>.currentCorpus`), or a single namespace object whose value holds all
+ * keys. Scan session + local storage and merge every layout into one map so
+ * field lookups (`currentCorpus`, `practiceCorpus`, `nextStimulus`, ...) work
+ * regardless of how store2 is configured on a given build.
+ */
+export function collectStore(win: Window): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const put = (k: string, v: unknown): void => {
+    if (!(k in out)) out[k] = v;
+  };
+  for (const storage of [win.sessionStorage, win.localStorage]) {
+    try {
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i) ?? '';
+        const raw = storage.getItem(key);
+        if (raw == null) continue;
+        const val = parseStore2Scalar(raw);
+        put(key, val);
+        const short = key.split('.').pop() || key;
+        put(short, val);
+        // Namespace-as-object: a single key whose value holds the real keys.
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          for (const [k, v] of Object.entries(val as Record<string, unknown>)) put(k, v);
+        }
       }
-      if (/currentCorpus/i.test(key) && corpus === null && Array.isArray(parsed)) {
-        corpus = parsed as SreCorpusItem[];
-      }
+    } catch {
+      // storage may be inaccessible; ignore
     }
-
-    if (index !== null && corpus?.[index]) {
-      const item = corpus[index];
-      return lrFromDirection(item.direction ?? item.correct_response ?? null);
-    }
-  } catch {
-    // ignore
   }
-  return null;
+  return out;
+}
+
+function asArray(value: unknown): SreCorpusItem[] | null {
+  return Array.isArray(value) ? (value as SreCorpusItem[]) : null;
+}
+
+function asIndex(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
 }
 
 /**
- * Read the correct arrow for the current trial.
- * SWR sets `correctLR` in store2 session; SRE practice does too, but scored SRE
- * trials use `currentCorpus` + `indexTracking` (see @bdelab/roar-sre@3.0.2).
+ * Read the correct arrow for the current SRE trial (see @bdelab/roar-sre 1.15.x):
+ *  - scored trials: `currentCorpus[indexTracking].direction` ("left"/"right")
+ *  - practice trials: `practiceCorpus[indexTracking].correct_response`
+ *    ("arrowleft"/"arrowright"); `currentCorpus` is empty during practice
+ *  - fallback: store2 `correctLR` (set during practice feedback)
  */
 export function readCorrectLrFromWindow(win: Window): CorrectLr | null {
   try {
-    const storage = win.sessionStorage;
-    for (let i = 0; i < storage.length; i++) {
-      const key = storage.key(i) ?? '';
-      if (!key.includes('correctLR')) continue;
-      const raw = storage.getItem(key);
-      if (!raw) continue;
-      const lr = lrFromDirection(parseStore2Scalar(raw));
+    const store = collectStore(win);
+    const index = asIndex(store.indexTracking);
+    const current = asArray(store.currentCorpus);
+    const practice = asArray(store.practiceCorpus);
+
+    if (current && current[index]) {
+      const lr = lrFromDirection(current[index].direction ?? current[index].correct_response);
       if (lr) return lr;
     }
+    if (practice && practice[index]) {
+      const lr = lrFromDirection(
+        practice[index].correct_response ?? practice[index].direction,
+      );
+      if (lr) return lr;
+    }
+    return lrFromDirection(store.correctLR);
   } catch {
-    // ignore
+    return null;
   }
-  return readSreDirectionFromCorpus(win);
+}
+
+/** Diagnostic: storage key names + short value previews (for no-key logging). */
+export function dumpStoreKeys(win: Window): Array<{ key: string; preview: string }> {
+  const out: Array<{ key: string; preview: string }> = [];
+  for (const [name, storage] of [
+    ['session', win.sessionStorage],
+    ['local', win.localStorage],
+  ] as const) {
+    try {
+      for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i) ?? '';
+        const raw = storage.getItem(key) ?? '';
+        out.push({ key: `${name}:${key}`, preview: raw.slice(0, 120) });
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return out;
 }
 
 export function isProgressComplete(doc: Document): boolean {

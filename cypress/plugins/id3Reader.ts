@@ -49,6 +49,50 @@ function normalize(text: string): string {
     .trim();
 }
 
+/** Locale segment of a LEVANTE asset URL (audio/<locale>/<file>.mp3), or null. */
+function localeFromUrl(url: string): string | null {
+  const m = /\/audio\/([^/]+)\//i.exec(url);
+  return m ? m[1] : null;
+}
+
+/** Primary language subtag, lowercased (e.g. "en-US" → "en", "de" → "de"). */
+function primarySubtag(lang: string | null | undefined): string {
+  return String(lang ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/[-_]/)[0];
+}
+
+/**
+ * The language this run expects its narration to be in. Defaults to the locale
+ * the page requested (the URL path), so a file whose embedded `lang_code`
+ * contradicts the requested locale is caught. `QA_EXPECTED_AUDIO_LANG` pins an
+ * explicit expected language (e.g. "en-US") to also catch a whole run that was
+ * mis-provisioned into the wrong language.
+ */
+function expectedAudioLang(url: string): string | null {
+  const env = process.env.QA_EXPECTED_AUDIO_LANG;
+  if (env && env.trim()) return env.trim();
+  return localeFromUrl(url);
+}
+
+/**
+ * Throw if the file's `lang_code` is in a different language than expected.
+ * Compares primary subtags so "en" / "en-US" match but "de" vs "en-US" fails.
+ * Silent when either side is unknown (can't verify) or the read already errored.
+ */
+function assertAudioLanguage(url: string, tags: Mp3Tags): void {
+  if (tags.source === 'error') return;
+  const expected = expectedAudioLang(url);
+  const got = tags.language;
+  if (!expected || !got) return;
+  if (primarySubtag(expected) !== primarySubtag(got)) {
+    throw new Error(
+      `Audio language mismatch for ${url}: file lang_code="${got}" does not match expected language "${expected}".`,
+    );
+  }
+}
+
 // Tags never change between page loads, so cache by URL to keep runs fast and
 // make repeated plays of the same asset effectively free.
 const cache = new Map<string, Mp3Tags>();
@@ -103,6 +147,10 @@ export async function readMp3Tags(url: string): Promise<Mp3Tags> {
       error: err instanceof Error ? err.message : String(err),
     };
   }
+
+  // Validate language before caching so a mismatch always throws (a cached
+  // result would otherwise silently pass on subsequent plays of the same clip).
+  assertAudioLanguage(url, result);
 
   cache.set(url, result);
   return result;

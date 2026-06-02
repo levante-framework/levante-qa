@@ -8,6 +8,8 @@ import {
   isMultiSelectReady,
   isSingleSelectReady,
   isSomethingSameScreen,
+  commitMatchPair,
+  matchLayoutKey,
   nextMatchPair,
   newMatchState,
   readMatchChoices,
@@ -61,7 +63,8 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   let nSingle = 0;
   let nMatch = 0;
   let nNoKey = 0;
-  let matchScreenSig = '';
+  let matchLayoutSig = '';
+  let lastMatchStallSig = '';
   let matchStallCount = 0;
 
   function logRecord(input: Parameters<typeof parseSdsTrialRecord>[0]): void {
@@ -194,13 +197,18 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
     const choices = readMatchChoices(win);
     const promptText = readPromptText(win);
     const sig = screenSig(win);
-    const stallKey = `MATCH#${sig}`;
-    if (stallKey !== matchScreenSig) {
-      matchScreenSig = stallKey;
-      matchStallCount = 0;
+    const layoutKey = `MATCH#${matchLayoutKey(choices)}`;
+    if (layoutKey !== matchLayoutSig) {
+      matchLayoutSig = layoutKey;
       match = newMatchState();
-    } else {
+      matchStallCount = 0;
+      lastMatchStallSig = '';
+    }
+    if (sig === lastMatchStallSig) {
       matchStallCount += 1;
+    } else {
+      matchStallCount = 0;
+      lastMatchStallSig = sig;
     }
     if (matchStallCount >= MATCH_STALL_LIMIT) {
       cy.task(
@@ -219,8 +227,7 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       });
       return;
     }
-    const { pair, state } = nextMatchPair(choices, match);
-    match = state;
+    const pair = nextMatchPair(choices, match);
     const [a, b] = isWrongAgentMode()
       ? wrongMatchIndices(pair, choices.length)
       : [pair ? pair.a : 0, pair ? pair.b : 1];
@@ -251,6 +258,7 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
           cy.confirmSdsMatch();
         }
       });
+      if (pair) match = commitMatchPair(match, pair);
       waitChangedThenStep(i, sig);
     });
   }
@@ -291,7 +299,8 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       emptyStreak = 0;
 
       if (isSingleSelectReady(win)) {
-        matchScreenSig = '';
+        matchLayoutSig = '';
+        lastMatchStallSig = '';
         matchStallCount = 0;
         handleSingle(i, win);
         return;

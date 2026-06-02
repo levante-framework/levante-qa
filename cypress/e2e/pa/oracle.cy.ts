@@ -13,6 +13,7 @@ import {
   clickWrongPaImage,
   correctImageSelector,
   isDashboardReroute,
+  isPaFinished,
   isProgressComplete,
   PA_ASSET_WAIT_MS,
   PA_EN,
@@ -96,12 +97,18 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
 
           const goal = readGoalFromWindow(win);
           if (!goal) {
-            nNoGoal += 1;
-            cy.task(
-              'writeJsonl',
-              { path: NO_GOAL_LOG, records: [{ step, snippet: text.slice(0, 240) }] },
-              { log: false },
-            );
+            // Only a genuine content bug if answer choices are on screen but no
+            // sessionStorage goal. Loading / "Progress Complete" / transition
+            // screens have no choices — advance without flagging a no-goal.
+            const hasChoices = win.document.querySelectorAll('img[src*=".webp"]').length > 0;
+            if (hasChoices) {
+              nNoGoal += 1;
+              cy.task(
+                'writeJsonl',
+                { path: NO_GOAL_LOG, records: [{ step, snippet: text.slice(0, 240) }] },
+                { log: false },
+              );
+            }
             if (iterLeft > 1) playTrialsUntilMarker(endMarker, iterLeft - 1);
             return;
           }
@@ -197,24 +204,35 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
     playTrialsUntilMarker(PA_EN.end2);
 
     cy.wait(PA_STEP_MS * 3, { log: false });
-    clickPaContinue();
-    playPaTutorialPair(t4, t5, { continueFirst: true });
-    logRecord({
-      timestamp: new Date().toISOString(),
-      itemType: 'tutorial',
-      goal: `${t4}+${t5}`,
-      breakMarker: null,
-      correct: true,
-      oracle: trialRecordOracleFlag(),
+    // Block 3 (del block + ball/rain tutorial) only exists on some builds. If the
+    // game already finished (progress bar full / rerouted), don't force a tutorial
+    // that isn't there — that hangs 120s waiting for a missing image.
+    cy.window({ log: false }).then((win) => {
+      if (gameComplete || taskComplete || isPaFinished(win)) {
+        gameComplete = true;
+        return;
+      }
+      clickPaContinue();
+      playPaTutorialPair(t4, t5, { continueFirst: true });
+      logRecord({
+        timestamp: new Date().toISOString(),
+        itemType: 'tutorial',
+        goal: `${t4}+${t5}`,
+        breakMarker: null,
+        correct: true,
+        oracle: trialRecordOracleFlag(),
+      });
+
+      playTrialsUntilMarker(PA_EN.break3);
+      clickPaContinue();
+      playTrialsUntilMarker(PA_EN.end3);
     });
 
-    playTrialsUntilMarker(PA_EN.break3);
-    clickPaContinue();
-    playTrialsUntilMarker(PA_EN.end3);
-
-    cy.contains(PA_EN.end3, { timeout: 120000 }).should('be.visible');
-    cy.wrap(null).then(() => {
-      taskComplete = true;
+    // Completion is reaching the final marker OR the progress bar hitting 100%
+    // (some builds end without showing the end-3 text).
+    cy.window({ log: false }).then((win) => {
+      const finishedByText = (win.document.body.innerText ?? '').includes(PA_EN.end3);
+      taskComplete = finishedByText || isPaFinished(win) || gameComplete;
       finalize();
     });
   });

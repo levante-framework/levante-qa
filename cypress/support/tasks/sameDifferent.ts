@@ -338,12 +338,36 @@ export function cleanDimensions(dims: string[], phaseCount: number): string[] {
 /** Mutable per-card-set state for the match heuristic. */
 export interface MatchState {
   matchedDimensions: string[];
-  numSelections: number;
-  phaseCount: number;
+  /** Card index pairs already submitted on this layout (mirrors afcMatch `previousSelections`). */
+  previousIndexPairs: Array<[number, number]>;
 }
 
 export function newMatchState(): MatchState {
-  return { matchedDimensions: [], numSelections: 0, phaseCount: 3 };
+  return { matchedDimensions: [], previousIndexPairs: [] };
+}
+
+/** Stable key for a match layout (prompt text excluded — it changes for "new way" rounds). */
+export function matchLayoutKey(alts: string[]): string {
+  return alts.join(',');
+}
+
+function normalizeIndexPair(a: number, b: number): [number, number] {
+  return a < b ? [a, b] : [b, a];
+}
+
+function isIndexPairUsed(a: number, b: number, previous: Array<[number, number]>): boolean {
+  const [x, y] = normalizeIndexPair(a, b);
+  return previous.some(([p, q]) => p === x && q === y);
+}
+
+/** Record a submitted pair (app pushes to `previousSelections` even on incorrect tries). */
+export function commitMatchPair(state: MatchState, pair: MatchPair): MatchState {
+  const pq = normalizeIndexPair(pair.a, pair.b);
+  return {
+    ...state,
+    matchedDimensions: [...state.matchedDimensions, pair.dim],
+    previousIndexPairs: [...state.previousIndexPairs, pq],
+  };
 }
 
 /** A chosen pair of card indices and the dimension they were matched on. */
@@ -355,24 +379,17 @@ export interface MatchPair {
 
 /**
  * Pick the next valid pair for a match round given the card `alts` and the
- * running per-set state, resetting the state when a new card set begins (the
- * same reset rule core-tasks uses). Returns the pair plus the (possibly reset)
- * state, or pair=null if no unused-dimension pair is found (caller falls back to
- * the first two cards just to advance).
+ * running per-layout state. Skips index pairs already submitted on this layout
+ * (afcMatch `hasNewSelection`). Does not mutate state — call `commitMatchPair`
+ * after each confirm click.
  */
-export function nextMatchPair(
-  alts: string[],
-  state: MatchState,
-): { pair: MatchPair | null; state: MatchState } {
+export function nextMatchPair(alts: string[], state: MatchState): MatchPair | null {
   const nCards = alts.length;
-  let { matchedDimensions, numSelections, phaseCount } = state;
-  // Mirror core-tasks multiAfc: reset when the set grows or after n-1 pair picks
-  // on the same card layout (new dimension round on the same four cards).
-  if (numSelections >= nCards - 1 || phaseCount < nCards) {
-    matchedDimensions = [];
-    numSelections = 0;
-    phaseCount = nCards;
-  }
+  const { matchedDimensions, previousIndexPairs } = state;
+  // Per-layout reset is handled by the caller (newMatchState on a new card set),
+  // so the phase is simply the current card count: >3 cards ignore the size
+  // dimension (mirrors core-tasks cleanDimensions / getIgnoreDims).
+  const phaseCount = nCards;
 
   let pair: MatchPair | null = null;
 
@@ -384,6 +401,7 @@ export function nextMatchPair(
     if (!altA) continue;
     for (let b = a + 1; b < nCards; b++) {
       if (altA !== alts[b]) continue;
+      if (isIndexPairUsed(a, b, previousIndexPairs)) continue;
       const dims = cleanDimensions(altA.split('-'), phaseCount);
       const dim = dims.find((d) => !matchedDimensions.includes(d));
       if (dim) {
@@ -397,6 +415,7 @@ export function nextMatchPair(
     const fa = cleanDimensions(alts[a].split('-'), phaseCount);
     for (let b = 0; b < nCards; b++) {
       if (b === a) continue;
+      if (isIndexPairUsed(a, b, previousIndexPairs)) continue;
       const fb = cleanDimensions(alts[b].split('-'), phaseCount);
       const valid = checkOverlap(fb, fa).filter((dim) => !matchedDimensions.includes(dim));
       if (valid.length > 0) {
@@ -406,11 +425,7 @@ export function nextMatchPair(
     }
   }
 
-  if (pair) {
-    matchedDimensions = [...matchedDimensions, pair.dim];
-    numSelections += 1;
-  }
-  return { pair, state: { matchedDimensions, numSelections, phaseCount } };
+  return pair;
 }
 
 // --- Scoring ---------------------------------------------------------------

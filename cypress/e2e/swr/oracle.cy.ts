@@ -13,6 +13,7 @@ import {
   advanceSwrStartup,
   arrowKeyForLr,
   clickSwrContinue,
+  dumpStoreKeys,
   hasActiveStimulus,
   isDashboardReroute,
   isProgressComplete,
@@ -96,7 +97,10 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
               correct: null,
               oracle: trialRecordOracleFlag(),
             });
-            cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+            // Break / practice-feedback screens advance on a specific arrow
+            // ("press the right arrow to continue"), so press both (mirrors
+            // roar-dashboard's blind arrow presses) plus any Continue button.
+            cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
             if (!isProgressComplete(doc)) {
               clickSwrContinue();
             }
@@ -112,10 +116,19 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
               'writeJsonl',
               {
                 path: NO_LR_LOG,
-                records: [{ step, snippet: text.slice(0, 240) }],
+                records: [
+                  {
+                    step,
+                    snippet: text.slice(0, 240),
+                    store: nNoLr <= 3 ? dumpStoreKeys(win) : undefined,
+                  },
+                ],
               },
               { log: false },
             );
+            // Advance anyway so an unreadable trial can't stall the whole run.
+            cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+            cy.wait(SWR_STEP_MS * 0.08, { log: false });
             playTrials(iterLeft - 1);
             return;
           }

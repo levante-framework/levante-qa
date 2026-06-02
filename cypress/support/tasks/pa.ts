@@ -80,15 +80,55 @@ export function waitForPaReady(): void {
   cy.get(`${JSPSYCH_BTN}, ${INTRO_CANVAS}`, { timeout: 120000 }).should('exist');
 }
 
-function clickVisibleContinue(): void {
-  cy.get(CONTINUE, { log: false }).filter(':visible').first().click({ force: true });
+/**
+ * Click the Continue button once it becomes visible. Polls up to `maxMs` (the
+ * intro/break screens render the button a beat after the prior click), but
+ * no-ops if it never appears so a finished game can't hard-fail here.
+ *
+ * The deadline is set inside a `.then()` so it starts at EXECUTION time — not
+ * when the command queue is built — otherwise slow startup (waitForPaReady can
+ * take up to 120s) burns the whole budget before this even runs, and it would
+ * poll zero times and silently skip the click.
+ */
+function clickVisibleContinue(maxMs = 30_000): void {
+  cy.wrap(null, { log: false }).then(() => {
+    const deadline = Date.now() + maxMs;
+    const attempt = (): void => {
+      cy.get('body', { log: false }).then(($b) => {
+        const $continue = $b.find(CONTINUE).filter(':visible');
+        if ($continue.length) {
+          cy.wrap($continue.first()).click({ force: true });
+          return;
+        }
+        if (Date.now() >= deadline) return;
+        cy.wait(500, { log: false });
+        attempt();
+      });
+    };
+    attempt();
+  });
 }
 
+/**
+ * True once roar-pa has finished: the jsPsych progress bar is full or the app
+ * has rerouted back to the dashboard. Used to bail out of scripted tutorial
+ * steps that may not exist on every build (some admins have no 3rd tutorial).
+ */
+export function isPaFinished(win: Window): boolean {
+  return isProgressComplete(win.document) || isDashboardReroute(win.document.body.innerText ?? '');
+}
+
+/**
+ * Click a tutorial choice image if it is on screen. The preceding scripted wait
+ * already allows the asset to load (mirrors roar-dashboard's fixed waits before
+ * each click), so a missing image here means the tutorial isn't present on this
+ * build — skip it rather than hard-waiting 120s and failing the whole run.
+ */
 function clickVisibleTutorialImage(stem: string): void {
-  cy.get(`img[src*="${stem}.webp"]`, { timeout: 120000, log: false })
-    .filter(':visible')
-    .first()
-    .click({ force: true });
+  cy.get('body', { log: false }).then(($b) => {
+    const $img = $b.find(`img[src*="${stem}.webp"]`).filter(':visible');
+    if ($img.length) cy.wrap($img.first()).click({ force: true });
+  });
 }
 
 /** Standard PA intro: canvas → jspsych btn → continue → start text → continue. */

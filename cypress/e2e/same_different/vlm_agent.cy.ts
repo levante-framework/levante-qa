@@ -9,6 +9,8 @@ import {
   isMultiSelectReady,
   isSingleSelectReady,
   isSomethingSameScreen,
+  commitMatchPair,
+  matchLayoutKey,
   nextMatchPair,
   newMatchState,
   readMatchChoices,
@@ -43,7 +45,8 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
   let emptyStreak = 0;
   const EMPTY_DONE = 20;
   let match: MatchState = newMatchState();
-  let matchScreenSig = '';
+  let matchLayoutSig = '';
+  let lastMatchStallSig = '';
   let matchStallCount = 0;
   // Single-select items the VLM has already answered (keyed by prompt+cards).
   // Used as a gate-escape: if the same single re-appears (our click of a wrong
@@ -188,13 +191,18 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
     const choices = readMatchChoices(win);
     const promptText = readPromptText(win);
     const sig = screenSig(win);
-    const stallKey = `MATCH#${sig}`;
-    if (stallKey !== matchScreenSig) {
-      matchScreenSig = stallKey;
-      matchStallCount = 0;
+    const layoutKey = `MATCH#${matchLayoutKey(choices)}`;
+    if (layoutKey !== matchLayoutSig) {
+      matchLayoutSig = layoutKey;
       match = newMatchState();
-    } else {
+      matchStallCount = 0;
+      lastMatchStallSig = '';
+    }
+    if (sig === lastMatchStallSig) {
       matchStallCount += 1;
+    } else {
+      matchStallCount = 0;
+      lastMatchStallSig = sig;
     }
     if (matchStallCount >= MATCH_STALL_LIMIT) {
       cy.task(
@@ -213,8 +221,7 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
       });
       return;
     }
-    const { pair, state } = nextMatchPair(choices, match);
-    match = state;
+    const pair = nextMatchPair(choices, match);
     const a = pair ? pair.a : 0;
     const b = pair ? pair.b : 1;
     logRecord({
@@ -240,6 +247,7 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
         cy.confirmSdsMatch();
       }
     });
+    if (pair) match = commitMatchPair(match, pair);
     waitChangedThenStep(i, sig);
   }
 
@@ -276,7 +284,8 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
       emptyStreak = 0;
 
       if (isSingleSelectReady(win)) {
-        matchScreenSig = '';
+        matchLayoutSig = '';
+        lastMatchStallSig = '';
         matchStallCount = 0;
         handleSingle(i, win);
         return;

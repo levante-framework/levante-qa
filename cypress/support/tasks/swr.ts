@@ -9,12 +9,63 @@
 import type { SwrSummaryStats, SwrTrialRecord } from './types';
 import {
   arrowKeyForLr,
+  collectStore,
+  dumpStoreKeys,
   hasActiveStimulus,
   isDashboardReroute,
   isProgressComplete,
-  readCorrectLrFromWindow,
   type CorrectLr,
 } from './sre';
+
+interface SwrStimulus {
+  correct_response?: string;
+}
+
+function lrFromArrow(value: unknown): CorrectLr | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim().toLowerCase();
+  if (v === 'left' || v === 'arrowleft') return 'left';
+  if (v === 'right' || v === 'arrowright') return 'right';
+  return null;
+}
+
+function asArray(value: unknown): SwrStimulus[] | null {
+  return Array.isArray(value) ? (value as SwrStimulus[]) : null;
+}
+
+function asIndex(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}
+
+/**
+ * Read the correct arrow for the current SWR (Lexicality) trial (@bdelab/roar-swr 1.x):
+ *  - scored trials: store2 session `nextStimulus.correct_response` ("ArrowLeft"/"ArrowRight")
+ *  - practice trials: `corpusPractice[practiceIndex].correct_response` (`nextStimulus`
+ *    is null during practice)
+ *  - fallback: a bare `correct_response` / `correctLR` key
+ */
+export function readCorrectLrFromWindow(win: Window): CorrectLr | null {
+  try {
+    const store = collectStore(win);
+    const next = store.nextStimulus as SwrStimulus | null | undefined;
+    if (next && typeof next === 'object') {
+      const lr = lrFromArrow(next.correct_response);
+      if (lr) return lr;
+    }
+    const practice = asArray(store.corpusPractice);
+    if (practice) {
+      const idx = asIndex(store.practiceIndex);
+      if (practice[idx]) {
+        const lr = lrFromArrow(practice[idx].correct_response);
+        if (lr) return lr;
+      }
+    }
+    return lrFromArrow(store.correct_response) ?? lrFromArrow(store.correctLR);
+  } catch {
+    return null;
+  }
+}
 
 export const SWR_ROUTE = '/game/swr';
 
@@ -39,13 +90,7 @@ export const SWR_EN = {
   ] as const,
 } as const;
 
-export {
-  arrowKeyForLr,
-  hasActiveStimulus,
-  isDashboardReroute,
-  isProgressComplete,
-  readCorrectLrFromWindow,
-};
+export { arrowKeyForLr, dumpStoreKeys, hasActiveStimulus, isDashboardReroute, isProgressComplete };
 export type { CorrectLr };
 
 export function waitForSwrReady(): void {

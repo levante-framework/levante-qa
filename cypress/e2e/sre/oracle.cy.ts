@@ -12,6 +12,7 @@ import {
   arrowKeyForLr,
   bodyHasSreCompletion,
   clickSreContinueIfPresent,
+  dumpStoreKeys,
   hasActiveStimulus,
   isDashboardReroute,
   isProgressComplete,
@@ -89,7 +90,12 @@ describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
 
           const doc = win.document;
           if (!hasActiveStimulus(doc)) {
+            // Practice feedback ("Correct! ... Press the left arrow key to
+            // continue.") and block transitions advance on an arrow key, not a
+            // button — press both (mirrors roar-dashboard's blind arrow presses)
+            // and click any continue button that is present.
             clickSreContinueIfPresent();
+            cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
             cy.wait(SRE_STEP_MS * 0.2, { log: false });
             playTrials(iterLeft - 1);
             return;
@@ -102,10 +108,22 @@ describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
               'writeJsonl',
               {
                 path: NO_LR_LOG,
-                records: [{ step, snippet: text.slice(0, 240) }],
+                records: [
+                  {
+                    step,
+                    snippet: text.slice(0, 240),
+                    // Capture the storage layout on the first miss so a missing
+                    // key can be diagnosed without another 30-min hang.
+                    store: nNoLr <= 3 ? dumpStoreKeys(win) : undefined,
+                  },
+                ],
               },
               { log: false },
             );
+            // Advance anyway (mirrors roar-dashboard's blind arrow presses) so a
+            // single unreadable trial can't stall the whole run.
+            cy.get('body', { log: false }).type('{leftarrow}', { log: false });
+            cy.wait(SRE_STEP_MS * 0.08, { log: false });
             playTrials(iterLeft - 1);
             return;
           }
