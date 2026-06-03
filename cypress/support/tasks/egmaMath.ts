@@ -1,4 +1,10 @@
 import type { EgmaItemType, EgmaSummaryStats, EgmaTrialRecord } from './types';
+import { toCardinal as numToWordsDe } from 'n2words/de-DE';
+import { toCardinal as numToWordsEs } from 'n2words/es-ES';
+import { toCardinal as numToWordsEn } from 'n2words/en-US';
+import { toCardinal as numToWordsHe } from 'n2words/he-IL';
+import { toCardinal as numToWordsAr } from 'n2words/ar-SA';
+import { toCardinal as numToWordsFr } from 'n2words/fr-FR';
 
 /**
  * EGMA-math task model: selectors, screen-state detection, item classification,
@@ -206,6 +212,96 @@ export function choiceMentionedInTranscript(
   return hits.length === 1 ? hits[0] : -1;
 }
 
+// Number → cardinal-word converters (n2words), keyed by base language. Used to
+// match number-identification narration that spells the target out instead of
+// using digits (e.g. German "dreihundertneunundvierzig" = 349). Region is
+// dropped: es-CO/es-AR -> es, de-DE -> de, etc. Languages without a converter
+// here simply fall back to digit matching.
+const NUMBER_TO_WORDS: Record<string, (n: number) => string> = {
+  de: numToWordsDe,
+  es: numToWordsEs,
+  en: numToWordsEn,
+  he: numToWordsHe,
+  ar: numToWordsAr,
+  fr: numToWordsFr,
+};
+
+/** The current run's base language code (`es-AR` -> `es`), or '' when unset. */
+export function qaLangBase(): string {
+  try {
+    const raw = String((globalThis as { Cypress?: { env(k: string): unknown } }).Cypress?.env('QA_LANGUAGE') ?? '');
+    return raw.trim().toLowerCase().split('-')[0];
+  } catch {
+    return '';
+  }
+}
+
+/** Lowercase, strip diacritics and any non-alphanumeric so spelled-out number
+ * words compare cleanly across narration vs. generated forms (e.g. "fünf" and
+ * n2words "fünf" both → "funf"). */
+function normalizeWordForm(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Index of the choice whose value is named in the narration as a spelled-out
+ * NUMBER WORD (the digit-free path: German and other locales narrate "Choose
+ * the three hundred forty-nine" rather than "349"). Each numeric choice is
+ * converted to its localized cardinal word and substring-matched against the
+ * narration; the longest match wins so a smaller number's word that is a prefix
+ * of a larger one (e.g. "neun" inside "neunundvierzig") never shadows it.
+ * Returns -1 when the language is unsupported, nothing matches, or it is
+ * ambiguous (two equally-long matches).
+ */
+export function choiceWordInTranscript(
+  transcript: string | null,
+  choices: string[],
+  lang: string = qaLangBase(),
+): number {
+  const toWords = NUMBER_TO_WORDS[lang];
+  if (!transcript || !toWords) return -1;
+  const hay = normalizeWordForm(transcript);
+  if (!hay) return -1;
+  const nums = choiceNumbers(choices);
+  let bestIdx = -1;
+  let bestLen = 0;
+  let tieAtBest = false;
+  nums.forEach((n, i) => {
+    if (n === null) return;
+    let word = '';
+    try {
+      word = normalizeWordForm(toWords(n));
+    } catch {
+      word = '';
+    }
+    if (!word || !hay.includes(word)) return;
+    if (word.length > bestLen) {
+      bestLen = word.length;
+      bestIdx = i;
+      tieAtBest = false;
+    } else if (word.length === bestLen) {
+      tieAtBest = true;
+    }
+  });
+  return tieAtBest ? -1 : bestIdx;
+}
+
+/** Index of the narrated target among numeric choices: digits first
+ * (locale-agnostic), then spelled-out number words via n2words. */
+export function numberIdIndex(
+  transcript: string | null,
+  choices: string[],
+  lang: string = qaLangBase(),
+): number {
+  const byDigit = choiceMentionedInTranscript(transcript, choices);
+  if (byDigit >= 0) return byDigit;
+  return choiceWordInTranscript(transcript, choices, lang);
+}
+
 // Arithmetic stimulus like "2+3", "12-4", "1x5", "8÷2" (EGMA renders × as a
 // lowercase "x" and ÷ as "/"). Captures operands and operator.
 const ARITHMETIC_RE = /(-?\d+)\s*([+\-x×*/÷])\s*(-?\d+)/;
@@ -246,6 +342,7 @@ export function classifyItem(
   transcript: string | null,
   stimText = '',
   choices: string[] = [],
+  lang: string = qaLangBase(),
 ): EgmaItemType {
   const stim = stimText.trim();
 
@@ -268,7 +365,7 @@ export function classifyItem(
   const numericChoiceCount = choiceNumbers(choices).filter((n) => n !== null).length;
   if (
     transcript &&
-    ((numericChoiceCount >= 3 && choiceMentionedInTranscript(transcript, choices) >= 0) ||
+    ((numericChoiceCount >= 3 && numberIdIndex(transcript, choices, lang) >= 0) ||
       NUMBER_ID_RE.test(transcript))
   ) {
     return 'number-identification';
@@ -356,6 +453,7 @@ export function solveItem(
   transcript: string | null,
   choices: string[],
   stimText = '',
+  lang: string = qaLangBase(),
 ): Solution | null {
   const nums = choiceNumbers(choices);
   const matchValue = (target: number): Solution | null => {
@@ -376,8 +474,9 @@ export function solveItem(
   }
 
   if (itemType === 'number-identification' && transcript) {
-    // Primary: the narration names exactly one of the choices (locale-agnostic).
-    const mentioned = choiceMentionedInTranscript(transcript, choices);
+    // Primary: the narration names exactly one choice — by digit (locale-agnostic)
+    // or, when spelled out (e.g. German number words), by its localized word form.
+    const mentioned = numberIdIndex(transcript, choices, lang);
     if (mentioned >= 0) return { index: mentioned, value: choices[mentioned] };
     // Fallback: localized "pick the N" verb anchor (numerals normalized).
     const m = normalizeDigits(transcript).match(NUMBER_ID_RE);

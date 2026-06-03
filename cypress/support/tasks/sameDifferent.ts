@@ -315,6 +315,58 @@ export function readSingleChoices(win: TaskWindow): string[] {
   );
 }
 
+/**
+ * The reference card's `alt` on a legacy "something same" test item — the
+ * disabled `image-medium` card shown ABOVE the choice row (core-tasks
+ * `legacyStimulus`, `stim.image`). Returns null when there is no such reference
+ * (e.g. a plain test-dimensions screen, which has only a text prompt). Scoped
+ * away from the response button group so a choice card is never mistaken for it.
+ */
+export function readReferenceAlt(win: TaskWindow): string | null {
+  const ref = Array.from(win.document.querySelectorAll('button.image-medium')).find(
+    (b) => (b as HTMLButtonElement).disabled && !b.closest(SINGLE_GROUP),
+  );
+  const alt = ref?.querySelector('img')?.getAttribute('alt');
+  return alt ? alt.trim() : null;
+}
+
+/**
+ * A legacy "something same" test item: a reference card + choice cards (in the
+ * response button group) with NO `.correct` answer marker. core-tasks keys the
+ * answer via the in-memory `correctResponseIdx` (not exposed to the DOM/storage),
+ * so the oracle resolves it structurally instead — see solveSomethingSame.
+ */
+export function isSomethingSameItem(win: TaskWindow): boolean {
+  if (isSingleSelectReady(win) || isMultiSelectReady(win)) return false;
+  if (win.document.querySelectorAll(SINGLE_CHOICE).length < 2) return false;
+  return readReferenceAlt(win) !== null;
+}
+
+const SIZE_TOKENS = new Set(['sm', 'med', 'lg', 'small', 'medium', 'large']);
+
+/**
+ * Pick the choice that is "the same in some way" as the reference card: the one
+ * sharing the most dimension tokens (color / shape / number / background) with
+ * it. Size is ignored — it is rarely the tested concept and can tie distractors.
+ * Language-agnostic (card `alt`s are English asset identifiers in every locale).
+ * Returns -1 when there is no reference or no overlap.
+ */
+export function solveSomethingSame(reference: string | null, choices: string[]): number {
+  if (!reference) return -1;
+  const tokens = (s: string): string[] => s.split('-').filter((t) => !SIZE_TOKENS.has(t.toLowerCase()));
+  const refTokens = tokens(reference);
+  let best = -1;
+  let bestOverlap = 0;
+  choices.forEach((choice, i) => {
+    const overlap = checkOverlap(tokens(choice), refTokens).length;
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      best = i;
+    }
+  });
+  return bestOverlap > 0 ? best : -1;
+}
+
 /** The multi-select match cards' `alt`, in DOM order. */
 export function readMatchChoices(win: TaskWindow): string[] {
   return Array.from(win.document.querySelectorAll(MULTI_CHOICE_IMG)).map((img) =>

@@ -43,9 +43,56 @@ export function readGoalFromWindow(win: Window): string | null {
   }
 }
 
-/** CSS selector for the correct image choice on an AFC trial. */
+/** CSS selector for the correct image choice on an AFC trial. The ` i` flag
+ * makes the substring match case-insensitive: de-DE assets capitalize the noun
+ * (`Kind.webp`) while the sessionStorage goal is lowercase (`kind`), so a
+ * case-sensitive match would silently never fire. Used with native
+ * `querySelector` (which supports the flag); for clicking go through
+ * clickCorrectPaImage, which matches in JS to avoid any selector-engine gaps. */
 export function correctImageSelector(goal: string): string {
-  return `img[src*="${goal}.webp"]`;
+  return `img[src*="${goal}.webp" i]`;
+}
+
+/**
+ * Normalize an image src for matching against a goal stem. de-DE assets encode
+ * accented nouns in URL-escaped Unicode *NFD* (`Ku%CC%88hlschrank.webp` = u +
+ * combining diaeresis) while the sessionStorage goal is *NFC* (`kühlschrank`,
+ * single `ü`). Decode the percent-escapes and normalize to NFC so the two forms
+ * compare equal; also lowercased for the capitalized-noun case (`Kind` vs `kind`).
+ */
+function normalizePaSrc(value: string): string {
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // Malformed escape sequence — fall back to the raw value.
+  }
+  return decoded.normalize('NFC').toLowerCase();
+}
+
+function paGoalNeedle(goal: string): string {
+  return `${goal}.webp`.normalize('NFC').toLowerCase();
+}
+
+/** True when the goal's image is among the on-screen choices (locale-robust:
+ * case-, encoding-, and Unicode-normalization-insensitive). */
+export function goalImagePresent(doc: Document, goal: string): boolean {
+  const needle = paGoalNeedle(goal);
+  return [...doc.querySelectorAll(CHOICE_IMG)].some((el) =>
+    normalizePaSrc(el.getAttribute('src') ?? '').includes(needle),
+  );
+}
+
+/** Click the choice image matching the goal (locale-robust src match). */
+export function clickCorrectPaImage(goal: string): void {
+  const needle = paGoalNeedle(goal);
+  cy.get(CHOICE_IMG, { log: false }).then(($imgs) => {
+    const target = [...$imgs].find((el) =>
+      normalizePaSrc(el.getAttribute('src') ?? '').includes(needle),
+    );
+    expect(target, `PA goal image for goal=${goal}`).to.exist;
+    cy.wrap(target).click({ force: true });
+  });
 }
 
 /**
@@ -62,10 +109,13 @@ export function readStimulusSignature(win: Window): string | null {
   }
 }
 
-/** Click any response image that is not the sessionStorage goal. */
+/** Click any response image that is not the sessionStorage goal (locale-robust). */
 export function clickWrongPaImage(goal: string): void {
+  const needle = paGoalNeedle(goal);
   cy.get('img[src*=".webp"]', { log: false }).then(($imgs) => {
-    const wrong = [...$imgs].find((el) => !(el.getAttribute('src') ?? '').includes(`${goal}.webp`));
+    const wrong = [...$imgs].find(
+      (el) => !normalizePaSrc(el.getAttribute('src') ?? '').includes(needle),
+    );
     expect(wrong, `wrong PA choice for goal=${goal}`).to.exist;
     cy.wrap(wrong).click({ force: true });
   });
@@ -76,8 +126,12 @@ export function isProgressComplete(doc: Document): boolean {
   return style.includes('width: 100%');
 }
 
+// See sre.ts: the participant username (`…@levante.test`) is the
+// language-agnostic dashboard-reroute signal; the localized sign-out label is a
+// secondary cue. Either means the task finished and the app left the player.
+const SIGN_OUT_RE = /Sign Out|Abmelden|Cerrar sesi[oó]n|D[ée]connexion|تسجيل الخروج|התנתק/i;
 export function isDashboardReroute(bodyText: string): boolean {
-  return bodyText.includes('Sign Out');
+  return /@levante\.test/i.test(bodyText) || SIGN_OUT_RE.test(bodyText);
 }
 
 /** Wait until jsPsych intro chrome is present (mirrors dashboard waitForAssessmentReadyState). */

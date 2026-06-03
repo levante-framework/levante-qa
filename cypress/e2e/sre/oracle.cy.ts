@@ -26,6 +26,11 @@ import { parseSreTrialRecord, type SreTrialRecord } from '../../support/tasks/ty
 const TASK = 'sre';
 const LIVE_LOG = `cypress/logs/_sre_${agentLogStem()}_live.jsonl`;
 const NO_LR_LOG = 'cypress/logs/_sre_no_correct_lr.jsonl';
+// Dumped when the same screen persists for STALL_LIMIT passes — the loop is
+// wedged on a screen no branch advances (e.g. a locale-specific end screen that
+// completion detection misses). Captures the DOM so it can be fixed fast.
+const STUCK_LOG = `cypress/logs/_sre_${agentLogStem()}_screen_stuck.jsonl`;
+const STALL_LIMIT = 30;
 const MAX_ITER = 600;
 
 describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correctLR)'}`, () => {
@@ -35,6 +40,10 @@ describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
   let gameComplete = false;
   let nItems = 0;
   let nNoLr = 0;
+  // No-progress guard: signature of the current screen + how many consecutive
+  // passes it has stayed identical, so a wedged screen fails fast with a dump.
+  let lastScreenSig = '';
+  let screenStall = 0;
 
   function logRecord(
     input: Pick<SreTrialRecord, 'timestamp' | 'itemType' | 'oracle'> &
@@ -89,7 +98,49 @@ describe(`SRE — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
           }
 
           const doc = win.document;
-          if (!hasActiveStimulus(doc)) {
+
+          // No-progress guard: if the screen is unchanged for STALL_LIMIT passes
+          // the loop is wedged (e.g. an end screen completion detection misses).
+          // Dump it and fail fast instead of spinning to MAX_ITER.
+          const active = hasActiveStimulus(doc);
+          const sig = `${text.trim().slice(0, 120)}#${active ? 'S' : ''}#${nItems}`;
+          if (sig === lastScreenSig) screenStall += 1;
+          else {
+            screenStall = 0;
+            lastScreenSig = sig;
+          }
+          if (screenStall >= STALL_LIMIT) {
+            cy.task(
+              'writeJsonl',
+              {
+                path: STUCK_LOG,
+                records: [
+                  {
+                    step,
+                    nItems,
+                    active,
+                    progressComplete: isProgressComplete(doc),
+                    buttons: [...doc.querySelectorAll('button, .continue, .jspsych-btn')]
+                      .filter((el) => (el as HTMLElement).offsetParent !== null)
+                      .map((el) => ({ cls: el.className, text: (el.textContent ?? '').trim().slice(0, 60) }))
+                      .slice(0, 12),
+                    bodyText: text.trim().slice(0, 600),
+                    bodyHtml: doc.body?.innerHTML?.slice(0, 4000) ?? null,
+                  },
+                ],
+              },
+              { log: false },
+            );
+            cy.wrap(null).then(() => {
+              expect(
+                false,
+                `SRE screen never advanced for ${STALL_LIMIT} passes — unhandled screen (see ${STUCK_LOG})`,
+              ).to.equal(true);
+            });
+            return;
+          }
+
+          if (!active) {
             // Practice feedback ("Correct! ... Press the left arrow key to
             // continue.") and block transitions advance on an arrow key, not a
             // button — press both (mirrors roar-dashboard's blind arrow presses)

@@ -153,8 +153,14 @@ export function isProgressComplete(doc: Document): boolean {
   return style.includes('width: 100%');
 }
 
+// Sign-out control label across the locales we run (the dashboard renders it
+// localized). The participant username (`…@levante.test`) is the reliable
+// language-agnostic signal — it is shown on the signed-in dashboard but never
+// during the jsPsych task — so completion is detected even where the sign-out
+// wording isn't in this list.
+const SIGN_OUT_RE = /Sign Out|Abmelden|Cerrar sesi[oó]n|D[ée]connexion|تسجيل الخروج|התנתק/i;
 export function isDashboardReroute(bodyText: string): boolean {
-  return bodyText.includes('Sign Out');
+  return /@levante\.test/i.test(bodyText) || SIGN_OUT_RE.test(bodyText);
 }
 
 export function hasActiveStimulus(doc: Document): boolean {

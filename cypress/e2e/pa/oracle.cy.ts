@@ -12,9 +12,12 @@ import {
   advancePaScreen,
   clickAllPaChoices,
   clickPaContinue,
+  clickCorrectPaImage,
   clickWrongPaImage,
-  correctImageSelector,
+  goalImagePresent,
   CONTINUE,
+  FULLSCREEN_BTN,
+  INTRO_CANVAS,
   hasPaChoices,
   isDashboardReroute,
   isProgressComplete,
@@ -29,6 +32,12 @@ import { parsePaTrialRecord, type PaTrialRecord } from '../../support/tasks/type
 const TASK = 'pa';
 const LIVE_LOG = `cypress/logs/_pa_${agentLogStem()}_live.jsonl`;
 const NO_GOAL_LOG = 'cypress/logs/_pa_no_goal.jsonl';
+// Dumped when the same screen persists for STALL_LIMIT passes — i.e. the loop is
+// stuck on a screen whose shape no branch advances (e.g. a locale-specific
+// intro/end screen). Captures the DOM so the unhandled screen can be fixed
+// without a multi-minute hang.
+const STUCK_LOG = `cypress/logs/_pa_${agentLogStem()}_screen_stuck.jsonl`;
+const STALL_LIMIT = 25;
 
 /**
  * Language-agnostic, structural PA oracle (mirrors the SRE / SWR oracles).
@@ -54,6 +63,11 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
   let taskComplete = false;
   let nItems = 0;
   let nNoGoal = 0;
+  // No-progress guard: a signature of the current screen and how many
+  // consecutive passes it has stayed identical, so a screen no branch can
+  // advance fails fast (with a DOM dump) instead of spinning to MAX_ITER.
+  let lastScreenSig = '';
+  let screenStall = 0;
   // At most one break is logged per inter-trial gap, so nBreaks counts break
   // *events* rather than every poll that lands on the same break screen.
   let breakLoggedSinceItem = false;
@@ -98,7 +112,7 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
       oracle: trialRecordOracleFlag(),
     });
     if (isWrongAgentMode()) clickWrongPaImage(goal);
-    else cy.get(correctImageSelector(goal), { log: false }).first().click({ force: true });
+    else clickCorrectPaImage(goal);
   }
 
   /**
@@ -134,12 +148,66 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
         const goal = readGoalFromWindow(win);
         const choices = hasPaChoices(doc);
         const continueVisible = $b.find(CONTINUE).filter(':visible').length > 0;
+
+        // No-progress guard: if the screen's shape is unchanged for STALL_LIMIT
+        // passes the loop is wedged on a screen no branch advances. Dump it and
+        // fail fast so the unhandled (often locale-specific) screen is visible.
+        const sig = [
+          text.trim().slice(0, 120),
+          choices ? 'C' : '',
+          continueVisible ? 'K' : '',
+          $b.find(FULLSCREEN_BTN).filter(':visible').length ? 'F' : '',
+          $b.find(INTRO_CANVAS).filter(':visible').length ? 'I' : '',
+          $b.find(ADVANCE_BTN).filter(':visible').length ? 'A' : '',
+          goal ?? '',
+          nItems,
+        ].join('#');
+        if (sig === lastScreenSig) screenStall += 1;
+        else {
+          screenStall = 0;
+          lastScreenSig = sig;
+        }
+        if (screenStall >= STALL_LIMIT) {
+          cy.task(
+            'writeJsonl',
+            {
+              path: STUCK_LOG,
+              records: [
+                {
+                  step,
+                  nItems,
+                  sig,
+                  goal,
+                  choices,
+                  continueVisible,
+                  buttons: [...$b.find('button, .continue, .jspsych-btn')]
+                    .filter((el) => (el as HTMLElement).offsetParent !== null)
+                    .map((el) => ({
+                      cls: el.className,
+                      text: (el.textContent ?? '').trim().slice(0, 60),
+                    }))
+                    .slice(0, 12),
+                  bodyText: text.trim().slice(0, 600),
+                  bodyHtml: doc.body?.innerHTML?.slice(0, 4000) ?? null,
+                },
+              ],
+            },
+            { log: false },
+          );
+          cy.wrap(null).then(() => {
+            expect(
+              false,
+              `PA screen never advanced for ${STALL_LIMIT} passes — unhandled screen (see ${STUCK_LOG})`,
+            ).to.equal(true);
+          });
+          return;
+        }
         // Any visible advance affordance (Continue or jsPsych button) marks a
         // non-trial pause; used only to tally break screens for the summary.
         const advanceVisible = $b.find(ADVANCE_BTN).filter(':visible').length > 0;
 
         // Real AFC trial: answer images + answer key, no Continue button.
-        if (choices && goal && !continueVisible && doc.querySelector(correctImageSelector(goal))) {
+        if (choices && goal && !continueVisible && goalImagePresent(doc, goal)) {
           answerTrial(goal);
           cy.wait(PA_STEP_MS, { log: false });
           playPa(iterLeft - 1);
@@ -163,7 +231,7 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
           cy.wait(PA_STEP_MS, { log: false });
           cy.window({ log: false }).then((win2) => {
             const retryGoal = readGoalFromWindow(win2);
-            if (retryGoal && win2.document.querySelector(correctImageSelector(retryGoal))) {
+            if (retryGoal && goalImagePresent(win2.document, retryGoal)) {
               answerTrial(retryGoal);
               cy.wait(PA_STEP_MS, { log: false });
               playPa(iterLeft - 1);

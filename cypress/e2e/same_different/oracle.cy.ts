@@ -9,6 +9,9 @@ import {
   isMultiSelectReady,
   isSingleSelectReady,
   isSomethingSameScreen,
+  isSomethingSameItem,
+  readReferenceAlt,
+  solveSomethingSame,
   commitMatchPair,
   matchLayoutKey,
   nextMatchPair,
@@ -271,6 +274,39 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
     });
   }
 
+  function handleSomethingSameTest(i: number, win: TaskWindow): void {
+    const choices = readSingleChoices(win);
+    const reference = readReferenceAlt(win);
+    const sig = screenSig(win);
+    const solved = solveSomethingSame(reference, choices);
+    const baseIndex = solved >= 0 ? solved : 0;
+    const actIndex = isWrongAgentMode() ? pickWrongIndex(baseIndex, choices.length) : baseIndex;
+    nSingle += 1;
+    currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+      logRecord({
+        timestamp: new Date().toISOString(),
+        task: TASK,
+        step: i,
+        itemType: 'single',
+        promptText: readPromptText(win) || null,
+        choices,
+        chosenIndex: actIndex,
+        chosenValue: choices[actIndex] ?? null,
+        // "Something same" test items expose no DOM answer key; the choice is
+        // resolved structurally (max dimension overlap with the reference card)
+        // and reaching completion is the regression signal, as with match rounds.
+        correct: null,
+        oracle: trialRecordOracleFlag(),
+        audioTranscript: audio.transcript,
+        audioSource: audio.source,
+      });
+      cy.get('body', { log: false }).then(($b) => {
+        if ($b.find(SINGLE_CHOICE).length > actIndex) cy.chooseSdsSingle(actIndex);
+      });
+      waitChangedThenStep(i, sig);
+    });
+  }
+
   function step(i: number): void {
     if (i >= MAX_STEPS) {
       cy.wrap(null).then(() => {
@@ -355,6 +391,13 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       }
       if (isMultiSelectReady(win)) {
         handleMatch(i, win);
+        return;
+      }
+      // Legacy "something same" test item (reference card + choices, no `.correct`
+      // marker): resolve the matching card structurally. Checked before the wide
+      // something-same demo and instruction branches it would otherwise fall past.
+      if (isSomethingSameItem(win)) {
+        handleSomethingSameTest(i, win);
         return;
       }
       if (isSomethingSameScreen(win)) {
