@@ -48,6 +48,7 @@
     "summarize": "tsx scripts/summarize_runs.ts",
     "persona:sync": "node scripts/sync_persona.mjs",
     "dashboard": "node dashboard/server.mjs",
+    "sweep": "node scripts/daily-oracle-sweep.mjs",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit"
   },
