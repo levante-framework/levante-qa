@@ -143,6 +143,29 @@ export default defineConfig({
         },
 
         /**
+         * Polls for a screenshot file to appear on disk, up to `timeoutMs`, and
+         * reports whether it exists. Under WSL2 software rendering
+         * `cy.screenshot()` intermittently fails to flush the PNG in time, so
+         * the VLM capture command uses this to decide whether to re-take the
+         * shot before reading it (rather than letting `cy.readFile` time out and
+         * abort a long run). Never throws.
+         */
+        async screenshotReady({
+          path,
+          timeoutMs = 15000,
+        }: {
+          path: string;
+          timeoutMs?: number;
+        }): Promise<boolean> {
+          const deadline = Date.now() + timeoutMs;
+          while (Date.now() < deadline) {
+            if (path && existsSync(path)) return true;
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+          return Boolean(path) && existsSync(path);
+        },
+
+        /**
          * Appends newline-delimited JSON records to a log file, creating the
          * parent directory if needed. Used for trial logging.
          */

@@ -116,16 +116,7 @@ describe(`Matrix Reasoning — VLM agent (${provider})`, () => {
     answeredItems.add(key);
 
     const name = `vlm_matrix_step_${String(i).padStart(4, '0')}`;
-    let shotPath = '';
-    cy.screenshot(name, {
-      capture: 'viewport',
-      overwrite: true,
-      onAfterScreenshot(_doc, props) {
-        shotPath = props.path;
-      },
-    });
-
-    cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+    cy.captureViewportBase64(name).then((pngBase64: string) => {
       currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
         matrixReasoningVlmAgent.decide(pngBase64, audio.transcript, choices.length).then((decision) => {
           const vlmIndex = decision.index;

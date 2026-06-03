@@ -88,16 +88,7 @@ describe(`Vocab — VLM agent (${provider})`, () => {
       const hasKey = keyedIndex >= 0;
 
       const screenshotName = `vlm_vocab_step_${String(i).padStart(4, '0')}`;
-      let shotPath = '';
-      cy.screenshot(screenshotName, {
-        capture: 'viewport',
-        overwrite: true,
-        onAfterScreenshot(_doc, props) {
-          shotPath = props.path;
-        },
-      });
-
-      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+      cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
         vocabVlmAgent.decide(pngBase64, audio.transcript).then((decision) => {
           const vlmIndex = decision.index;
           // Ground truth is the task's own answer key when present (falling back

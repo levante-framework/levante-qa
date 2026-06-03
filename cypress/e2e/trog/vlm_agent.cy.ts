@@ -109,16 +109,7 @@ describe(`TROG — VLM agent (${provider})`, () => {
       answeredItems.add(key);
 
       const name = `vlm_trog_step_${String(i).padStart(4, '0')}`;
-      let shotPath = '';
-      cy.screenshot(name, {
-        capture: 'viewport',
-        overwrite: true,
-        onAfterScreenshot(_doc, props) {
-          shotPath = props.path;
-        },
-      });
-
-      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+      cy.captureViewportBase64(name).then((pngBase64: string) => {
         trogVlmAgent.decide(pngBase64, sentence).then((decision) => {
           const vlmIndex = decision.index;
           const inRange = vlmIndex !== null && vlmIndex >= 0 && vlmIndex < choices.length;

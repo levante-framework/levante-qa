@@ -92,16 +92,7 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
     const storyContext = storyBeats.join(' ').trim() || null;
 
     const screenshotName = `vlm_stories_step_${String(i).padStart(4, '0')}`;
-    let shotPath = '';
-    cy.screenshot(screenshotName, {
-      capture: 'viewport',
-      overwrite: true,
-      onAfterScreenshot(_doc, props) {
-        shotPath = props.path;
-      },
-    });
-
-    cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+    cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
       storiesVlmAgent.decide(pngBase64, storyContext, promptText || null, choices.length).then(
         (decision) => {
           const vlmIndex = decision.index;

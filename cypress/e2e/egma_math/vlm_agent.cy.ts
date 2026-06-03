@@ -138,16 +138,7 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
       const recordType: EgmaItemType = itemType === 'instructions' ? 'unknown' : itemType;
 
       const screenshotName = `vlm_egma_step_${String(i).padStart(4, '0')}`;
-      let shotPath = '';
-      cy.screenshot(screenshotName, {
-        capture: 'viewport',
-        overwrite: true,
-        onAfterScreenshot(_doc, props) {
-          shotPath = props.path;
-        },
-      });
-
-      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+      cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
         egmaVlmAgent.decide(pngBase64, audio.transcript).then((decision) => {
           // Fractions render as MathML; match the VLM's rational answer against
           // the choices' <mfrac> values rather than their ambiguous textContent.
@@ -248,20 +239,11 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
       }
 
       const screenshotName = `vlm_egma_step_${String(i).padStart(4, '0')}`;
-      let shotPath = '';
-      cy.screenshot(screenshotName, {
-        capture: 'viewport',
-        overwrite: true,
-        onAfterScreenshot(_doc, props) {
-          shotPath = props.path;
-        },
-      });
-
       const instruction =
         `This is a number-line item. The line runs from ${plan.min} on the left to ` +
         `${plan.max} on the right. Reply with ONLY the number the marker should be placed at.`;
 
-      cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+      cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
         egmaVlmAgent.decide(pngBase64, null, instruction).then((decision) => {
           // Place the VLM's value (clamped to the line); if unparseable, place the
           // true target so the run advances, but score it as max error.

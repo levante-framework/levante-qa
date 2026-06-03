@@ -256,10 +256,55 @@ Cypress.Commands.add('continueMemory', () => {
   });
 });
 
+/**
+ * Capture the current viewport and return it as a base64 PNG for a VLM call.
+ *
+ * Under WSL2 software rendering `cy.screenshot()` occasionally fails to flush
+ * the file in time, so a bare `cy.readFile` (default 10s) can time out and
+ * abort a long run mid-task (observed at ~step 431 of a 4-minute EGMA run).
+ * This waits for the file via the `screenshotReady` node task, re-takes the
+ * screenshot once if it never landed, then reads it with a generous timeout.
+ */
+const CAPTURE_READ_TIMEOUT_MS = 30000;
+const CAPTURE_READY_TIMEOUT_MS = 15000;
+
+Cypress.Commands.add('captureViewportBase64', (name: string) => {
+  let shotPath = '';
+  cy.screenshot(name, {
+    capture: 'viewport',
+    overwrite: true,
+    onAfterScreenshot(_doc, props) {
+      shotPath = props.path;
+    },
+  });
+  return cy
+    .then(() => cy.task('screenshotReady', { path: shotPath, timeoutMs: CAPTURE_READY_TIMEOUT_MS }))
+    .then((ready) => {
+      if (ready) {
+        return cy.readFile(shotPath, 'base64', { timeout: CAPTURE_READ_TIMEOUT_MS });
+      }
+      // First capture never reached disk: re-take it once, then read.
+      let retryPath = '';
+      cy.screenshot(name, {
+        capture: 'viewport',
+        overwrite: true,
+        onAfterScreenshot(_doc, props) {
+          retryPath = props.path;
+        },
+      });
+      return cy.then(() => cy.readFile(retryPath, 'base64', { timeout: CAPTURE_READ_TIMEOUT_MS }));
+    });
+});
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
     interface Chainable {
+      /**
+       * Screenshot the viewport and return it as base64 PNG, tolerant of slow /
+       * dropped captures under software rendering (one retry + long read).
+       */
+      captureViewportBase64(name: string): Chainable<string>;
       /**
        * Click the response/continue button corresponding to an agent Action.
        */

@@ -122,18 +122,7 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
 
       currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
         const screenshotName = `vlm_step_${String(i).padStart(4, '0')}`;
-        // Capture the path Cypress actually writes to (its screenshot folder
-        // naming is version/spec dependent), rather than reconstructing it.
-        let shotPath = '';
-        cy.screenshot(screenshotName, {
-          capture: 'viewport',
-          overwrite: true,
-          onAfterScreenshot(_doc, props) {
-            shotPath = props.path;
-          },
-        });
-
-        cy.then(() => cy.readFile(shotPath, 'base64')).then((pngBase64: string) => {
+        cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
           vlmAgent.decide(pngBase64, audio.transcript).then((decision) => {
             const modelAction = decision.action;
 

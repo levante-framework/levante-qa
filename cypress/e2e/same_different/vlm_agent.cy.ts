@@ -144,14 +144,6 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
     answeredSingles.add(key);
 
     const name = `vlm_sds_step_${String(i).padStart(4, '0')}`;
-    let shotPath = '';
-    cy.screenshot(name, {
-      capture: 'viewport',
-      overwrite: true,
-      onAfterScreenshot(_doc, props) {
-        shotPath = props.path;
-      },
-    });
 
     // Resolve the VLM decision and audio transcript as awaited promises (the
     // provider call can take seconds), stashing the results in closures. We must
@@ -162,7 +154,7 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
     // avoiding the stack overflow from un-awaited callbacks.
     let decision!: SdsVlmDecision;
     let audio!: CurrentAudio;
-    cy.then(() => cy.readFile(shotPath, 'base64'))
+    cy.captureViewportBase64(name)
       .then((pngBase64: string) =>
         sdsVlmAgent.decide(pngBase64, promptText || null, choices.length),
       )
