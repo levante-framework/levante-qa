@@ -13,6 +13,7 @@
  */
 import { spawn } from 'node:child_process';
 import { execPath } from 'node:process';
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CATALOG } from '../dashboard/catalog.mjs';
@@ -23,13 +24,18 @@ const REPO_ROOT = resolve(__dirname, '..');
 const SUPPORT_DIR = process.env.LEVANTE_SUPPORT_DIR
   ? resolve(process.env.LEVANTE_SUPPORT_DIR)
   : resolve(REPO_ROOT, '..', 'levante-support');
-const LISTER = join(SUPPORT_DIR, 'scripts', 'e2e-init', 'list-qa-assignments.mjs');
+// Prefer the vendored lister (scripts/e2e-init) so this works without a
+// levante-support checkout; fall back to a sibling checkout if absent.
+const LOCAL_E2E_DIR = join(REPO_ROOT, 'scripts', 'e2e-init');
+const E2E_DIR = existsSync(LOCAL_E2E_DIR) ? LOCAL_E2E_DIR : join(SUPPORT_DIR, 'scripts', 'e2e-init');
+const E2E_CWD = existsSync(SUPPORT_DIR) ? SUPPORT_DIR : REPO_ROOT;
+const LISTER = join(E2E_DIR, 'list-qa-assignments.mjs');
 
 const findTaskByTaskId = (taskId) => CATALOG.find((t) => t.taskId === taskId) ?? null;
 
 function listQaAssignments() {
   return new Promise((res, rej) => {
-    const child = spawn(execPath, [LISTER], { cwd: SUPPORT_DIR, env: { ...process.env } });
+    const child = spawn(execPath, [LISTER], { cwd: E2E_CWD, env: { ...process.env } });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (c) => (stdout += c.toString()));

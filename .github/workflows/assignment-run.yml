@@ -64,12 +64,10 @@ jobs:
     timeout-minutes: 120
     env:
       # Firebase Admin (hs-levante-admin-dev) for provisioning participants.
-      LEVANTE_ADMIN_FIREBASE_CREDENTIALS: ${{ github.workspace }}/levante-support/.credentials/firebase.json
+      LEVANTE_ADMIN_FIREBASE_CREDENTIALS: ${{ github.workspace }}/.credentials/firebase.json
       # GCS mirror target + auth (levante-assets-writer SA).
       GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-sa.json
       QA_GCS_PROJECT: hs-levante-admin-dev
-      # Point the dashboard at the support checkout.
-      LEVANTE_SUPPORT_DIR: ${{ github.workspace }}/levante-support
       # VLM agent keys (only needed for agent=vlm|child).
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -77,14 +75,6 @@ jobs:
     steps:
       - name: Checkout levante-qa
         uses: actions/checkout@v4
-
-      - name: Checkout levante-support
-        uses: actions/checkout@v4
-        with:
-          repository: levante-framework/levante-support
-          path: levante-support
-          # Needs a PAT with read access if levante-support is private.
-          token: ${{ secrets.LEVANTE_SUPPORT_TOKEN || github.token }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -98,10 +88,6 @@ jobs:
       - name: Install levante-qa dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install levante-support dependencies
-        working-directory: levante-support
-        run: npm ci
-
       - name: Ensure Cypress binary
         run: pnpm exec cypress install
 
@@ -112,10 +98,10 @@ jobs:
         run: |
           if [ -z "$FIREBASE_ADMIN_SA_JSON" ]; then echo "::error::FIREBASE_ADMIN_SA_JSON secret is not set"; exit 1; fi
           if [ -z "$GCP_SERVICE_ACCOUNT_JSON" ]; then echo "::error::GCP_SERVICE_ACCOUNT_JSON secret is not set"; exit 1; fi
-          mkdir -p levante-support/.credentials
-          printf '%s' "$FIREBASE_ADMIN_SA_JSON" > levante-support/.credentials/firebase.json
+          mkdir -p .credentials
+          printf '%s' "$FIREBASE_ADMIN_SA_JSON" > .credentials/firebase.json
           printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > gcp-sa.json
-          node -e "require('./levante-support/.credentials/firebase.json'); require('./gcp-sa.json'); console.log('service-account JSON parsed OK')"
+          node -e "require('./.credentials/firebase.json'); require('./gcp-sa.json'); console.log('service-account JSON parsed OK')"
 
       - name: Run assignment
         run: |

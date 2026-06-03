@@ -20,7 +20,7 @@
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { execPath } from 'node:process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, extname } from 'node:path';
@@ -55,8 +55,19 @@ const RUNS_INDEX = join(REPO_ROOT, 'results', 'runs.json');
 const SUPPORT_DIR = process.env.LEVANTE_SUPPORT_DIR
   ? resolve(process.env.LEVANTE_SUPPORT_DIR)
   : resolve(REPO_ROOT, '..', 'levante-support');
-const PROVISIONER = join(SUPPORT_DIR, 'scripts', 'e2e-init', 'provision-participant.mjs');
-const ASSIGNMENT_LISTER = join(SUPPORT_DIR, 'scripts', 'e2e-init', 'list-qa-assignments.mjs');
+// The provisioner + assignment lister are vendored into this repo (scripts/e2e-init)
+// so CI does not need to check out the private levante-support repo. We prefer the
+// vendored copies and only fall back to a sibling levante-support checkout if the
+// vendored scripts are missing.
+const LOCAL_E2E_DIR = join(REPO_ROOT, 'scripts', 'e2e-init');
+const HAS_LOCAL_E2E = existsSync(LOCAL_E2E_DIR);
+const E2E_DIR = HAS_LOCAL_E2E ? LOCAL_E2E_DIR : join(SUPPORT_DIR, 'scripts', 'e2e-init');
+// cwd for the spawned scripts decides which .env dotenv loads. Locally, levante-support/.env
+// holds the Firebase creds, so use it when present; in CI the creds come from process.env
+// and SUPPORT_DIR does not exist, so fall back to REPO_ROOT (which always exists).
+const E2E_CWD = existsSync(SUPPORT_DIR) ? SUPPORT_DIR : REPO_ROOT;
+const PROVISIONER = join(E2E_DIR, 'provision-participant.mjs');
+const ASSIGNMENT_LISTER = join(E2E_DIR, 'list-qa-assignments.mjs');
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://hs-levante-admin-dev.web.app';
 const PORT = Number(process.env.QA_DASHBOARD_PORT || 4180);
 const MAX_LOG_LINES = 2000;
@@ -549,7 +560,7 @@ function provisionThenRun(run) {
   ];
   appendLog(run, `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m)...\n`);
 
-  const child = spawn(execPath, args, { cwd: SUPPORT_DIR, env: { ...process.env }, detached: true });
+  const child = spawn(execPath, args, { cwd: E2E_CWD, env: { ...process.env }, detached: true });
   run.proc = child;
   let stdout = '';
   child.stdout.on('data', (c) => {
@@ -614,7 +625,7 @@ function startRun(meta) {
  */
 function listQaAssignments() {
   return new Promise((resolve, reject) => {
-    const child = spawn(execPath, [ASSIGNMENT_LISTER], { cwd: SUPPORT_DIR, env: { ...process.env } });
+    const child = spawn(execPath, [ASSIGNMENT_LISTER], { cwd: E2E_CWD, env: { ...process.env } });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (c) => (stdout += c.toString()));
