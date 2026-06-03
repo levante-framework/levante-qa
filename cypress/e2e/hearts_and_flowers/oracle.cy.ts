@@ -10,6 +10,7 @@ import {
   buildUrl,
   congruency,
   correctAction,
+  hasExitScreen,
   isComplete,
   isFeedback,
   isInstructionScreen,
@@ -44,6 +45,15 @@ describe(
   // Flips true once a non-empty task screen has been seen, so that an empty
   // content root during initial load is not mistaken for task completion.
   let started = false;
+  // Counts consecutive polls where the content root is empty with no explicit
+  // Exit screen. jsPsych empties `.jspsych-content` for a frame between blocks
+  // (e.g. flowers -> mixed), which looks identical to true completion; we only
+  // finalize once the empty state has persisted long enough that a slow-loading
+  // next block can be ruled out, so a mid-task transition is never mistaken for
+  // the end (which would skip the mixed block).
+  let emptyRootStreak = 0;
+  const COMPLETE_CONFIRM_POLLS = 6;
+  const COMPLETE_CONFIRM_WAIT_MS = 300;
 
   function finalize(): void {
     const ts = Date.now();
@@ -97,18 +107,41 @@ describe(
     cy.window().then((w) => {
       const win = w as unknown as TaskWindow;
 
-      // 1. Done? (timeline emptied, or task-finished screen). An empty root seen
-      //    before the task has started just means it is still loading.
+      // 1. Done? Two completion signals, treated differently:
+      //    - An explicit Exit screen is definitive: finalize immediately.
+      //    - An empty/absent content root is ambiguous, because jsPsych also
+      //      empties it for a frame between blocks. Confirm it persists across
+      //      several polls before finalizing; otherwise a slow-loading block
+      //      (e.g. the mixed block after flowers) could be misread as the end.
+      //    An empty root seen before the task has started just means it is
+      //    still loading.
+      if (hasExitScreen(win)) {
+        if (started) {
+          gameComplete = true;
+          finalize();
+          return;
+        }
+        cy.wait(150);
+        step(i + 1);
+        return;
+      }
       if (isComplete(win)) {
         if (!started) {
           cy.wait(150);
           step(i + 1);
           return;
         }
-        gameComplete = true;
-        finalize();
+        emptyRootStreak += 1;
+        if (emptyRootStreak >= COMPLETE_CONFIRM_POLLS) {
+          gameComplete = true;
+          finalize();
+          return;
+        }
+        cy.wait(COMPLETE_CONFIRM_WAIT_MS);
+        step(i + 1);
         return;
       }
+      emptyRootStreak = 0;
       started = true;
 
       // 2. Feedback showing or stimulus not yet rendered: let it settle and

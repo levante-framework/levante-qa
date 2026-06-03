@@ -240,6 +240,18 @@ export function isComplete(win: TaskWindow): boolean {
   const doc = win.document;
   const content = doc.querySelector(JSPSYCH_CONTENT);
   if (!content || content.children.length === 0) return true;
+  return hasExitScreen(win);
+}
+
+/**
+ * True only when the explicit task-finished ("Exit") screen is showing. Unlike
+ * {@link isComplete}, this does NOT treat an empty content root as done: jsPsych
+ * also empties `.jspsych-content` for a frame while swapping between blocks
+ * (e.g. flowers -> mixed), so an empty root alone is an ambiguous signal that
+ * the caller must confirm persists. The Exit screen is unambiguous.
+ */
+export function hasExitScreen(win: TaskWindow): boolean {
+  const doc = win.document;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   const buttons = Array.from(doc.querySelectorAll('button'));
   return buttons.some((b) => /^\s*exit\s*$/i.test(b.textContent ?? ''));
