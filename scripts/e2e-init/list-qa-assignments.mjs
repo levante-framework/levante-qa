@@ -96,19 +96,22 @@ async function main() {
   }
 
   const snap = await db.collection('administrations').where('siteId', '==', districtId).get();
+  const createdMs = (a) => Date.parse(a.dateCreated || a.dateOpened || '') || 0;
   const assignments = snap.docs
     .map((doc) => {
       const data = doc.data() ?? {};
       return {
         id: doc.id,
         name: data.name ?? data.publicName ?? doc.id,
+        dateCreated: isoFromTimestamp(data.dateCreated) ?? isoFromTimestamp(data.createdAt),
         dateOpened: isoFromTimestamp(data.dateOpened),
         dateClosed: isoFromTimestamp(data.dateClosed),
         tasks: mapAssessments(data),
       };
     })
     .filter((a) => a.tasks.length > 0)
-    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    // Newest assignments first; fall back to name for any without a usable date.
+    .sort((a, b) => createdMs(b) - createdMs(a) || String(a.name).localeCompare(String(b.name)));
 
   console.log(`ASSIGNMENTS_RESULT=${JSON.stringify(assignments)}`);
 }

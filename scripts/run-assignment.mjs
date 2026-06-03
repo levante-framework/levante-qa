@@ -18,6 +18,7 @@
  * Options (flags or env):
  *   --assignment-id=<firestore id>     the administration to run
  *   --assignment-name=<name>           resolve the id by name instead
+ *   --task-id=<kebab taskId>           run only this one task of the assignment
  *   --agent=oracle|vlm|child|wrong     (default oracle)
  *   --provider=openai|anthropic|gemini (VLM/child agents; default gemini)
  *   --age-years=N  --age-months=N      participant age (default 8 / 0)
@@ -61,6 +62,9 @@ const POLL_MS = Math.max(2_000, Number(flagVal('poll-ms') || process.env.RUN_POL
 const FAIL_ON_ERROR = hasFlag('fail-on-error') || /^(1|true|yes)$/i.test(process.env.RUN_FAIL_ON_ERROR || '');
 const ASSIGNMENT_ID = flagVal('assignment-id') || process.env.RUN_ASSIGNMENT_ID || null;
 const ASSIGNMENT_NAME = flagVal('assignment-name') || process.env.RUN_ASSIGNMENT_NAME || null;
+// When set, run only this one task of the assignment (Pitwall fans an assignment
+// out into one workflow run per task). Empty/unset runs every runnable task.
+const TASK_ID = flagVal('task-id') || process.env.RUN_TASK_ID || null;
 
 const log = (...a) => console.log(`[run-assignment ${new Date().toISOString()}]`, ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -141,8 +145,9 @@ async function main() {
     ageMonths: AGE_MONTHS,
     batchId: BATCH_ID,
     ...(BATCH_LABEL ? { batchLabel: BATCH_LABEL } : {}),
+    ...(TASK_ID ? { onlyTaskId: TASK_ID } : {}),
   };
-  log(`starting assignment ${assignmentId} · agent=${AGENT}${isVlmBacked ? `/${PROVIDER}` : ''} · batch=${BATCH_ID}`);
+  log(`starting assignment ${assignmentId}${TASK_ID ? ` · task=${TASK_ID}` : ''} · agent=${AGENT}${isVlmBacked ? `/${PROVIDER}` : ''} · batch=${BATCH_ID}`);
 
   const result = await api('POST', '/api/run-assignment', payload);
   const started = result.started || [];

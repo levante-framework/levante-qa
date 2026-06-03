@@ -1,10 +1,11 @@
 name: Assignment run
 
 # The workflow run's display title (shown in the Actions list and surfaced by the
-# Pitwall "Running now" cards). Encodes the assignment, agent, and batch label.
+# Pitwall "Running now" cards). Encodes the assignment, the single task (when
+# fanned out one run per task), and the agent.
 run-name: >-
-  ${{ github.event.inputs.assignment_name || github.event.inputs.assignment_id || 'assignment' }}
-  · ${{ github.event.inputs.agent || 'oracle' }}${{ github.event.inputs.batch_label && format(' · {0}', github.event.inputs.batch_label) || '' }}
+  ${{ github.event.inputs.assignment_name || github.event.inputs.assignment_id || 'assignment' }}${{ github.event.inputs.task_id && format(' · {0}', github.event.inputs.task_id) || '' }}
+  · ${{ github.event.inputs.agent || 'oracle' }}
 
 # Runs every runnable task in a single `qa-tests` assignment as one batch and
 # mirrors the results to gs://levante-tools/levante-qa/ (the bucket the Pitwall
@@ -20,6 +21,10 @@ on:
         type: string
       assignment_name:
         description: 'Assignment name to resolve (e.g. "QA All Tasks"). Used if assignment_id is blank.'
+        required: false
+        type: string
+      task_id:
+        description: 'Run only this one task of the assignment (kebab taskId, e.g. "egma-math"). Blank = every runnable task.'
         required: false
         type: string
       agent:
@@ -59,8 +64,9 @@ on:
         type: boolean
 
 concurrency:
-  # Serialize per batch so a retrigger of the same batch does not double-run.
-  group: assignment-run-${{ github.event.inputs.batch_id || github.run_id }}
+  # Dedupe per (batch, task) so a retrigger of the same task does not double-run,
+  # while still letting all tasks of one batch run in parallel.
+  group: assignment-run-${{ github.event.inputs.batch_id || github.run_id }}-${{ github.event.inputs.task_id || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -117,6 +123,7 @@ jobs:
           xvfb-run -a node scripts/run-assignment.mjs \
             ${{ github.event.inputs.assignment_id && format('--assignment-id={0}', github.event.inputs.assignment_id) || '' }} \
             ${{ github.event.inputs.assignment_name && format('--assignment-name={0}', github.event.inputs.assignment_name) || '' }} \
+            ${{ github.event.inputs.task_id && format('--task-id={0}', github.event.inputs.task_id) || '' }} \
             --agent="${{ github.event.inputs.agent }}" \
             --provider="${{ github.event.inputs.provider }}" \
             --age-years="${{ github.event.inputs.age_years }}" \

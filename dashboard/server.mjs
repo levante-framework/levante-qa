@@ -670,11 +670,16 @@ function startAssignmentRuns(assignment, opts) {
   const persona = agent === 'child';
   const personaAbility = persona && opts.personaAbility === 'irt' ? 'irt' : null;
 
+  // Optionally run just one task of the assignment (Pitwall fans an assignment
+  // out into one workflow run per task so each gets its own runner + card).
+  const onlyTaskId = opts.onlyTaskId ? String(opts.onlyTaskId) : null;
+
   const started = [];
   const skipped = [];
   // De-dupe taskIds (an assignment can list a task more than once).
   const seen = new Set();
   for (const t of assignment.tasks || []) {
+    if (onlyTaskId && t.taskId !== onlyTaskId) continue;
     if (seen.has(t.taskId)) continue;
     seen.add(t.taskId);
     const task = findTaskByTaskId(t.taskId);
