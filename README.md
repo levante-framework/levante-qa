@@ -174,6 +174,17 @@ The provisioner is a self-contained Admin-SDK script, kept swappable for the
 admin-callable path (`createUsers` + `upsertAdministration`) without touching
 the dashboard.
 
+## Daily `-dev` oracle sweep
+
+`npm run sweep` runs every task in every language it supports against the
+dashboard, snapshots the pass/fail matrix to `results/daily/<date>.json`, diffs
+it against the previous day, and posts the current results to Slack (flagging new
+regressions). It reuses the dashboard's HTTP API and autostarts it if needed.
+
+See **[`DAILY_SWEEP.md`](DAILY_SWEEP.md)** for the full operator's guide:
+prerequisites, running it on a fresh machine, config/env, Slack setup, cron, and
+how to tell a real regression from transient `-dev` flakiness.
+
 ## Child-age VLM persona (optional)
 
 VLM runs can optionally ask the model to answer **as a typical child of a target
