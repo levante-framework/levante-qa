@@ -15,6 +15,8 @@
     taskSupport: {},
     /** langCode -> display label, for messages. */
     langLabels: {},
+    /** qa-tests assignments from /api/assignments. */
+    assignments: [],
     /** runId -> { meta, pollTimer } tracked for the Launch tab. */
     tracked: new Map(),
   };
@@ -148,6 +150,7 @@
         const o = el('option');
         o.value = t.id;
         o.dataset.hasVlm = String(t.hasVlm);
+        o.dataset.taskId = t.taskId;
         o.dataset.baseLabel = t.label;
         o.textContent = t.label + (t.hasVlm ? '' : ' (oracle only)');
         taskSel.appendChild(o);
@@ -177,6 +180,115 @@
     } catch (err) {
       setHeader('error', 'backend offline');
     }
+    loadAssignments();
+  }
+
+  // ── Assignment runner (qa-tests) ────────────────────────────────────────────
+  function sharedRunOptions() {
+    return {
+      agent: state.agent,
+      provider: $('#providerSelect').value,
+      ageYears: Number($('#ageYears').value),
+      ageMonths: Number($('#ageMonths').value),
+      personaAbility: state.agent === 'child' && $('#irtToggle').checked ? 'irt' : null,
+    };
+  }
+
+  function renderAssignmentTasks() {
+    const sel = $('#assignmentSelect');
+    const wrap = $('#assignmentTasks');
+    if (!wrap) return;
+    const a = state.assignments.find((x) => x.id === sel.value);
+    if (!a) {
+      wrap.innerHTML = '';
+      return;
+    }
+    const chips = a.tasks
+      .map((t) => {
+        const cls = t.runnable ? 'task-chip' : 'task-chip is-skipped';
+        const title = t.runnable ? '' : ' title="No QA agent for this task — it will be skipped"';
+        const lang = t.language ? ` · ${escapeHtml(t.language)}` : '';
+        return `<span class="${cls}"${title}>${escapeHtml(t.label)}${lang}</span>`;
+      })
+      .join('');
+    const runnable = a.tasks.filter((t) => t.runnable).length;
+    wrap.innerHTML =
+      `<div class="assignment-summary">${runnable} of ${a.tasks.length} task${a.tasks.length === 1 ? '' : 's'} runnable</div>` +
+      `<div class="task-chips">${chips}</div>`;
+  }
+
+  async function loadAssignments() {
+    const sel = $('#assignmentSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option>Loading…</option>';
+    try {
+      const res = await fetch('/api/assignments');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load assignments');
+      state.assignments = data.assignments || [];
+      if (!state.assignments.length) {
+        sel.innerHTML = '<option value="">No assignments on qa-tests yet</option>';
+        $('#assignmentTasks').innerHTML = '';
+        $('#runAssignmentBtn').disabled = true;
+        return;
+      }
+      sel.innerHTML = '';
+      state.assignments.forEach((a) => {
+        const o = el('option');
+        o.value = a.id;
+        const n = a.tasks.length;
+        o.textContent = `${a.name} (${n} task${n === 1 ? '' : 's'})`;
+        sel.appendChild(o);
+      });
+      $('#runAssignmentBtn').disabled = false;
+      renderAssignmentTasks();
+    } catch (err) {
+      sel.innerHTML = `<option value="">${escapeHtml(err.message)}</option>`;
+      $('#assignmentTasks').innerHTML = '';
+      $('#runAssignmentBtn').disabled = true;
+    }
+  }
+
+  $('#assignmentSelect')?.addEventListener('change', renderAssignmentTasks);
+  $('#refreshAssignments')?.addEventListener('click', loadAssignments);
+
+  $('#runAssignmentBtn')?.addEventListener('click', async () => {
+    const sel = $('#assignmentSelect');
+    const assignment = state.assignments.find((a) => a.id === sel.value);
+    if (!assignment) return;
+    const btn = $('#runAssignmentBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/run-assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...sharedRunOptions(), assignmentId: assignment.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to launch assignment');
+      (data.started || []).forEach((r) => {
+        trackRun(r.runId, {
+          ...sharedRunOptions(),
+          taskId: idForTaskId(r.taskId),
+          taskLabel: r.taskLabel,
+          batchLabel: data.batchLabel,
+        });
+      });
+      if (data.skipped && data.skipped.length) {
+        const lines = data.skipped.map((s) => `${s.taskId}: ${s.reason}`).join('\n');
+        alert(`Launched ${data.started.length} run(s).\nSkipped ${data.skipped.length}:\n${lines}`);
+      }
+    } catch (err) {
+      alert(`Assignment launch failed: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /** Map a kebab core taskId (from the server) back to the catalog UI id. */
+  function idForTaskId(taskId) {
+    const opt = [...$('#taskSelect').options].find((o) => o.dataset.taskId === taskId);
+    return opt ? opt.value : taskId;
   }
 
   function setHeader(kind, text) {
@@ -303,6 +415,7 @@
     const m = s.meta || {};
     const personaTag = m.persona && m.agent !== 'child' ? '<span class="tag">persona</span>' : '';
     const irtTag = m.personaAbility === 'irt' ? '<span class="tag">IRT θ</span>' : '';
+    const batchTag = m.batchLabel ? `<span class="tag tag-batch" title="Assignment run">${escapeHtml(m.batchLabel)}</span>` : '';
     const agentLabel = agentDisplay(m.agent, m.provider);
     const acc = s.accuracy == null ? '—' : `${(s.accuracy * 100).toFixed(1)}%`;
     const startedAt = card.dataset.startedAt || s.startedAt;
@@ -317,7 +430,7 @@
     card.innerHTML = `
       <div class="run-card-head">
         <div>
-          <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}${irtTag}</div>
+          <div class="run-card-title">${escapeHtml(m.taskLabel || m.taskId || '')}${personaTag}${irtTag}${batchTag}</div>
           <div class="run-card-sub">${agentLabel}${m.language ? ' · ' + escapeHtml(m.language) : ''} · age ${m.ageYears ?? '?'}y ${m.ageMonths ?? 0}m${s.email ? ' · ' + escapeHtml(s.email) : ''}</div>
           <div class="run-card-time"><i class="fas fa-clock"></i> ${fmtTime(startedAt)}</div>
         </div>
@@ -466,6 +579,7 @@
         summaryRow('Trials', escapeHtml(String(r.nTrials || 0))),
         summaryRow('Duration', escapeHtml(fmtDuration(r.durationMs))),
         summaryRow('Age', escapeHtml(`${r.ageYears ?? '?'}y ${r.ageMonths ?? 0}m`)),
+        r.batchLabel ? summaryRow('Assignment', escapeHtml(r.batchLabel)) : '',
         r.language ? summaryRow('Language', escapeHtml(r.language)) : '',
         r.personaAbility === 'irt'
           ? summaryRow('Persona', 'Child + IRT θ')
@@ -540,9 +654,10 @@
           (r.personaAbility === 'irt' ? ' <span class="tag">IRT θ</span>' : '');
         const dur = r.durationMs != null ? `${Math.round(r.durationMs / 1000)}s` : '—';
         const errs = (r.errors && r.errors.length) ? r.errors.map(escapeHtml).join('<br>') : '—';
+        const batchTag = r.batchLabel ? ` <span class="tag tag-batch">${escapeHtml(r.batchLabel)}</span>` : '';
         tr.innerHTML = `
           <td>${fmtTime(r.startedAt)}</td>
-          <td>${escapeHtml(r.taskLabel || r.task)}</td>
+          <td>${escapeHtml(r.taskLabel || r.task)}${batchTag}</td>
           <td>${agent}</td>
           <td>${escapeHtml(r.language || '—')}</td>
           <td>${r.ageYears ?? '?'}y ${r.ageMonths ?? 0}m</td>

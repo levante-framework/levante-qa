@@ -1,0 +1,147 @@
+name: Assignment run
+
+# Runs every runnable task in a single `qa-tests` assignment as one batch and
+# mirrors the results to gs://levante-tools/levante-qa/ (the bucket the Pitwall
+# "QA Runs" page reads). Triggered manually or from Pitwall via the GitHub API
+# (POST /repos/levante-framework/levante-qa/actions/workflows/assignment-run.yml/dispatches).
+
+on:
+  workflow_dispatch:
+    inputs:
+      assignment_id:
+        description: 'Administration (assignment) Firestore id. Either this or assignment_name is required.'
+        required: false
+        type: string
+      assignment_name:
+        description: 'Assignment name to resolve (e.g. "QA All Tasks"). Used if assignment_id is blank.'
+        required: false
+        type: string
+      agent:
+        description: 'Agent to run'
+        required: false
+        default: oracle
+        type: choice
+        options: [oracle, vlm, child, wrong]
+      provider:
+        description: 'VLM/child provider'
+        required: false
+        default: gemini
+        type: choice
+        options: [gemini, openai, anthropic]
+      age_years:
+        description: 'Participant age (years)'
+        required: false
+        default: '8'
+        type: string
+      age_months:
+        description: 'Participant age (months)'
+        required: false
+        default: '0'
+        type: string
+      batch_id:
+        description: 'Correlation id for this batch (Pitwall passes one; leave blank to auto-generate).'
+        required: false
+        type: string
+      batch_label:
+        description: 'Human label for the batch (defaults to the assignment name).'
+        required: false
+        type: string
+      fail_on_error:
+        description: 'Fail the job if any task errors/times out (QA failures alone never fail the job).'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  # Serialize per batch so a retrigger of the same batch does not double-run.
+  group: assignment-run-${{ github.event.inputs.batch_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  run-assignment:
+    name: ${{ github.event.inputs.assignment_name || github.event.inputs.assignment_id }} (${{ github.event.inputs.agent }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      # Firebase Admin (hs-levante-admin-dev) for provisioning participants.
+      LEVANTE_ADMIN_FIREBASE_CREDENTIALS: ${{ github.workspace }}/levante-support/.credentials/firebase.json
+      # GCS mirror target + auth (levante-assets-writer SA).
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-sa.json
+      QA_GCS_PROJECT: hs-levante-admin-dev
+      # Point the dashboard at the support checkout.
+      LEVANTE_SUPPORT_DIR: ${{ github.workspace }}/levante-support
+      # VLM agent keys (only needed for agent=vlm|child).
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - name: Checkout levante-qa
+        uses: actions/checkout@v4
+
+      - name: Checkout levante-support
+        uses: actions/checkout@v4
+        with:
+          repository: levante-framework/levante-support
+          path: levante-support
+          # Needs a PAT with read access if levante-support is private.
+          token: ${{ secrets.LEVANTE_SUPPORT_TOKEN || github.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install levante-qa dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install levante-support dependencies
+        working-directory: levante-support
+        run: npm ci
+
+      - name: Ensure Cypress binary
+        run: pnpm exec cypress install
+
+      - name: Write service-account credentials
+        env:
+          FIREBASE_ADMIN_SA_JSON: ${{ secrets.FIREBASE_ADMIN_SA_JSON }}
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$FIREBASE_ADMIN_SA_JSON" ]; then echo "::error::FIREBASE_ADMIN_SA_JSON secret is not set"; exit 1; fi
+          if [ -z "$GCP_SERVICE_ACCOUNT_JSON" ]; then echo "::error::GCP_SERVICE_ACCOUNT_JSON secret is not set"; exit 1; fi
+          mkdir -p levante-support/.credentials
+          printf '%s' "$FIREBASE_ADMIN_SA_JSON" > levante-support/.credentials/firebase.json
+          printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > gcp-sa.json
+          node -e "require('./levante-support/.credentials/firebase.json'); require('./gcp-sa.json'); console.log('service-account JSON parsed OK')"
+
+      - name: Run assignment
+        run: |
+          xvfb-run -a node scripts/run-assignment.mjs \
+            ${{ github.event.inputs.assignment_id && format('--assignment-id={0}', github.event.inputs.assignment_id) || '' }} \
+            ${{ github.event.inputs.assignment_name && format('--assignment-name={0}', github.event.inputs.assignment_name) || '' }} \
+            --agent="${{ github.event.inputs.agent }}" \
+            --provider="${{ github.event.inputs.provider }}" \
+            --age-years="${{ github.event.inputs.age_years }}" \
+            --age-months="${{ github.event.inputs.age_months }}" \
+            ${{ github.event.inputs.batch_id && format('--batch-id={0}', github.event.inputs.batch_id) || '' }} \
+            ${{ github.event.inputs.batch_label && format('--batch-label={0}', github.event.inputs.batch_label) || '' }} \
+            ${{ github.event.inputs.fail_on_error == 'true' && '--fail-on-error' || '' }}
+
+      - name: Upload trial logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assignment-logs
+          path: cypress/logs
+          if-no-files-found: ignore
+
+      - name: Upload screenshots on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assignment-screenshots
+          path: cypress/screenshots
+          if-no-files-found: ignore

@@ -728,3 +728,75 @@ code {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Assignment runner (qa-tests) */
+.assignment-panel {
+  margin: 14px 2px 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 16px;
+}
+.assignment-panel > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cyan-2);
+}
+.assignment-panel > summary::-webkit-details-marker {
+  display: none;
+}
+.assignment-panel[open] > summary {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.assignment-body {
+  padding-bottom: 16px;
+}
+.assignment-body .field-hint {
+  max-width: none;
+  margin-bottom: 12px;
+}
+.assignment-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.assignment-row select {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.assignment-summary {
+  margin: 12px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.task-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.task-chip {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(0, 200, 255, 0.12);
+  color: var(--cyan-2);
+  border: 1px solid var(--border);
+}
+.task-chip.is-skipped {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.tag-batch {
+  background: rgba(250, 204, 21, 0.16);
+  color: var(--warn);
+}

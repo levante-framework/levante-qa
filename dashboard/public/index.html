@@ -110,6 +110,30 @@
           (age-calibrated persona).
         </div>
 
+        <details class="assignment-panel" id="assignmentPanel">
+          <summary>
+            <i class="fas fa-list-check"></i> Run an existing
+            <code>qa-tests</code> assignment
+          </summary>
+          <div class="assignment-body">
+            <p class="field-hint">
+              Pick an assignment created on the <code>qa-tests</code> site; the
+              agent runs (using the toggles above for agent/provider/age) over
+              every task it contains, in parallel.
+            </p>
+            <div class="assignment-row">
+              <select id="assignmentSelect" aria-label="qa-tests assignment"></select>
+              <button type="button" class="btn btn-secondary" id="refreshAssignments" title="Reload assignments">
+                <i class="fas fa-rotate"></i>
+              </button>
+              <button type="button" class="btn btn-primary" id="runAssignmentBtn">
+                <i class="fas fa-play"></i> Run assignment
+              </button>
+            </div>
+            <div class="assignment-tasks" id="assignmentTasks"></div>
+          </div>
+        </details>
+
         <h2 class="section-title">Active &amp; recent runs</h2>
         <div class="run-grid" id="runGrid">
           <p class="empty-note" id="runsEmpty">No runs yet this session. Launch one above.</p>

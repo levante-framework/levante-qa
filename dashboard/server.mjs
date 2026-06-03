@@ -19,6 +19,7 @@
  */
 import http from 'node:http';
 import { spawn } from 'node:child_process';
+import { execPath } from 'node:process';
 import { mkdirSync } from 'node:fs';
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -55,6 +56,7 @@ const SUPPORT_DIR = process.env.LEVANTE_SUPPORT_DIR
   ? resolve(process.env.LEVANTE_SUPPORT_DIR)
   : resolve(REPO_ROOT, '..', 'levante-support');
 const PROVISIONER = join(SUPPORT_DIR, 'scripts', 'e2e-init', 'provision-participant.mjs');
+const ASSIGNMENT_LISTER = join(SUPPORT_DIR, 'scripts', 'e2e-init', 'list-qa-assignments.mjs');
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://hs-levante-admin-dev.web.app';
 const PORT = Number(process.env.QA_DASHBOARD_PORT || 4180);
 const MAX_LOG_LINES = 2000;
@@ -431,6 +433,8 @@ async function finalizeRun(run) {
     durationMs: new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime(),
     logDir: run.logDir,
     spec: run.meta.spec,
+    batchId: run.meta.batchId ?? null,
+    batchLabel: run.meta.batchLabel ?? null,
   });
   // Persist Cypress console output + mirror artifacts to GCS.
   const runLogDir = join(LOGS_ROOT, run.runId);
@@ -545,7 +549,7 @@ function provisionThenRun(run) {
   ];
   appendLog(run, `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m)...\n`);
 
-  const child = spawn('node', args, { cwd: SUPPORT_DIR, env: { ...process.env }, detached: true });
+  const child = spawn(execPath, args, { cwd: SUPPORT_DIR, env: { ...process.env }, detached: true });
   run.proc = child;
   let stdout = '';
   child.stdout.on('data', (c) => {
@@ -603,6 +607,103 @@ function startRun(meta) {
   return runId;
 }
 
+/**
+ * Spawn the read-only assignment lister (in levante-support, which has
+ * firebase-admin) and parse its `ASSIGNMENTS_RESULT=` line. Rejects with the
+ * collected stderr on a non-zero exit so the caller can surface a useful error.
+ */
+function listQaAssignments() {
+  return new Promise((resolve, reject) => {
+    const child = spawn(execPath, [ASSIGNMENT_LISTER], { cwd: SUPPORT_DIR, env: { ...process.env } });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (c) => (stdout += c.toString()));
+    child.stderr.on('data', (c) => (stderr += c.toString()));
+    child.on('error', (err) => reject(err));
+    child.on('close', (code) => {
+      const match = stdout.match(/ASSIGNMENTS_RESULT=(\[.*\])\s*$/m);
+      if (code !== 0 || !match) {
+        // Surface just the first line (the rest is a Node stack trace).
+        const firstLine = stderr.split('\n').map((l) => l.trim()).find(Boolean);
+        reject(new Error((firstLine || `lister exited with code ${code}`).replace(/^\[qa-list-assignments\]\s*ERROR:\s*/, '')));
+        return;
+      }
+      try {
+        resolve(JSON.parse(match[1]));
+      } catch (err) {
+        reject(new Error(`could not parse assignment list: ${err?.message || err}`));
+      }
+    });
+  });
+}
+
+/** Catalog entry whose kebab `taskId` matches (e.g. "egma-math"), or null. */
+function findTaskByTaskId(taskId) {
+  return CATALOG.find((t) => t.taskId === taskId) ?? null;
+}
+
+/**
+ * Fan an assignment's tasks out into one run per supported task, all sharing a
+ * `batchId`. Returns `{ batchId, batchLabel, started, skipped }`.
+ */
+function startAssignmentRuns(assignment, opts) {
+  // Honor a caller-supplied batchId (e.g. a Pitwall-triggered CI run that wants
+  // to correlate the resulting runs) but fall back to a fresh one.
+  const batchId = opts.batchId ? String(opts.batchId) : crypto.randomUUID();
+  const batchLabel = opts.batchLabel ? String(opts.batchLabel) : assignment.name || 'assignment';
+  const agent = ['vlm', 'child', 'wrong'].includes(opts.agent) ? opts.agent : 'oracle';
+  const isVlmBacked = agent === 'vlm' || agent === 'child';
+  const provider = isVlmBacked ? String(opts.provider || VLM_PROVIDERS[0]) : null;
+  const ageYears = Number.isFinite(Number(opts.ageYears)) ? Math.max(0, Math.floor(Number(opts.ageYears))) : 8;
+  const ageMonths = Number.isFinite(Number(opts.ageMonths)) ? Math.max(0, Math.floor(Number(opts.ageMonths))) : 0;
+  const persona = agent === 'child';
+  const personaAbility = persona && opts.personaAbility === 'irt' ? 'irt' : null;
+
+  const started = [];
+  const skipped = [];
+  // De-dupe taskIds (an assignment can list a task more than once).
+  const seen = new Set();
+  for (const t of assignment.tasks || []) {
+    if (seen.has(t.taskId)) continue;
+    seen.add(t.taskId);
+    const task = findTaskByTaskId(t.taskId);
+    if (!task) {
+      skipped.push({ taskId: t.taskId, reason: 'no QA agent for this task' });
+      continue;
+    }
+    if (agent === 'wrong' && !task.wrongSpec) {
+      skipped.push({ taskId: t.taskId, reason: `${task.label} has no Wrong agent spec` });
+      continue;
+    }
+    if (isVlmBacked && !task.vlmSpec) {
+      skipped.push({ taskId: t.taskId, reason: `${task.label} is oracle-only (no VLM agent)` });
+      continue;
+    }
+    // Honor the assignment's per-task language when we recognize it; else default.
+    const language = isSupportedLanguage(t.language) ? t.language : DEFAULT_LANGUAGE;
+    if (!isTaskSupportedInLanguage(task, language, taskOptionsByLang)) {
+      skipped.push({ taskId: t.taskId, reason: `${task.label} not supported in ${language}` });
+      continue;
+    }
+    const runId = startRun({
+      task: task.id,
+      taskLabel: task.label,
+      agent,
+      provider,
+      language,
+      persona,
+      personaAbility,
+      ageYears,
+      ageMonths,
+      spec: specForAgent(task, agent),
+      batchId,
+      batchLabel,
+    });
+    started.push({ runId, taskId: task.taskId, taskLabel: task.label });
+  }
+  return { batchId, batchLabel, started, skipped };
+}
+
 function statusPayload(run) {
   return {
     runId: run.runId,
@@ -652,6 +753,54 @@ const server = http.createServer(async (req, res) => {
       languages: LANGUAGES,
       // { langCode: [supported catalog id, ...] } so the UI can gray out the rest.
       taskSupport: buildTaskSupport(taskOptionsByLang),
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/assignments') {
+    try {
+      const assignments = await listQaAssignments();
+      // Annotate each task with whether the dashboard has a QA agent for it.
+      const annotated = assignments.map((a) => ({
+        ...a,
+        tasks: (a.tasks || []).map((t) => {
+          const task = findTaskByTaskId(t.taskId);
+          return {
+            ...t,
+            label: task?.label ?? t.taskId,
+            runnable: !!task,
+            hasVlm: !!task?.vlmSpec,
+          };
+        }),
+      }));
+      sendJson(res, 200, { assignments: annotated });
+    } catch (err) {
+      sendJson(res, 502, { error: `Could not list assignments: ${err?.message || err}` });
+    }
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/run-assignment') {
+    let body = '';
+    req.on('data', (c) => (body += c.toString()));
+    req.on('end', async () => {
+      try {
+        const p = JSON.parse(body || '{}');
+        if (!p.assignmentId) return sendJson(res, 400, { error: 'Missing assignmentId' });
+        const assignments = await listQaAssignments();
+        const assignment = assignments.find((a) => a.id === p.assignmentId);
+        if (!assignment) return sendJson(res, 404, { error: `Unknown assignment: ${p.assignmentId}` });
+        const result = startAssignmentRuns(assignment, p);
+        if (!result.started.length) {
+          return sendJson(res, 400, {
+            error: 'No runnable tasks in this assignment for the chosen agent.',
+            ...result,
+          });
+        }
+        sendJson(res, 200, result);
+      } catch (err) {
+        sendJson(res, 500, { error: err?.message || 'Failed to start assignment runs' });
+      }
     });
     return;
   }

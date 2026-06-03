@@ -166,6 +166,23 @@ export async function downloadRemoteArtifact(runId, name) {
   }
 }
 
+/** Writes an arbitrary JSON object to gs://.../levante-qa/<objectName>. */
+export async function uploadJson(objectName, data) {
+  const bucket = await getBucket();
+  if (!bucket) return false;
+  const safe = String(objectName).replace(/^\/+/, '');
+  try {
+    await bucket.file(`${PREFIX}/${safe}`).save(JSON.stringify(data, null, 2) + '\n', {
+      contentType: 'application/json',
+      resumable: false,
+    });
+    return true;
+  } catch (err) {
+    warnOnce(`could not write ${safe}: ${err?.message || err}`);
+    return false;
+  }
+}
+
 /** Union of two run lists keyed by runId, newest-finished entry wins. */
 export function mergeIndexes(a = [], b = []) {
   const byId = new Map();
