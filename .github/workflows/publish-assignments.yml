@@ -1,0 +1,54 @@
+name: Publish assignments
+
+# Refreshes gs://levante-tools/levante-qa/assignments.json from the live qa-tests
+# Firestore site so the Pitwall "QA Runs" assignment picker picks up newly created
+# or edited assignments. Triggered manually or from Pitwall via the GitHub API
+# (POST /repos/levante-framework/levante-qa/actions/workflows/publish-assignments.yml/dispatches).
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: publish-assignments
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish qa-tests assignments
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      LEVANTE_ADMIN_FIREBASE_CREDENTIALS: ${{ github.workspace }}/.credentials/firebase.json
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-sa.json
+      QA_GCS_PROJECT: hs-levante-admin-dev
+    steps:
+      - name: Checkout levante-qa
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          # Pin below 20.19 to match the other QA workflows (see assignment-run.yml).
+          node-version: 20.18.3
+          cache: pnpm
+
+      - name: Install levante-qa dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Write service-account credentials
+        env:
+          FIREBASE_ADMIN_SA_JSON: ${{ secrets.FIREBASE_ADMIN_SA_JSON }}
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$FIREBASE_ADMIN_SA_JSON" ]; then echo "::error::FIREBASE_ADMIN_SA_JSON secret is not set"; exit 1; fi
+          if [ -z "$GCP_SERVICE_ACCOUNT_JSON" ]; then echo "::error::GCP_SERVICE_ACCOUNT_JSON secret is not set"; exit 1; fi
+          mkdir -p .credentials
+          printf '%s' "$FIREBASE_ADMIN_SA_JSON" > .credentials/firebase.json
+          printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > gcp-sa.json
+          node -e "require('./.credentials/firebase.json'); require('./gcp-sa.json'); console.log('service-account JSON parsed OK')"
+
+      - name: Publish assignments to GCS
+        run: node scripts/publish-assignments.mjs

@@ -1,5 +1,11 @@
 name: Assignment run
 
+# The workflow run's display title (shown in the Actions list and surfaced by the
+# Pitwall "Running now" cards). Encodes the assignment, agent, and batch label.
+run-name: >-
+  ${{ github.event.inputs.assignment_name || github.event.inputs.assignment_id || 'assignment' }}
+  · ${{ github.event.inputs.agent || 'oracle' }}${{ github.event.inputs.batch_label && format(' · {0}', github.event.inputs.batch_label) || '' }}
+
 # Runs every runnable task in a single `qa-tests` assignment as one batch and
 # mirrors the results to gs://levante-tools/levante-qa/ (the bucket the Pitwall
 # "QA Runs" page reads). Triggered manually or from Pitwall via the GitHub API
