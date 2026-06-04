@@ -121,15 +121,15 @@ jobs:
       - name: Run assignment
         run: |
           xvfb-run -a node scripts/run-assignment.mjs \
-            ${{ github.event.inputs.assignment_id && format('--assignment-id={0}', github.event.inputs.assignment_id) || '' }} \
-            ${{ github.event.inputs.assignment_name && format('--assignment-name={0}', github.event.inputs.assignment_name) || '' }} \
-            ${{ github.event.inputs.task_id && format('--task-id={0}', github.event.inputs.task_id) || '' }} \
+            ${{ github.event.inputs.assignment_id && format('--assignment-id="{0}"', github.event.inputs.assignment_id) || '' }} \
+            ${{ github.event.inputs.assignment_name && format('--assignment-name="{0}"', github.event.inputs.assignment_name) || '' }} \
+            ${{ github.event.inputs.task_id && format('--task-id="{0}"', github.event.inputs.task_id) || '' }} \
             --agent="${{ github.event.inputs.agent }}" \
             --provider="${{ github.event.inputs.provider }}" \
             --age-years="${{ github.event.inputs.age_years }}" \
             --age-months="${{ github.event.inputs.age_months }}" \
-            ${{ github.event.inputs.batch_id && format('--batch-id={0}', github.event.inputs.batch_id) || '' }} \
-            ${{ github.event.inputs.batch_label && format('--batch-label={0}', github.event.inputs.batch_label) || '' }} \
+            ${{ github.event.inputs.batch_id && format('--batch-id="{0}"', github.event.inputs.batch_id) || '' }} \
+            ${{ github.event.inputs.batch_label && format('--batch-label="{0}"', github.event.inputs.batch_label) || '' }} \
             ${{ github.event.inputs.fail_on_error == 'true' && '--fail-on-error' || '' }}
 
       - name: Upload trial logs
