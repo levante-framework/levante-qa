@@ -133,7 +133,7 @@ How it works (per launch):
    Cypress lock files do not trip `EEXIST` when launching many tasks at once.
 3. **Monitor** — the UI polls per-run status; a run is flagged **failed** on a
    non-zero Cypress exit code or any non-empty diagnostic log
-   (`*_no_key` / `*_key_mismatch` / `*_unsolved` / `*_audio_content` / `*_match_stuck`).
+   (`*_no_key` / `*_key_mismatch` / `*_unsolved` / `*_audio_content` / `*_audio_overlap` / `*_match_stuck`).
 4. **Accumulate** — on completion the backend appends a record (task, agent,
    provider, age, status, accuracy, trials, errors, timings) to
    `results/runs.json`, shown on the **Results** tab.
@@ -733,6 +733,7 @@ cypress/logs/_vocab_vlm_live.jsonl       append-as-you-go VLM trial log (Vocab)
 cypress/logs/_vocab_key_mismatch.jsonl   vocab items where our answer ≠ the answer key
 cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not match (no key)
 cypress/logs/_vocab_audio_content.jsonl  vocab: narration word ∉ choices (wrong corpus audio_file)
+cypress/logs/_<task>_audio_overlap.jsonl two narration clips played at once (speech-on-speech; any audio task)
 cypress/logs/_stories_oracle_live.jsonl  append-as-you-go oracle trial log (Stories)
 cypress/logs/_stories_vlm_live.jsonl     append-as-you-go VLM trial log (Stories)
 cypress/logs/_stories_no_key.jsonl       Stories question items that shipped no answer key

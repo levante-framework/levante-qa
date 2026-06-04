@@ -27,8 +27,26 @@ export interface AudioWindow extends Window {
   __audioPlayLog?: string[];
   /** The most recently started clip's URL. */
   __currentAudioUrl?: string | null;
+  /** Speech-on-speech overlaps detected during the run. */
+  __audioOverlaps?: AudioOverlap[];
   /** The task's asset manifest (key -> URL), exposed by core-tasks. */
   __mediaAssets?: { audio?: Record<string, string> };
+}
+
+/**
+ * A moment where one narration clip started while another was still audible —
+ * two voices talking over each other, which is confusing to a child. Non-speech
+ * cues (clicks, jingles) never participate.
+ */
+export interface AudioOverlap {
+  /** The clip that started while another was already playing. */
+  url: string;
+  /** A clip that was still playing when `url` started. */
+  against: string;
+  /** Wall-clock time (ms) the overlap was confirmed. */
+  atMs: number;
+  /** Grace window (ms) the overlap had to persist past to be reported. */
+  sustainedMs: number;
 }
 
 type XhrWithUrl = XMLHttpRequest & { __mp3Url?: string };
@@ -72,6 +90,7 @@ export function installAudioCapture(win: Window): void {
 
   g.__audioPlayLog = [];
   g.__currentAudioUrl = null;
+  g.__audioOverlaps = [];
 
   const abToUrl = new WeakMap<ArrayBuffer, string>();
   const bufToUrl = new WeakMap<AudioBuffer, string>();
@@ -203,7 +222,14 @@ export function installAudioCapture(win: Window): void {
     };
   }
 
-  // start() is the moment of playback: record the URL of the buffer being played.
+  // start() is the moment of playback: record the URL of the buffer being played,
+  // and watch for two *speech* clips sounding at once. A short grace window
+  // avoids false positives from the common "start the new clip, then
+  // synchronously stop the old one" reorder used to swap narration: by the time
+  // the check runs, a genuinely-swapped clip has already been removed, while a
+  // real overlap (the old clip left playing) is still active.
+  const activeSpeech = new Map<AudioBufferSourceNode, string>();
+  const OVERLAP_GRACE_MS = 60;
   const srcProto = g.AudioBufferSourceNode?.prototype;
   if (srcProto) {
     const origStart = srcProto.start;
@@ -217,8 +243,39 @@ export function installAudioCapture(win: Window): void {
       if (url) {
         g.__currentAudioUrl = url;
         (g.__audioPlayLog ??= []).push(url);
+
+        if (!isNonSpeechAudio(url)) {
+          const hadOthers = activeSpeech.size > 0;
+          activeSpeech.set(this, url);
+          // Arrow callbacks capture `this` (the source node) lexically.
+          this.addEventListener('ended', () => activeSpeech.delete(this));
+          if (hadOthers) {
+            g.setTimeout(() => {
+              if (!activeSpeech.has(this)) return; // this clip already finished
+              for (const [other, otherUrl] of activeSpeech) {
+                if (other !== this) {
+                  (g.__audioOverlaps ??= []).push({
+                    url,
+                    against: otherUrl,
+                    atMs: Date.now(),
+                    sustainedMs: OVERLAP_GRACE_MS,
+                  });
+                  break; // one event per offending start is enough
+                }
+              }
+            }, OVERLAP_GRACE_MS);
+          }
+        }
       }
       origStart.call(this, when ?? 0, offset, duration);
+    };
+
+    // stop() must remove the node synchronously so a "start new → stop old" swap
+    // in the same tick does not look like an overlap when the grace check runs.
+    const origStop = srcProto.stop;
+    srcProto.stop = function patchedStop(this: AudioBufferSourceNode, when?: number): void {
+      activeSpeech.delete(this);
+      origStop.call(this, when ?? 0);
     };
   }
 }

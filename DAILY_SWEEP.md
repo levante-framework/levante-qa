@@ -44,8 +44,10 @@ Flow (`main()` in the script):
 
 A cell is **failed** if the dashboard reports a non-zero Cypress exit code or any
 non-empty diagnostic log (`*_no_key`, `*_key_mismatch`, `*_unsolved`,
-`*_audio_content`, `*_match_stuck`) — including the audio-language cross-check
-(`QA_EXPECTED_AUDIO_LANG`, set automatically to the run's language).
+`*_audio_content`, `*_audio_overlap`, `*_match_stuck`) — including the
+audio-language cross-check (`QA_EXPECTED_AUDIO_LANG`, set automatically to the
+run's language) and the speech-on-speech overlap guard (two narration clips
+playing at once).
 
 ---
 
@@ -197,6 +199,8 @@ Notes:
      clip whose embedded `lang_code` ≠ the run's language (e.g. an en-US fallback
      served for a missing localized clip). This is **playback-based** (only fires
      for clips that actually play, never preloaded-but-unplayed assets).
+   - `*_audio_overlap` — two narration clips played at the same time
+     (speech-on-speech), which is confusing to a child.
    - `*_key_mismatch` / `*_unsolved` — the oracle's answer disagreed with the
      task's answer key.
 3. A `NEW_PASS` the next day after a one-off `NEW_FAIL`, with the **same task

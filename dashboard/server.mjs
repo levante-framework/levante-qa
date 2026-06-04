@@ -202,7 +202,7 @@ async function hydrateIndexFromGcs() {
 // ---------------------------------------------------------------------------
 // Result + serious-error detection from a run's scoped log dir
 // ---------------------------------------------------------------------------
-const DIAGNOSTIC_RE = /_(no_key|key_mismatch|unsolved|audio_content|match_stuck)/;
+const DIAGNOSTIC_RE = /_(no_key|key_mismatch|unsolved|audio_content|audio_overlap|match_stuck)/;
 
 async function countLines(filePath) {
   try {
