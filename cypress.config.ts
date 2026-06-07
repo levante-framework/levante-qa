@@ -28,6 +28,7 @@ import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { makeChildPersonaPrompt } from './cypress/support/persona/childPersona';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
 import { solveMentalRotation } from './cypress/plugins/mentalRotationSolver';
+import { loadCrowdinApprovedTranslations as loadCrowdinApprovedTranslationsFromCrowdin } from './cypress/plugins/crowdinApprovedTranslations';
 import type {
   MentalRotationSolveRequest,
   MentalRotationSolveResult,
@@ -143,6 +144,26 @@ export default defineConfig({
         },
 
         /**
+         * Optional QA-only translation source. When a spec enables the
+         * crowdin-approved translation intercept, this returns task translation
+         * JSON built from Crowdin's approved XLIFF export instead of the GCS
+         * bucket. Production task runtime is unaffected.
+         */
+        async loadCrowdinApprovedTranslations({
+          language,
+          projectId,
+          cachePath,
+          refresh,
+        }: {
+          language: string;
+          projectId?: string;
+          cachePath?: string;
+          refresh?: boolean;
+        }) {
+          return loadCrowdinApprovedTranslationsFromCrowdin({ language, projectId, cachePath, refresh });
+        },
+
+        /**
          * Polls for a screenshot file to appear on disk, up to `timeoutMs`, and
          * reports whether it exists. Under WSL2 software rendering
          * `cy.screenshot()` intermittently fails to flush the PNG in time, so
@@ -193,6 +214,10 @@ export default defineConfig({
         'PARTICIPANT_USER',
         'PARTICIPANT_PASS',
         'QA_LANGUAGE',
+        'QA_TRANSLATIONS_SOURCE',
+        'QA_CROWDIN_PROJECT_ID',
+        'QA_CROWDIN_CACHE_PATH',
+        'QA_CROWDIN_REFRESH',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];

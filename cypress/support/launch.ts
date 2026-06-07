@@ -1,4 +1,5 @@
 import { waitForParticipantHomeReady } from './tasks/roar';
+import { installCrowdinApprovedTranslationIntercept } from './crowdinTranslations';
 
 /**
  * Task launch strategies.
@@ -121,6 +122,8 @@ export function launchRoarTask(taskId: string): void {
  * ROAR tasks always use dashboard mode (no standalone demo URL).
  */
 export function launchTask(opts: LaunchOptions): void {
+  installCrowdinApprovedTranslationIntercept();
+
   if (isRoarTaskId(opts.taskId)) {
     expect(isDashboardLaunch(), 'ROAR tasks (pa/sre/swr) require LAUNCH=dashboard').to.equal(
       true,

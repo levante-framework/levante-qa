@@ -117,6 +117,7 @@ export const LANGUAGES = [
   { code: 'de-DE', label: 'German (Germany)' },
   { code: 'es-CO', label: 'Spanish (Colombia)' },
   { code: 'es-AR', label: 'Spanish (Argentina)' },
+  { code: 'nl', label: 'Dutch' },
   // Flagged "testing" on the LEVANTE platform (RTL, in-progress translations).
   { code: 'ar-IL', label: 'Arabic (Israel)', testing: true },
   { code: 'he-IL', label: 'Hebrew (Israel)', testing: true },
@@ -161,6 +162,7 @@ export const FALLBACK_TASK_OPTIONS = {
   'de-DE': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
   'es-CO': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
   'es-AR': ['hearts-and-flowers', 'same-different-selection', 'trog', 'theory-of-mind'],
+  nl: ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
   'ar-IL': [],
   'he-IL': [],
 };

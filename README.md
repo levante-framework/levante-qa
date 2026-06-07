@@ -82,6 +82,30 @@ PARTICIPANT_USER=qa-participant@levante.test
 PARTICIPANT_PASS=...
 ```
 
+### Optional Crowdin-Approved Translations
+
+Normally tasks fetch translation JSON from the promoted GCS buckets. For QA of
+approved-but-not-yet-promoted strings, set `QA_TRANSLATIONS_SOURCE=crowdin-approved`.
+This installs a Cypress intercept that serves `translations/itembank/...` JSON
+from Crowdin's approved XLIFF export instead of GCS. It is opt-in and affects
+only the Cypress run.
+
+```bash
+QA_LANGUAGE=nl QA_TRANSLATIONS_SOURCE=crowdin-approved \
+  pnpm cy:run:vocab:vlm -- --env provider=gemini
+```
+
+Optional env:
+
+```
+QA_CROWDIN_PROJECT_ID=756721
+QA_CROWDIN_CACHE_PATH=cypress/cache/crowdin-approved-translations.zip
+QA_CROWDIN_REFRESH=1
+```
+
+The Crowdin token is read from `CROWDIN_API_TOKEN`, `CROWDIN_TOKEN`, or
+`~/.crowdin_api_token`. The browser never receives the token.
+
 ### Provisioning the QA participant + assignment
 
 The dashboard only shows tasks a participant is actually assigned. A bootstrap

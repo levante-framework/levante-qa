@@ -32,6 +32,12 @@ export const DEFAULT_PARAMS = {
   maxIncorrect: 999,
 } as const;
 
+function qaLanguage(): string | null {
+  const cypressEnv = (globalThis as { Cypress?: { env?: (key: string) => unknown } }).Cypress?.env;
+  const value = typeof cypressEnv === 'function' ? cypressEnv('QA_LANGUAGE') : null;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 // Selectors verified against core-tasks vocab source + shared afcStimulus
 // (2026-05-30). Selectors must only ever be defined here, never inline in specs.
 // TODO(selectors): Re-verify against the live demo DOM if markup changes.
@@ -69,6 +75,10 @@ export function buildUrl(
   const url = new URL(base);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
+  }
+  if (!url.searchParams.has('language')) {
+    const language = qaLanguage();
+    if (language) url.searchParams.set('language', language);
   }
   return url.toString();
 }
