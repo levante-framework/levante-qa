@@ -36,6 +36,29 @@ export interface CrowdinApprovedTranslationsPayload {
   translationsByTask: Record<string, Record<string, string>>;
 }
 
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase().replace(/_/g, '-');
+}
+
+function audioBasename(url: string): string {
+  const pathname = (() => {
+    try {
+      return new URL(url).pathname;
+    } catch {
+      return url.split('?')[0] ?? url;
+    }
+  })();
+  const file = decodeURIComponent(pathname.split('/').pop() ?? '');
+  return file.replace(/\.mp3$/i, '');
+}
+
+function candidateAudioKeys(key: string): string[] {
+  const keys = [key];
+  const sceneWithoutSingleDigitDash = key.replace(/^ToM-scene-(\d)-/, 'ToM-scene$1-');
+  if (sceneWithoutSingleDigitDash !== key) keys.push(sceneWithoutSingleDigitDash);
+  return keys;
+}
+
 function crowdinToken(): string {
   const fromEnv = process.env.CROWDIN_API_TOKEN || process.env.CROWDIN_TOKEN;
   if (fromEnv?.trim()) return fromEnv.trim();
@@ -146,4 +169,23 @@ export async function loadCrowdinApprovedTranslations({
   addAliases(translationsByTask);
 
   return { language, source: 'crowdin-approved', translationsByTask };
+}
+
+export function translationForAudioUrl(
+  payload: CrowdinApprovedTranslationsPayload,
+  url: string,
+): string | null {
+  const key = audioBasename(url);
+  if (!key) return null;
+
+  for (const translations of Object.values(payload.translationsByTask)) {
+    for (const candidateKey of candidateAudioKeys(key)) {
+      const exact = translations[candidateKey];
+      if (exact?.trim()) return exact.trim();
+      const normalizedKey = normalizeKey(candidateKey);
+      const folded = Object.entries(translations).find(([candidate]) => normalizeKey(candidate) === normalizedKey);
+      if (folded?.[1]?.trim()) return folded[1].trim();
+    }
+  }
+  return null;
 }

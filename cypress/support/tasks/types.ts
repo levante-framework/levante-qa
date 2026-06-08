@@ -32,6 +32,8 @@ export type Congruency = z.infer<typeof CongruencySchema>;
  *   2. TXXX:text                      — the text actually fed to the TTS engine
  *                                       (may contain emotion cues like "[happy]").
  *   3. TXXX:audio_enhanced_text       — last-resort enhanced variant.
+ *   4. crowdin-approved               — QA-only override from approved Crowdin
+ *                                       XLIFF when bucket/audio assets lag.
  * 'missing' means the mp3 had none of those frames; 'error' means the fetch or
  * parse failed.
  */
@@ -39,6 +41,7 @@ export const AudioSourceSchema = z.enum([
   'id3:original_translation_text',
   'id3:text',
   'id3:audio_enhanced_text',
+  'crowdin-approved',
   'missing',
   'error',
 ]);

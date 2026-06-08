@@ -28,7 +28,11 @@ import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { makeChildPersonaPrompt } from './cypress/support/persona/childPersona';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
 import { solveMentalRotation } from './cypress/plugins/mentalRotationSolver';
-import { loadCrowdinApprovedTranslations as loadCrowdinApprovedTranslationsFromCrowdin } from './cypress/plugins/crowdinApprovedTranslations';
+import {
+  loadCrowdinApprovedTranslations as loadCrowdinApprovedTranslationsFromCrowdin,
+  translationForAudioUrl,
+  type CrowdinApprovedTranslationsPayload,
+} from './cypress/plugins/crowdinApprovedTranslations';
 import type {
   MentalRotationSolveRequest,
   MentalRotationSolveResult,
@@ -55,6 +59,7 @@ const PERSONA_AGE_MONTHS = Number(process.env.QA_PERSONA_AGE_MONTHS ?? '0');
 /** When `irt`, append mean child IRT θ for this age/task (requires age_task_ability.json). */
 const PERSONA_ABILITY_IRT = String(process.env.QA_PERSONA_ABILITY ?? '').toLowerCase() === 'irt';
 let personaLogged = false;
+let crowdinApprovedTranslationsCache: Promise<CrowdinApprovedTranslationsPayload> | null = null;
 
 function applyPersona(req: VLMRequest): VLMRequest {
   if (!PERSONA_ON || !Number.isFinite(PERSONA_AGE_YEARS)) return req;
@@ -85,6 +90,24 @@ function applyPersona(req: VLMRequest): VLMRequest {
     }
   }
   return { ...req, systemPrompt: `${preamble}\n\n${req.systemPrompt}` };
+}
+
+function useCrowdinApprovedTranslations(): boolean {
+  return String(process.env.QA_TRANSLATIONS_SOURCE ?? '').toLowerCase() === 'crowdin-approved';
+}
+
+async function crowdinApprovedTranscriptForAudio(url: string): Promise<string | null> {
+  if (!useCrowdinApprovedTranslations()) return null;
+  const language = String(process.env.QA_LANGUAGE ?? '').trim();
+  if (!language) return null;
+
+  crowdinApprovedTranslationsCache ??= loadCrowdinApprovedTranslationsFromCrowdin({
+    language,
+    projectId: process.env.QA_CROWDIN_PROJECT_ID,
+    cachePath: process.env.QA_CROWDIN_CACHE_PATH,
+    refresh: /^(1|true|yes)$/i.test(process.env.QA_CROWDIN_REFRESH ?? ''),
+  });
+  return translationForAudioUrl(await crowdinApprovedTranslationsCache, url);
 }
 
 export default defineConfig({
@@ -128,6 +151,16 @@ export default defineConfig({
          * narration transcript. Results are cached by URL inside the reader.
          */
         async readMp3Tags(url: string): Promise<Mp3Tags> {
+          const crowdinTranscript = await crowdinApprovedTranscriptForAudio(url);
+          if (crowdinTranscript) {
+            return {
+              url,
+              transcript: crowdinTranscript,
+              source: 'crowdin-approved',
+              title: null,
+              language: String(process.env.QA_LANGUAGE ?? '').trim() || null,
+            };
+          }
           return readMp3Tags(url);
         },
 
@@ -218,6 +251,11 @@ export default defineConfig({
         'QA_CROWDIN_PROJECT_ID',
         'QA_CROWDIN_CACHE_PATH',
         'QA_CROWDIN_REFRESH',
+        'QA_STORIES_NUMBER_OF_STORIES',
+        'QA_STORIES_MAX_STEPS',
+        'QA_STORIES_STOP_AFTER_TEXT',
+        'QA_STORIES_CORPUS',
+        'QA_AUDIO_FALLBACK_LANGUAGE',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];

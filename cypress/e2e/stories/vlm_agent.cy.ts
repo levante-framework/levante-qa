@@ -20,10 +20,11 @@ import {
 import { launchTask } from '../../support/launch';
 import { parseStoriesTrialRecord, type StoriesTrialRecord } from '../../support/tasks/types';
 
-const MAX_STEPS = 4000;
+const MAX_STEPS = Number(Cypress.env('QA_STORIES_MAX_STEPS') ?? 4000);
 const TASK = 'theory-of-mind';
 const TIMEOUT_MS = 10000;
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
+const STOP_AFTER_TEXT = String(Cypress.env('QA_STORIES_STOP_AFTER_TEXT') ?? '').trim();
 
 const LIVE_LOG = 'cypress/logs/_stories_vlm_live.jsonl';
 
@@ -62,6 +63,10 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
       cy.log(`audio transcripts captured: ${withAudio.length}/${records.length}`);
       expect(withAudio.length, 'captured at least one narration transcript').to.be.greaterThan(0);
     });
+  }
+
+  function shouldStopAfter(text: string | null): boolean {
+    return !!STOP_AFTER_TEXT && !!text && text.toLowerCase().includes(STOP_AFTER_TEXT.toLowerCase());
   }
 
   function readPrompt(win: AudioWindow, attempts: number, cb: (audio: CurrentAudio) => void): void {
@@ -199,6 +204,10 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
             audioTranscript: audio.transcript,
             audioSource: audio.source,
           });
+          if (shouldStopAfter(text || audio.transcript)) {
+            finalize();
+            return;
+          }
           cy.continueStories();
           cy.wait(200, { log: false });
           step(i + 1);
