@@ -68,12 +68,17 @@
     "@google-cloud/storage": "^7.19.0",
     "@google/genai": "^2.6.0",
     "dotenv": "^16.4.5",
-    "firebase-admin": "^10.3.0",
+    "firebase-admin": "^13.5.0",
     "jszip": "^3.10.1",
     "n2words": "^5.0.0",
     "node-id3": "^0.2.9",
     "openai": "^4.33.0",
     "sharp": "^0.34.5",
     "zod": "^3.22.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "qs@>=6.11.1 <=6.15.1": ">=6.15.2"
+    }
   }
 }
