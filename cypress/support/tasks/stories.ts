@@ -95,9 +95,9 @@ export function buildUrl(
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
   }
-  if (!url.searchParams.has('language')) {
+  if (!url.searchParams.has('lng') && !url.searchParams.has('language')) {
     const language = qaLanguage();
-    if (language) url.searchParams.set('language', language);
+    if (language) url.searchParams.set('lng', language);
   }
   if (!url.searchParams.has('numberOfStories')) {
     const numberOfStories = qaNumberOfStories();

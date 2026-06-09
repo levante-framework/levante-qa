@@ -201,9 +201,9 @@ describe(`TROG — VLM agent (${provider})`, () => {
       demoUrl: buildUrl(),
       onBeforeLoad: installAudioCapture,
     });
-    // TROG preloads a sizeable image bank; allow extra time for the loading
-    // screen before the fullscreen "OK".
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    // TROG preloads a sizeable image bank; allow extra time before first continue.
+    cy.get('button.primary', { timeout: 300000 }).should('be.visible');
+    cy.continueTrog();
     step(0);
   });
 });

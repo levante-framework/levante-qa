@@ -65,13 +65,7 @@ function installAudioFallbackIntercept(language: string): void {
 
   cy.intercept('GET', `**/audio/${language}/*.mp3*`, async (req) => {
     const fallbackUrl = req.url.replace(`/audio/${language}/`, `/audio/${fallbackLanguage}/`);
-    const response = await fetch(fallbackUrl);
-    const body = await response.arrayBuffer();
-    req.reply({
-      statusCode: response.status,
-      headers: { 'content-type': response.headers.get('content-type') ?? 'audio/mpeg' },
-      body,
-    });
+    req.redirect(fallbackUrl, 302);
   });
 }
 
@@ -91,7 +85,15 @@ export function installCrowdinApprovedTranslationIntercept(): void {
       const task = taskFromTranslationUrl(req.url);
       const translations = task ? payload.translationsByTask[task] : null;
       if (!translations) req.continue();
-      else req.reply({ statusCode: 200, body: translations });
+      else {
+        req.continue((res) => {
+          if (res.statusCode >= 200 && res.statusCode < 300 && res.body && typeof res.body === 'object') {
+            res.body = { ...(res.body as TranslationMap), ...translations };
+          } else {
+            res.send({ statusCode: 200, body: translations });
+          }
+        });
+      }
     });
   });
 }

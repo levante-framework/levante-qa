@@ -32,6 +32,12 @@ export const DEFAULT_PARAMS = {
   maxIncorrect: 999,
 } as const;
 
+function qaLanguage(): string | null {
+  const cypressEnv = (globalThis as { Cypress?: { env?: (key: string) => unknown } }).Cypress?.env;
+  const value = typeof cypressEnv === 'function' ? cypressEnv('QA_LANGUAGE') : null;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 // Selectors verified against core-tasks trog + shared afcStimulus (2026-05-31).
 // TROG shares Vocab's response layout (`-inline` + 2x2 image-medium grid).
 // Defined only here, never inline in specs.
@@ -70,6 +76,10 @@ export function buildUrl(
   const url = new URL(base);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
+  }
+  if (!url.searchParams.has('lng') && !url.searchParams.has('language')) {
+    const language = qaLanguage();
+    if (language) url.searchParams.set('lng', language);
   }
   return url.toString();
 }

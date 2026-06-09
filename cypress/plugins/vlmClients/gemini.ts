@@ -21,22 +21,40 @@ function getClient(): GoogleGenAI {
 
 export async function askGemini(req: VLMRequest): Promise<string> {
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
-  const response = await getClient().models.generateContent({
-    model,
-    contents: [
-      { text: buildUserText(req.transcript, req.userText) },
-      { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
-    ],
-    config: {
-      systemInstruction: req.systemPrompt,
-      temperature: 0,
-      maxOutputTokens: 32,
-      // Disable "thinking" so the short answer isn't starved of tokens and
-      // latency stays representative. Supported on 2.5-flash; pro models may
-      // ignore it, which is fine — the callers' parsers tolerate longer output.
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  });
+  const contents = [
+    { text: buildUserText(req.transcript, req.userText) },
+    { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
+  ];
+  const baseConfig = {
+    systemInstruction: req.systemPrompt,
+    temperature: 0,
+    maxOutputTokens: 32,
+  };
 
-  return response.text ?? '';
+  try {
+    const response = await getClient().models.generateContent({
+      model,
+      contents,
+      config: {
+        ...baseConfig,
+        // Keep fast, short outputs on models that support this.
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    return response.text ?? '';
+  } catch (err) {
+    const message = String(err);
+    const requiresThinkingMode =
+      message.includes('Budget 0 is invalid') || message.includes('only works in thinking mode');
+    if (!requiresThinkingMode) throw err;
+
+    // Gemini 3 Pro variants can require thinking mode; retry once without
+    // forcing a zero thinking budget.
+    const retry = await getClient().models.generateContent({
+      model,
+      contents,
+      config: baseConfig,
+    });
+    return retry.text ?? '';
+  }
 }

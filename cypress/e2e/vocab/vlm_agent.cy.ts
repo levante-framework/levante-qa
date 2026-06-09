@@ -196,7 +196,8 @@ describe(`Vocab — VLM agent (${provider})`, () => {
   it('drives the task via the configured VLM provider', () => {
     resetAudioCapture();
     launchTask({ taskId: 'vocab', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    cy.get('.primary', { timeout: 300000 }).should('be.visible');
+    cy.continueVocab();
     step(0);
   });
 });
