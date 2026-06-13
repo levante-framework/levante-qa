@@ -6,6 +6,19 @@ import { buildUserText } from './index';
 // Override per run with GEMINI_MODEL, e.g. gemini-2.5-pro or gemini-3-flash-preview.
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 
+/**
+ * Sampling temperature. Defaults to 0 (deterministic) so the oracle and normal
+ * VLM-agent runs are unchanged. The synthetic-respondent panel sets
+ * VLM_TEMPERATURE > 0 so repeated runs of the same (model, persona) cell vary,
+ * producing the within-cell response variance that item discrimination needs.
+ */
+function resolveTemperature(): number {
+  const raw = process.env.VLM_TEMPERATURE;
+  if (raw === undefined || raw === '') return 0;
+  const t = Number(raw);
+  return Number.isFinite(t) && t >= 0 ? t : 0;
+}
+
 let client: GoogleGenAI | null = null;
 
 function getClient(): GoogleGenAI {
@@ -27,7 +40,7 @@ export async function askGemini(req: VLMRequest): Promise<string> {
   ];
   const baseConfig = {
     systemInstruction: req.systemPrompt,
-    temperature: 0,
+    temperature: resolveTemperature(),
     maxOutputTokens: 32,
   };
 
