@@ -30,18 +30,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
 const RUNS_DIR = join(REPO, 'cypress', 'logs', 'runs');
 const OUT_DIR = join(HERE, 'out');
-const ITEM_BANK = join(
-  REPO,
-  '..',
-  'crowdin-projects',
-  'corpora',
-  'trog',
-  'shared',
-  'corpora',
-  'trog-item-bank.csv',
-);
-// Canonical map of approved en-US sentence text -> item_id, the bridge from the
-// VLM's audio transcript to the item bank (whose `prompt` is a generic template).
+const CORPORA = join(REPO, '..', 'crowdin-projects', 'corpora');
+// Canonical map of approved sentence text -> item_id, the bridge from the VLM's
+// spoken text to the item bank (whose `prompt` is a generic template).
 const TRANSLATIONS_CSV = join(
   REPO,
   '..',
@@ -58,29 +49,128 @@ const DIAG_CSV = join(
   'diag_items_allstats_selected.csv',
 );
 
+// Per-task wiring. The pipeline is identical across tasks; only the scored row
+// type, the item-identity field, the item bank, the human diag task name, and
+// the chance level differ. `defaultChance` is used when the item bank has no
+// per-item chance (TROG is a uniform 4-AFC; Stories varies, so per-item wins).
+const TASKS = {
+  trog: {
+    title: 'TROG',
+    diagTask: 'trog',
+    scoredType: 'item',
+    itemBank: join(CORPORA, 'trog', 'shared', 'corpora', 'trog-item-bank.csv'),
+    identity: (rec) => rec.audioTranscript,
+    hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
+    defaultChance: 0.25,
+    humanJoin: true,
+  },
+  stories: {
+    title: 'Stories (Theory of Mind)',
+    diagTask: 'tom',
+    scoredType: 'question',
+    itemBank: join(CORPORA, 'theory-of-mind', 'shared', 'corpora', 'theory-of-mind-item-bank.csv'),
+    // ToM questions are scored on the on-screen question text (audio transcript
+    // is usually empty for this task). QA_LANGUAGE controls the run language, so
+    // each run is single-language like TROG.
+    identity: (rec) => rec.audioTranscript || rec.promptText,
+    hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
+    defaultChance: 0.5,
+    humanJoin: true,
+  },
+  swr: {
+    title: 'ROAR SWR (Single Word Recognition) VLM difficulty screen',
+    diagTask: null,
+    scoredType: 'item',
+    itemBank: null,
+    identity: (rec) => rec.promptText,
+    hasResponse: (rec) => rec.chosenLr !== null && rec.chosenLr !== undefined,
+    defaultChance: 0.5,
+    humanJoin: false,
+  },
+  sre: {
+    title: 'ROAR SRE (Sentence Reading Efficiency) VLM difficulty screen',
+    diagTask: null,
+    scoredType: 'item',
+    itemBank: null,
+    identity: (rec) => rec.promptText,
+    hasResponse: (rec) => rec.chosenLr !== null && rec.chosenLr !== undefined,
+    defaultChance: 0.5,
+    humanJoin: false,
+  },
+};
+
+function parseTaskArg(argv) {
+  for (let i = 2; i < argv.length; i++) {
+    if (argv[i] === '--task') return argv[i + 1];
+    if (argv[i].startsWith('--task=')) return argv[i].slice('--task='.length);
+  }
+  return 'trog';
+}
+function parseArg(argv, name) {
+  for (let i = 2; i < argv.length; i++) {
+    if (argv[i] === `--${name}`) return argv[i + 1];
+    if (argv[i].startsWith(`--${name}=`)) return argv[i].slice(name.length + 3);
+  }
+  return null;
+}
+const TASK_NAME = parseTaskArg(process.argv);
+const TASK = TASKS[TASK_NAME];
+if (!TASK) {
+  console.error(`Unknown --task "${TASK_NAME}". Known: ${Object.keys(TASKS).join(', ')}`);
+  process.exit(1);
+}
+const ITEM_BANK = TASK.itemBank;
+const EXTERNAL_HUMAN_CSV = parseArg(process.argv, 'human-csv');
+// Output filename tag: trog keeps the legacy bare names; other tasks namespace
+// their outputs so panels never clobber each other.
+const TAG = TASK_NAME === 'trog' ? '' : `_${TASK_NAME}`;
+
 const LOW_DISCRIM = 0.1; // point-biserial below this = "low/anti-discriminating"
 
 // ---------- small helpers ----------
-function parseCsvLine(line) {
-  const out = [];
+/**
+ * Full RFC-4180-ish CSV parser: handles quoted fields containing commas,
+ * newlines, and escaped quotes (""). The ToM translation/prose cells embed all
+ * three, so a line-based splitter mis-parses them.
+ */
+function parseCsv(txt) {
+  const rows = [];
+  let row = [];
   let cur = '';
   let q = false;
-  for (const c of line) {
-    if (c === '"') q = !q;
-    else if (c === ',' && !q) {
-      out.push(cur);
+  for (let i = 0; i < txt.length; i++) {
+    const c = txt[i];
+    if (q) {
+      if (c === '"') {
+        if (txt[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else q = false;
+      } else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') {
+      row.push(cur);
       cur = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && txt[i + 1] === '\n') i++;
+      row.push(cur);
+      cur = '';
+      if (row.length > 1 || row[0] !== '') rows.push(row);
+      row = [];
     } else cur += c;
   }
-  out.push(cur);
-  return out;
+  if (cur !== '' || row.length) {
+    row.push(cur);
+    rows.push(row);
+  }
+  return rows;
 }
 
 function readCsv(path) {
-  const lines = readFileSync(path, 'utf-8').split(/\r?\n/).filter((l) => l.length > 0);
-  const header = parseCsvLine(lines[0]);
-  return lines.slice(1).map((l) => {
-    const cells = parseCsvLine(l);
+  const rows = parseCsv(readFileSync(path, 'utf-8'));
+  if (rows.length === 0) return [];
+  const header = rows[0];
+  return rows.slice(1).map((cells) => {
     const row = {};
     header.forEach((h, i) => (row[h] = cells[i]));
     return row;
@@ -172,16 +262,25 @@ function langFromRunId(runId, langMap) {
   return parts.length >= 3 ? parts[2] : 'en';
 }
 
+/** Task token from a run id like panel_stories_en_25flash_a6_r1 -> "stories". */
+function taskFromRunId(runId) {
+  const parts = runId.split('_');
+  return parts.length >= 2 ? parts[1] : '';
+}
+
 // ---------- 1+2: load panel into respondent x item matrix (one language) ----------
 function loadPanel(language) {
   if (!existsSync(RUNS_DIR)) return { respondents: [], items: new Map() };
   const langMap = runLanguageMap();
   const runDirs = readdirSync(RUNS_DIR)
     .filter((d) => d.startsWith('panel_'))
+    .filter((d) => taskFromRunId(d) === TASK_NAME)
     .filter((d) => langFromRunId(d, langMap) === language);
   const respondents = [];
   // item key -> { transcript, byResp: Map(runId -> 0/1) }
   const items = new Map();
+  let attempts = 0; // scored question encounters
+  let nonResponse = 0; // of those, the model emitted no parseable choice
 
   for (const runId of runDirs) {
     const dir = join(RUNS_DIR, runId);
@@ -192,7 +291,7 @@ function loadPanel(language) {
       .map((f) => ({ f, size: readFileSync(join(dir, f), 'utf-8').length }))
       .sort((a, b) => b.size - a.size)[0].f;
 
-    const seen = new Map(); // item key -> 0/1 (first scored attempt only)
+    const seen = new Map(); // item key -> 0/1 (first ANSWERED attempt only)
     for (const line of readFileSync(join(dir, file), 'utf-8').split(/\r?\n/)) {
       if (!line.trim()) continue;
       let rec;
@@ -201,9 +300,18 @@ function loadPanel(language) {
       } catch {
         continue;
       }
-      if (rec.itemType !== 'item' || typeof rec.correct !== 'boolean') continue;
-      const key = normText(rec.audioTranscript);
+      if (rec.itemType !== TASK.scoredType || typeof rec.correct !== 'boolean') continue;
+      const key = normText(TASK.identity(rec));
       if (!key) continue;
+      attempts++;
+      // A null/absent choice is a NON-RESPONSE (model emitted no parseable
+      // digit), not a wrong answer. Counting it as 0 deflates p_vlm and, since
+      // non-response rates differ by language, fabricates cross-language
+      // "difficulty". Treat it as missing.
+      if (!TASK.hasResponse(rec)) {
+        nonResponse++;
+        continue;
+      }
       if (!seen.has(key)) seen.set(key, rec.correct ? 1 : 0);
       if (!items.has(key)) items.set(key, { transcript: rec.audioTranscript, byResp: new Map() });
     }
@@ -211,14 +319,14 @@ function loadPanel(language) {
     respondents.push({ runId, answers: seen });
     for (const [key, val] of seen) items.get(key).byResp.set(runId, val);
   }
-  return { respondents, items };
+  return { respondents, items, attempts, nonResponse };
 }
 
 // ---------- 4: per-item p and corrected point-biserial ----------
 function itemStats(respondents, items) {
   // common item set: answered by a strong majority of respondents
   const nResp = respondents.length;
-  const minCoverage = Math.max(3, Math.ceil(nResp * 0.6));
+  const minCoverage = Math.max(1, Math.ceil(nResp * 0.6));
   const commonKeys = [...items.keys()].filter((k) => items.get(k).byResp.size >= minCoverage);
 
   // per-respondent total over the common item set
@@ -275,6 +383,9 @@ const LANG_MAP = {
 // Chain: normalized transcript (in the run language) -> item_id (translations)
 // -> item_uid (item bank) -> human stats (diag, trog/<lang>).
 function buildHumanJoin(language) {
+  if (!TASK.humanJoin || !ITEM_BANK) {
+    return { transcriptToUid: new Map(), transcriptToChance: new Map(), uidToHuman: new Map() };
+  }
   const lang = LANG_MAP[language] ?? LANG_MAP.en;
 
   // translations: normalized spoken text -> item_id (e.g. "trog-item-1")
@@ -286,18 +397,22 @@ function buildHumanJoin(language) {
       if (t && r.item_id && !textToId.has(t)) textToId.set(t, r.item_id);
     }
   }
-  // item bank: item_id / audio_file -> item_uid
+  // item bank: item_id / audio_file -> item_uid (+ per-item chance level)
   const bank = readCsv(ITEM_BANK);
   const idToUid = new Map();
+  const idToChance = new Map();
   for (const r of bank) {
     const id = r.audio_file || r.item_id;
-    if (id && r.item_uid) idToUid.set(id, r.item_uid);
+    if (!id) continue;
+    if (r.item_uid) idToUid.set(id, r.item_uid);
+    const ch = numOrNull(r.chance_level);
+    if (ch != null && ch > 0 && ch < 1) idToChance.set(id, ch);
   }
   // diag: item_uid -> {p_correct, point_biserial, flag_pb}
   const diag = readCsv(DIAG_CSV);
   const uidToHuman = new Map();
   for (const r of diag) {
-    if (r.task !== 'trog' || r.subset !== lang.diag) continue;
+    if (r.task !== TASK.diagTask || r.subset !== lang.diag) continue;
     const uid = String(r.item).replace(/-\d+$/, '');
     if (!uidToHuman.has(uid)) {
       uidToHuman.set(uid, {
@@ -309,14 +424,49 @@ function buildHumanJoin(language) {
   }
 
   const transcriptToUid = new Map();
+  const transcriptToChance = new Map();
   for (const [t, id] of textToId) {
     const uid = idToUid.get(id);
     if (uid) transcriptToUid.set(t, uid);
+    const ch = idToChance.get(id);
+    if (ch != null) transcriptToChance.set(t, ch);
   }
-  return { transcriptToUid, uidToHuman };
+  return { transcriptToUid, transcriptToChance, uidToHuman };
 }
 
-const CHANCE = 0.25; // TROG = 4-alternative forced choice
+/**
+ * Optional external human join for tasks not yet in diag/translations (e.g.
+ * SWR/SRE while sourcing human item data from Redivis).
+ *
+ * Expected CSV columns:
+ *   - item_key (or item / promptText) : item text/key
+ *   - subset (or language)            : en|de|es (or locale like en-US)
+ *   - p_correct                       : human pass-rate
+ *   - point_biserial                  : optional discrimination
+ *   - chance (or chance_level)        : optional chance level per item
+ */
+function loadExternalHuman(language) {
+  if (!EXTERNAL_HUMAN_CSV) return null;
+  if (!existsSync(EXTERNAL_HUMAN_CSV)) {
+    throw new Error(`--human-csv not found: ${EXTERNAL_HUMAN_CSV}`);
+  }
+  const rows = readCsv(EXTERNAL_HUMAN_CSV);
+  const byKey = new Map();
+  for (const r of rows) {
+    const rawLang = String(r.subset ?? r.language ?? '').trim().toLowerCase();
+    const langToken = rawLang.split('-')[0];
+    if (langToken && langToken !== language) continue;
+    const key = normText(r.item_key ?? r.item ?? r.promptText);
+    if (!key) continue;
+    byKey.set(key, {
+      p_correct: numOrNull(r.p_correct),
+      point_biserial: numOrNull(r.point_biserial),
+      chance: numOrNull(r.chance ?? r.chance_level),
+    });
+  }
+  return byKey;
+}
+
 const CEILING_HUMAN = 0.95; // human pass-rate above which an item is uninformative
 
 function quantile(sorted, q) {
@@ -327,13 +477,15 @@ function quantile(sorted, q) {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
 }
 
-/** Languages that have at least one panel run on disk. */
+/** Languages that have at least one panel run on disk for the active task. */
 function discoverLanguages() {
   if (!existsSync(RUNS_DIR)) return [];
   const langMap = runLanguageMap();
   const set = new Set();
   for (const d of readdirSync(RUNS_DIR)) {
-    if (d.startsWith('panel_')) set.add(langFromRunId(d, langMap));
+    if (d.startsWith('panel_') && taskFromRunId(d) === TASK_NAME) {
+      set.add(langFromRunId(d, langMap));
+    }
   }
   return [...set].sort();
 }
@@ -344,8 +496,8 @@ function discoverLanguages() {
  * signal; the rest is panel-relative (p_vlm is compressed, so absolute cutoffs
  * other than chance are unreliable).
  */
-function classify(p_vlm, hardCut, ceilCut) {
-  if (p_vlm < CHANCE) return { flag: 'BROKEN', reason: `p_vlm ${fmt(p_vlm, 2)} < chance ${CHANCE}` };
+function classify(p_vlm, chance, hardCut, ceilCut) {
+  if (p_vlm < chance) return { flag: 'BROKEN', reason: `p_vlm ${fmt(p_vlm, 2)} < chance ${fmt(chance, 2)}` };
   if (p_vlm <= hardCut) return { flag: 'HARD', reason: `bottom of panel (p_vlm ${fmt(p_vlm, 2)})` };
   if (p_vlm >= ceilCut) return { flag: 'CEILING', reason: `top of panel (p_vlm ${fmt(p_vlm, 2)})` };
   return { flag: 'OK', reason: '' };
@@ -353,8 +505,11 @@ function classify(p_vlm, hardCut, ceilCut) {
 
 /** Run the whole pipeline + screen for one language; returns a report section. */
 function analyzeLanguage(language) {
-  const { respondents, items } = loadPanel(language);
+  const { respondents, items, attempts, nonResponse } = loadPanel(language);
   if (respondents.length === 0) return null;
+  const nonRespRate = attempts ? nonResponse / attempts : 0;
+  const externalHuman = loadExternalHuman(language);
+  const hasHumanJoin = TASK.humanJoin || !!externalHuman;
 
   const { commonKeys, totals, stats, minCoverage } = itemStats(respondents, items);
 
@@ -368,40 +523,41 @@ function analyzeLanguage(language) {
   const spreadOk = sdSpread >= 0.08 && totalP[0] < 0.85 && totalP[totalP.length - 1] > 0.4;
 
   // human join
-  const { transcriptToUid, uidToHuman } = buildHumanJoin(language);
+  const { transcriptToUid, transcriptToChance, uidToHuman } = buildHumanJoin(language);
   const rows = [];
   let matched = 0;
   for (const s of stats) {
-    const uid = transcriptToUid.get(s.key) ?? null;
-    const human = uid ? uidToHuman.get(uid) : null;
+    const uid = TASK.humanJoin ? (transcriptToUid.get(s.key) ?? null) : s.key;
+    const human = externalHuman ? externalHuman.get(s.key) : uid ? uidToHuman.get(uid) : null;
     if (human) matched++;
     rows.push({
       ...s,
       item_uid: uid,
+      chance: human?.chance ?? transcriptToChance.get(s.key) ?? TASK.defaultChance,
       p_human: human?.p_correct ?? null,
       pb_human: human?.point_biserial ?? null,
     });
   }
 
-  // screen flags (panel-relative cutoffs)
+  // screen flags (panel-relative cutoffs; BROKEN uses each item's own chance)
   const pSorted = [...rows.map((r) => r.p_vlm)].sort((a, b) => a - b);
   const hardCut = quantile(pSorted, 0.15);
   const ceilCut = quantile(pSorted, 0.9);
   for (const r of rows) {
-    const c = classify(r.p_vlm, hardCut, ceilCut);
+    const c = classify(r.p_vlm, r.chance, hardCut, ceilCut);
     r.flag = c.flag;
     r.reason = c.reason;
   }
   const flagCounts = rows.reduce((a, r) => ((a[r.flag] = (a[r.flag] ?? 0) + 1), a), {});
 
-  // correlations
+  // correlations (only when human joins exist for this task)
   const m = rows.filter((r) => r.p_human != null);
   const rhoDiff = spearman(m.map((r) => r.p_vlm), m.map((r) => r.p_human));
   const md = rows.filter((r) => r.pb_human != null && r.rpb_vlm != null);
   const rhoDisc = spearman(md.map((r) => r.rpb_vlm), md.map((r) => r.pb_human));
 
   // threshold validation against human labels (matched items only)
-  const hBroken = m.filter((r) => r.p_human < CHANCE);
+  const hBroken = m.filter((r) => r.p_human < r.chance);
   const hBrokenCaught = hBroken.filter((r) => r.flag === 'BROKEN' || r.flag === 'HARD').length;
   const vConcern = m.filter((r) => r.flag === 'BROKEN' || r.flag === 'HARD');
   const vConcernHumanHard = vConcern.filter((r) => r.p_human < 0.5).length;
@@ -426,7 +582,7 @@ function analyzeLanguage(language) {
       ].join(','),
     );
   }
-  writeFileSync(join(OUT_DIR, `screen_${language}.csv`), scr.join('\n') + '\n', 'utf-8');
+  writeFileSync(join(OUT_DIR, `screen${TAG}_${language}.csv`), scr.join('\n') + '\n', 'utf-8');
 
   // ---- write review_<lang>.csv (only items needing review, prioritized) ----
   const order = { BROKEN: 0, HARD: 1, CEILING: 2 };
@@ -446,27 +602,50 @@ function analyzeLanguage(language) {
       ].join(','),
     ),
   );
-  writeFileSync(join(OUT_DIR, `review_${language}.csv`), rv.join('\n') + '\n', 'utf-8');
+  writeFileSync(join(OUT_DIR, `review${TAG}_${language}.csv`), rv.join('\n') + '\n', 'utf-8');
 
   // ---- report section ----
   const s = [];
   s.push(`## ${language.toUpperCase()}`);
-  s.push(`- Respondents: **${respondents.length}** | common items (coverage >= ${minCoverage}): **${commonKeys.length}** | matched to human: **${matched}**`);
+  if (hasHumanJoin) {
+    s.push(
+      `- Respondents: **${respondents.length}** | common items (coverage >= ${minCoverage}): **${commonKeys.length}** | matched to human: **${matched}**`,
+    );
+  } else {
+    s.push(
+      `- Respondents: **${respondents.length}** | common items (coverage >= ${minCoverage}): **${commonKeys.length}**`,
+    );
+  }
+  s.push(`- Non-response: **${fmt(nonRespRate * 100, 1)}%** of scored encounters had no parseable VLM choice (excluded, not scored wrong)`);
   s.push(`- Spread: min ${fmt(totalP[0], 2)}, median ${fmt(totalP[Math.floor(totalP.length / 2)], 2)}, max ${fmt(totalP[totalP.length - 1], 2)}, SD ${fmt(sdSpread, 2)} -> ${spreadOk ? 'OK' : 'INADEQUATE'}`);
   s.push('');
   s.push('### Screen flags');
   s.push(`- BROKEN (below chance): **${flagCounts.BROKEN ?? 0}** | HARD: **${flagCounts.HARD ?? 0}** | CEILING: **${flagCounts.CEILING ?? 0}** | OK: ${flagCounts.OK ?? 0}`);
-  s.push(`- Review list: \`out/review_${language}.csv\` | full screen: \`out/screen_${language}.csv\``);
+  s.push(`- Review list: \`out/review${TAG}_${language}.csv\` | full screen: \`out/screen${TAG}_${language}.csv\``);
   s.push('');
-  s.push('### Validation vs human labels (matched items)');
-  s.push(`- Spearman rho difficulty (p_vlm vs human p_correct), n=${m.length}: **${fmt(rhoDiff)}**`);
-  s.push(`- Spearman rho discrimination (rpb_vlm vs human point_biserial), n=${md.length}: **${fmt(rhoDisc)}**`);
-  s.push(`- BROKEN catch: of ${hBroken.length} human below-chance item(s), VLM flagged **${hBrokenCaught}** as BROKEN/HARD`);
-  s.push(`- BROKEN/HARD precision: of ${vConcern.length} VLM-flagged item(s), **${vConcernHumanHard}** are human-hard (p_correct < 0.5)`);
-  s.push(`- CEILING catch: of ${hCeil.length} human-ceiling item(s) (p>${CEILING_HUMAN}), VLM flagged **${hCeilCaught}**`);
-  s.push('');
+  if (hasHumanJoin) {
+    s.push('### Validation vs human labels (matched items)');
+    s.push(`- Spearman rho difficulty (p_vlm vs human p_correct), n=${m.length}: **${fmt(rhoDiff)}**`);
+    s.push(`- Spearman rho discrimination (rpb_vlm vs human point_biserial), n=${md.length}: **${fmt(rhoDisc)}**`);
+    s.push(
+      `- BROKEN catch: of ${hBroken.length} human below-chance item(s), VLM flagged **${hBrokenCaught}** as BROKEN/HARD`,
+    );
+    s.push(
+      `- BROKEN/HARD precision: of ${vConcern.length} VLM-flagged item(s), **${vConcernHumanHard}** are human-hard (p_correct < 0.5)`,
+    );
+    s.push(
+      `- CEILING catch: of ${hCeil.length} human-ceiling item(s) (p>${CEILING_HUMAN}), VLM flagged **${hCeilCaught}**`,
+    );
+    s.push('');
+  } else {
+    s.push('### Validation vs human labels');
+    s.push('- Human item-level joins are not yet wired for this task in `diag_items_allstats_selected.csv` / translations.');
+    s.push('');
+  }
 
-  const summary = `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}] rhoDiff=${fmt(rhoDiff, 2)} brokenCatch=${hBrokenCaught}/${hBroken.length}`;
+  const summary = hasHumanJoin
+    ? `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}] rhoDiff=${fmt(rhoDiff, 2)} brokenCatch=${hBrokenCaught}/${hBroken.length}`
+    : `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}]`;
   return { section: s.join('\n'), summary };
 }
 
@@ -479,7 +658,7 @@ function main() {
     process.exit(1);
   }
 
-  const rep = ['# TROG VLM difficulty screen', '', `Generated: ${new Date().toISOString()}`, ''];
+  const rep = [`# ${TASK.title} VLM difficulty screen`, '', `Generated: ${new Date().toISOString()}`, ''];
   rep.push(
     'A pre-launch screen: a panel of VLM "children" of varying ability answers each item; ' +
       'items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), ' +
@@ -500,8 +679,8 @@ function main() {
     rep.push(crossLanguageSection(langs));
   }
 
-  writeFileSync(join(OUT_DIR, 'report.md'), rep.join('\n') + '\n', 'utf-8');
-  console.log('Wrote out/report.md, out/screen_<lang>.csv, out/review_<lang>.csv');
+  writeFileSync(join(OUT_DIR, `report${TAG}.md`), rep.join('\n') + '\n', 'utf-8');
+  console.log(`Wrote out/report${TAG}.md, out/screen${TAG}_<lang>.csv, out/review${TAG}_<lang>.csv`);
 }
 
 /**
@@ -514,14 +693,15 @@ function crossLanguageSection(langs) {
   for (const lang of langs) {
     const { respondents, items } = loadPanel(lang);
     const { stats } = itemStats(respondents, items);
-    const { transcriptToUid } = buildHumanJoin(lang);
+    const joins = TASK.humanJoin ? buildHumanJoin(lang) : null;
     const m = new Map();
     for (const s of stats) {
-      const uid = transcriptToUid.get(s.key);
-      if (uid) m.set(uid, s.p_vlm);
+      const id = TASK.humanJoin ? joins.transcriptToUid.get(s.key) : s.key;
+      if (id) m.set(id, s.p_vlm);
     }
     byLang[lang] = m;
   }
+  const label = TASK.humanJoin ? 'item_uid' : 'item_key';
   const s = ['## Cross-language difficulty shift vs en (translation-breakage signal)'];
   for (const lang of langs.filter((l) => l !== 'en')) {
     const deltas = [];
@@ -532,7 +712,7 @@ function crossLanguageSection(langs) {
     deltas.sort((a, b) => a.delta - b.delta);
     s.push('');
     s.push(`### ${lang} - biggest drops vs en (candidate broken translations)`);
-    s.push('| item_uid | p_en | p_' + lang + ' | delta |');
+    s.push(`| ${label} | p_en | p_${lang} | delta |`);
     s.push('|---|---|---|---|');
     for (const d of deltas.slice(0, 10)) {
       s.push(`| ${d.uid} | ${fmt(d.pEn, 2)} | ${fmt(d.pT, 2)} | ${fmt(d.delta, 2)} |`);

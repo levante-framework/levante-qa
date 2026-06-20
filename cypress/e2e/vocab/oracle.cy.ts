@@ -14,6 +14,7 @@ import { installAudioCapture, type AudioWindow } from '../../support/audio/audio
 import {
   currentAudioTranscript,
   resetAudioCapture,
+  speechHasPlayed,
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
@@ -77,6 +78,10 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
   let keyMismatches = 0;
   let nUnsolved = 0;
   let nAudioContent = 0;
+  // Audio-pipeline health: the target word is delivered only by narration, so if
+  // no speech plays the items are unsolvable. Check once, fail fast.
+  let audioHealthChecked = false;
+  const AUDIO_HEALTH_MIN_RECORDS = 3;
 
   function logRecord(input: Parameters<typeof parseVocabTrialRecord>[0]): void {
     const rec = parseVocabTrialRecord(input);
@@ -276,6 +281,19 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
       }
       started = true;
       emptyStreak = 0;
+
+      // Audio-pipeline health check (once, after a few items).
+      if (!audioHealthChecked && records.length >= AUDIO_HEALTH_MIN_RECORDS) {
+        audioHealthChecked = true;
+        if (!speechHasPlayed(win as unknown as AudioWindow)) {
+          throw new Error(
+            `No narration clips played after ${records.length} items — audio pipeline or task startup is ` +
+              `broken (window.__audioPlayLog has no speech). The Vocab target word is delivered only by ` +
+              `narration, so items are unsolvable; check task startup on this build ` +
+              `(e.g. the TaskLevante.vue startTask error).`,
+          );
+        }
+      }
 
       if (isItemReady(win)) {
         handleItem(i, win);

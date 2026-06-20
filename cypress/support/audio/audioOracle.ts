@@ -3,6 +3,19 @@ import { isNonSpeechAudio, type AudioWindow } from './audioCapture';
 import { readMp3Tags } from './id3';
 
 /**
+ * True if the AUT has played at least one *narration* clip (non-speech cues like
+ * button clicks / jingles don't count). Audio-dependent oracles use this for a
+ * fast health check: if no speech ever plays, audio capture or task startup is
+ * broken and audio-only items (e.g. EGMA number identification, Vocab, TROG)
+ * can't be solved — so they should fail fast with a clear cause rather than
+ * surfacing as confusing key mismatches or stalls.
+ */
+export function speechHasPlayed(win: AudioWindow): boolean {
+  const log = win.__audioPlayLog ?? [];
+  return log.some((url) => !isNonSpeechAudio(url));
+}
+
+/**
  * Resolves the canonical narration transcript for the clip playing on the
  * current screen, by combining the in-page play log (installAudioCapture) with
  * the node-side ID3 reader.

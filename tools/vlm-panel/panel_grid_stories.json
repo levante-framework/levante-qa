@@ -1,0 +1,16 @@
+{
+  "task": "stories",
+  "spec": "cypress/e2e/stories/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 3,
+  "models": [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro"
+  ],
+  "ages": [6, 8, 11],
+  "_notes": "Stories = Theory of Mind (diag task 'tom'). Ability spread from model tier + child-age IRT persona (theta 6:-1.00, 8:-0.06, 11:0.93) + temperature seeds. Stimulus never altered. Scored unit = itemType 'question'; chance varies per item (yes/no=0.5, n-choice from item bank). Run per language with --lang en-US|de-DE|es-CO."
+}

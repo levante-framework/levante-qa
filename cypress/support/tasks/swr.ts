@@ -117,6 +117,12 @@ export function isSwrPlayableScreen(doc: Document): boolean {
   );
 }
 
+/** Visible letter-string stimulus on an active SWR trial (normalized). */
+export function readStimulusText(doc: Document): string {
+  const el = doc.querySelector(STIMULUS);
+  return (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 function progressStarted(doc: Document): boolean {
   const style = doc.querySelector(PROGRESS_INNER)?.getAttribute('style') ?? '';
   return /width:\s*([1-9]|[1-9]\d)/.test(style);

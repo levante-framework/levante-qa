@@ -21,6 +21,7 @@ import { installAudioCapture, type AudioWindow } from '../../support/audio/audio
 import {
   currentAudioTranscript,
   resetAudioCapture,
+  speechHasPlayed,
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
@@ -92,6 +93,12 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
   // key, and how many of those disagreed with our computed answer.
   let keyedChecks = 0;
   let keyMismatches = 0;
+  // Audio-pipeline health: if no narration clip ever plays, audio-only items
+  // (number identification) are unsolvable and surface as confusing key
+  // mismatches. We check once, after a few items, and fail fast with a clear
+  // message pointing at the audio pipeline / task startup instead.
+  let audioHealthChecked = false;
+  const AUDIO_HEALTH_MIN_ITEMS = 5;
 
   /** Record a trial: keep it in memory and append it to the live log. */
   function logRecord(input: Parameters<typeof parseEgmaTrialRecord>[0]): void {
@@ -414,6 +421,23 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
       }
       started = true;
       emptyStreak = 0;
+
+      // 1b. Audio-pipeline health check. Once a handful of items have rendered,
+      //     the app should have played at least one narration clip. If
+      //     __audioPlayLog has no speech, audio capture (or task startup) is
+      //     broken — fail fast with a clear cause rather than letting audio-only
+      //     items mis-solve into key mismatches.
+      if (!audioHealthChecked && records.length >= AUDIO_HEALTH_MIN_ITEMS) {
+        audioHealthChecked = true;
+        if (!speechHasPlayed(win as unknown as AudioWindow)) {
+          throw new Error(
+            `No narration clips played after ${records.length} items — audio pipeline or task startup is broken ` +
+              `(window.__audioPlayLog has no speech). Audio-only EGMA items (number identification) cannot be ` +
+              `solved without narration, so they surface as key mismatches. Check task startup on this build ` +
+              `(e.g. the TaskLevante.vue startTask error) before trusting accuracy.`,
+          );
+        }
+      }
 
       // 2. Number-line slider (checked before instructions: it also shows a
       //    .primary submit button).

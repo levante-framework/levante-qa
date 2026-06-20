@@ -61,12 +61,15 @@ export async function askGemini(req: VLMRequest): Promise<string> {
       message.includes('Budget 0 is invalid') || message.includes('only works in thinking mode');
     if (!requiresThinkingMode) throw err;
 
-    // Gemini 3 Pro variants can require thinking mode; retry once without
-    // forcing a zero thinking budget.
+    // Some models (e.g. gemini-2.5-pro) require thinking mode; retry once
+    // without forcing a zero thinking budget. Thinking tokens count against
+    // maxOutputTokens, so the 32-token cap would be fully consumed by reasoning
+    // and leave NOTHING for the visible answer (empty text -> non-response).
+    // Raise the cap on this path so the digit survives the thinking budget.
     const retry = await getClient().models.generateContent({
       model,
       contents,
-      config: baseConfig,
+      config: { ...baseConfig, maxOutputTokens: 2048 },
     });
     return retry.text ?? '';
   }

@@ -167,6 +167,12 @@ export function hasActiveStimulus(doc: Document): boolean {
   return doc.querySelectorAll(STIMULUS).length > 0;
 }
 
+/** Visible sentence/text on an active SRE trial (normalized). */
+export function readStimulusText(doc: Document): string {
+  const el = doc.querySelector(STIMULUS);
+  return (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 export function arrowKeyForLr(lr: CorrectLr, wrong = false): string {
   const side = wrong ? (lr === 'left' ? 'right' : 'left') : lr;
   return side === 'left' ? '{leftarrow}' : '{rightarrow}';

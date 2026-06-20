@@ -18,8 +18,30 @@ const ROAR_READY_SELECTORS = [
 ].join(', ');
 
 const ROAR_START_FAILED = /error occurred while starting the task/i;
+const ROAR_TRACE_LOG = 'cypress/logs/_roar_vlm_wait_trace.jsonl';
+
+function isRoarTraceOn(): boolean {
+  const raw = String(Cypress.env('QA_ROAR_TRACE') ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function traceWait(record: Record<string, unknown>): void {
+  if (!isRoarTraceOn()) return;
+  cy.task(
+    'writeJsonl',
+    {
+      path: ROAR_TRACE_LOG,
+      records: [{ ts: new Date().toISOString(), ...record }],
+    },
+    { log: false },
+  );
+}
 
 function docHasRoarReady(doc: Document): boolean {
+  // Some ROAR builds mount `#jspsych-target` first, then populate inner jsPsych
+  // nodes lazily. Treat the mount point itself as "ready enough" so startup
+  // helpers can take over, instead of spinning in waitForRoarJsPsych forever.
+  if (doc.querySelector(JSPSYCH_TARGET)) return true;
   return ROAR_READY_SELECTORS.split(', ').some((sel) => doc.querySelector(sel));
 }
 
@@ -37,12 +59,13 @@ export function dismissLevanteConsentIfPresent(): void {
  * Participant home finished loading: app shell, assignment header, and the task
  * start link for this run's provisioned administration.
  */
-export function waitForParticipantHomeReady(taskId: string): void {
+export function waitForParticipantHomeReady(taskId: string, requireTaskLink = true): void {
   cy.get('[data-cy=app-initializing]', { timeout: 300000 }).should('not.exist');
   cy.get('h2.assignment__name', { timeout: 300000 }).should('be.visible');
   dismissLevanteConsentIfPresent();
-  cy.get(`a.game-btn[href*="/game/${taskId}"]`, { timeout: 300000 })
-    .should('be.visible');
+  if (requireTaskLink) {
+    cy.get(`a.game-btn[href*="/game/${taskId}"]`, { timeout: 300000 }).should('be.visible');
+  }
 }
 
 /**
@@ -65,10 +88,35 @@ export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
   cy.window({ log: false }).then((win) => {
     const doc = win.document;
     const bodyText = doc.body?.textContent ?? '';
+    if (attempt % 10 === 0) {
+      traceWait({
+        stage: 'waitForRoarJsPsych:poll',
+        attempt,
+        reloadLeft,
+        path: win.location?.pathname ?? null,
+        href: win.location?.href ?? null,
+        ready: docHasRoarReady(doc),
+        hasJsPsychTarget: !!doc.querySelector(JSPSYCH_TARGET),
+        bodySnippet: bodyText.replace(/\s+/g, ' ').trim().slice(0, 220),
+      });
+    }
     if (ROAR_START_FAILED.test(bodyText)) {
+      traceWait({
+        stage: 'waitForRoarJsPsych:start-failed',
+        attempt,
+        path: win.location?.pathname ?? null,
+        bodySnippet: bodyText.replace(/\s+/g, ' ').trim().slice(0, 400),
+      });
       throw new Error('Dashboard reported the ROAR task failed to start (alert text visible)');
     }
-    if (docHasRoarReady(doc)) return;
+    if (docHasRoarReady(doc)) {
+      traceWait({
+        stage: 'waitForRoarJsPsych:ready',
+        attempt,
+        path: win.location?.pathname ?? null,
+      });
+      return;
+    }
     cy.wait(2000, { log: false });
     waitForRoarJsPsych(reloadLeft, attempt + 1);
   });

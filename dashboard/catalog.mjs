@@ -91,7 +91,7 @@ export const CATALOG = [
     taskId: 'sre',
     oracleSpec: 'cypress/e2e/sre/oracle.cy.ts',
     wrongSpec: 'cypress/e2e/sre/wrong_agent.cy.ts',
-    vlmSpec: null,
+    vlmSpec: 'cypress/e2e/sre/vlm_agent.cy.ts',
     requiresDashboard: true,
   },
   {
@@ -100,7 +100,7 @@ export const CATALOG = [
     taskId: 'swr',
     oracleSpec: 'cypress/e2e/swr/oracle.cy.ts',
     wrongSpec: 'cypress/e2e/swr/wrong_agent.cy.ts',
-    vlmSpec: null,
+    vlmSpec: 'cypress/e2e/swr/vlm_agent.cy.ts',
     requiresDashboard: true,
   },
 ];

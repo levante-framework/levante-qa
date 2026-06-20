@@ -14,7 +14,11 @@ import {
   type TaskWindow,
 } from '../../support/tasks/trog';
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
-import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/audioOracle';
+import {
+  currentAudioTranscript,
+  resetAudioCapture,
+  speechHasPlayed,
+} from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
@@ -41,6 +45,10 @@ describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}
   const EMPTY_DONE = 20;
   let nItems = 0;
   let nNoKey = 0;
+  // Audio-pipeline health: the sentence to match is delivered only by narration,
+  // so if no speech plays the items are unsolvable. Check once, fail fast.
+  let audioHealthChecked = false;
+  const AUDIO_HEALTH_MIN_RECORDS = 3;
   // Signature of the screen we last acted on. If it recurs with no intervening
   // gap (a click that didn't advance a gated practice item), we re-click rather
   // than double-count. Reset at each fixation gap.
@@ -187,6 +195,19 @@ describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}
       }
       started = true;
       emptyStreak = 0;
+
+      // Audio-pipeline health check (once, after a few narrated screens).
+      if (!audioHealthChecked && records.length >= AUDIO_HEALTH_MIN_RECORDS) {
+        audioHealthChecked = true;
+        if (!speechHasPlayed(win as unknown as AudioWindow)) {
+          throw new Error(
+            `No narration clips played after ${records.length} screens — audio pipeline or task startup is ` +
+              `broken (window.__audioPlayLog has no speech). TROG delivers the sentence to match only by ` +
+              `narration; without it the captured-transcript check fails and the VLM benchmark is invalid. ` +
+              `Check task startup on this build (e.g. the TaskLevante.vue startTask error).`,
+          );
+        }
+      }
 
       if (isItemReady(win)) {
         handleItem(i, win);
