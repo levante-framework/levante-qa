@@ -5,7 +5,7 @@
  * A zero-dependency Node HTTP server that serves the Pitwall-styled UI and
  * orchestrates Cypress task runs. Each launch:
  *   1. provisions a unique, age-specific participant on hs-levante-admin-dev
- *      (via levante-support/scripts/e2e-init/provision-participant.mjs), then
+ *      (via levante-support/scripts/e2e-init/provision-participant.ts), then
  *   2. spawns `cypress run` in LAUNCH=dashboard mode as that participant, with
  *      logs/screenshots scoped per run and a per-run TMPDIR so Cypress lock
  *      files in /tmp do not collide when many tasks launch in parallel.
@@ -15,7 +15,7 @@
  * Parallelism: every POST /api/run is fire-and-forget with its own run id, so
  * multiple runs proceed concurrently (the UI polls /api/status per run).
  *
- * Modeled on levante-support/scripts/local-testing-results-server.mjs.
+ * Modeled on levante-support/scripts/local-testing-results-server.ts.
  */
 import http from 'node:http';
 import { spawn } from 'node:child_process';
@@ -66,8 +66,21 @@ const E2E_DIR = HAS_LOCAL_E2E ? LOCAL_E2E_DIR : join(SUPPORT_DIR, 'scripts', 'e2
 // holds the Firebase creds, so use it when present; in CI the creds come from process.env
 // and SUPPORT_DIR does not exist, so fall back to REPO_ROOT (which always exists).
 const E2E_CWD = existsSync(SUPPORT_DIR) ? SUPPORT_DIR : REPO_ROOT;
-const PROVISIONER = join(E2E_DIR, 'provision-participant.mjs');
-const ASSIGNMENT_LISTER = join(E2E_DIR, 'list-qa-assignments.mjs');
+function resolveE2EScript(scriptName) {
+  const tsPath = join(E2E_DIR, `${scriptName}.ts`);
+  if (existsSync(tsPath)) return tsPath;
+  return join(E2E_DIR, `${scriptName}.mjs`);
+}
+
+function scriptCommand(scriptPath, args = []) {
+  if (scriptPath.endsWith('.ts')) {
+    return { command: 'npx', args: ['tsx', scriptPath, ...args] };
+  }
+  return { command: execPath, args: [scriptPath, ...args] };
+}
+
+const PROVISIONER = resolveE2EScript('provision-participant');
+const ASSIGNMENT_LISTER = resolveE2EScript('list-qa-assignments');
 const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://hs-levante-admin-dev.web.app';
 const PORT = Number(process.env.QA_DASHBOARD_PORT || 4180);
 const MAX_LOG_LINES = 2000;
@@ -545,8 +558,7 @@ function spawnCypress(run) {
 }
 
 function provisionThenRun(run) {
-  const args = [
-    PROVISIONER,
+  const provisionArgs = [
     '--task',
     findTask(run.meta.task).taskId,
     '--language',
@@ -558,9 +570,10 @@ function provisionThenRun(run) {
     '--run-id',
     run.runId.slice(0, 8),
   ];
+  const launch = scriptCommand(PROVISIONER, provisionArgs);
   appendLog(run, `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m)...\n`);
 
-  const child = spawn(execPath, args, { cwd: E2E_CWD, env: { ...process.env }, detached: true });
+  const child = spawn(launch.command, launch.args, { cwd: E2E_CWD, env: { ...process.env }, detached: true });
   run.proc = child;
   let stdout = '';
   child.stdout.on('data', (c) => {
@@ -625,7 +638,8 @@ function startRun(meta) {
  */
 function listQaAssignments() {
   return new Promise((resolve, reject) => {
-    const child = spawn(execPath, [ASSIGNMENT_LISTER], { cwd: E2E_CWD, env: { ...process.env } });
+    const launch = scriptCommand(ASSIGNMENT_LISTER);
+    const child = spawn(launch.command, launch.args, { cwd: E2E_CWD, env: { ...process.env } });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (c) => (stdout += c.toString()));

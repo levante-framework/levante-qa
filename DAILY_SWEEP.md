@@ -78,7 +78,7 @@ If `levante-support` lives elsewhere, point the dashboard at it with
 
 | What | Why | How |
 | --- | --- | --- |
-| **`-dev` Firebase admin credential** | The provisioner (`provision-participant.mjs`) creates test participants on `hs-levante-admin-dev`. | Set `LEVANTE_ADMIN_FIREBASE_CREDENTIALS` in `levante-support/.env` (same one `setup-qa-site.mjs` uses). |
+| **`-dev` Firebase admin credential** | The provisioner (`provision-participant.ts`) creates test participants on `hs-levante-admin-dev`. | Set `LEVANTE_ADMIN_FIREBASE_CREDENTIALS` in `levante-support/.env` (same one `setup-qa-site.ts` uses). |
 | **Google Application Default Credentials** | Durable run-history mirror to `gs://levante-tools/levante-qa/`. | `gcloud auth application-default login`, or set `GCP_SERVICE_ACCOUNT_JSON` / `GOOGLE_APPLICATION_CREDENTIALS`. Optional — set `QA_GCS_DISABLE=1` for local-only history. |
 | **VLM API key** (`GEMINI_API_KEY` etc.) | Only if you run the sweep with `SWEEP_AGENT=vlm` or `child`. The default `oracle` agent needs **no** model key. | `levante-qa/.env`. |
 | **Slack webhook or bot token** | To post the daily summary. Optional — without it the report is just written to disk. | `levante-qa/.env` (see §4). |
@@ -221,6 +221,6 @@ deploy window, not a QA bug.
 | `scripts/daily-oracle-sweep.mjs` | The sweep orchestrator (matrix, pool, diff, Slack). Exports `classify` / `buildReport` / `slackMessage` for unit testing; only sweeps when run directly. |
 | `dashboard/server.mjs` | Run orchestration backend the sweep drives. |
 | `dashboard/catalog.mjs` | Task → spec map; `LANGUAGES`. |
-| `../levante-support/scripts/e2e-init/provision-participant.mjs` | Per-run participant provisioner (sibling repo). |
+| `../levante-support/scripts/e2e-init/provision-participant.ts` | Per-run participant provisioner (sibling repo). |
 | `results/daily/<date>.json` / `.md` | Snapshots + reports. |
 | `.env` | Slack creds, dashboard URL/port, sweep tuning, GCS, VLM keys. |

@@ -12,7 +12,7 @@ import { isDashboardLaunch, loginToDashboard, launchCoreTask } from '../support/
  * and VLM specs drive.
  *
  * The participant + assignment are provisioned by
- * `levante-support/scripts/e2e-init/setup-qa-site.mjs`. This spec self-skips
+ * `levante-support/scripts/e2e-init/setup-qa-site.ts`. This spec self-skips
  * unless dashboard launch is configured (LAUNCH=dashboard + participant creds),
  * so it never breaks the default standalone-demo runs.
  */

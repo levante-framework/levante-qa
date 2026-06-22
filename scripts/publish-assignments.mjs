@@ -5,7 +5,7 @@
  * page can offer an assignment picker without Firestore access of its own.
  *
  * Reads the assignments via the read-only support lister
- * (levante-support/scripts/e2e-init/list-qa-assignments.mjs), annotates each
+ * (levante-support/scripts/e2e-init/list-qa-assignments.ts), annotates each
  * task with whether the QA dashboard has an agent for it, and uploads the JSON.
  *
  * Run locally or as a refresh step in CI. Requires the same Firebase Admin +
@@ -29,13 +29,25 @@ const SUPPORT_DIR = process.env.LEVANTE_SUPPORT_DIR
 const LOCAL_E2E_DIR = join(REPO_ROOT, 'scripts', 'e2e-init');
 const E2E_DIR = existsSync(LOCAL_E2E_DIR) ? LOCAL_E2E_DIR : join(SUPPORT_DIR, 'scripts', 'e2e-init');
 const E2E_CWD = existsSync(SUPPORT_DIR) ? SUPPORT_DIR : REPO_ROOT;
-const LISTER = join(E2E_DIR, 'list-qa-assignments.mjs');
+const resolveE2EScript = (name) => {
+  const tsPath = join(E2E_DIR, `${name}.ts`);
+  if (existsSync(tsPath)) return tsPath;
+  return join(E2E_DIR, `${name}.mjs`);
+};
+
+const scriptCommand = (scriptPath) =>
+  scriptPath.endsWith('.ts')
+    ? ['npx', ['tsx', scriptPath]]
+    : [execPath, [scriptPath]];
+
+const LISTER = resolveE2EScript('list-qa-assignments');
 
 const findTaskByTaskId = (taskId) => CATALOG.find((t) => t.taskId === taskId) ?? null;
 
 function listQaAssignments() {
   return new Promise((res, rej) => {
-    const child = spawn(execPath, [LISTER], { cwd: E2E_CWD, env: { ...process.env } });
+    const [command, args] = scriptCommand(LISTER);
+    const child = spawn(command, args, { cwd: E2E_CWD, env: { ...process.env } });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (c) => (stdout += c.toString()));

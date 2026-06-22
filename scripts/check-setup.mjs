@@ -10,14 +10,19 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const support = resolve(root, '..', 'levante-support');
-const provisioner = resolve(support, 'scripts/e2e-init/provision-participant.mjs');
+const resolveSupportScript = (name) => {
+  const tsPath = resolve(support, `scripts/e2e-init/${name}.ts`);
+  if (existsSync(tsPath)) return tsPath;
+  return resolve(support, `scripts/e2e-init/${name}.mjs`);
+};
+const provisioner = resolveSupportScript('provision-participant');
 const cypress = resolve(root, 'node_modules/.bin/cypress');
 
 const checks = [
   ['levante-qa node_modules (Cypress)', cypress],
   ['levante-support checkout', support],
-  ['provision-participant.mjs', provisioner],
-  ['setup-qa-site.mjs', resolve(support, 'scripts/e2e-init/setup-qa-site.mjs')],
+  ['provision-participant.(ts|mjs)', provisioner],
+  ['setup-qa-site.(ts|mjs)', resolveSupportScript('setup-qa-site')],
 ];
 
 let ok = true;

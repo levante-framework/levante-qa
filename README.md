@@ -120,7 +120,7 @@ It lives alongside the sibling site-bootstrap scripts in `levante-support`
 
 ```bash
 cd ../levante-support
-node scripts/e2e-init/setup-qa-site.mjs        # uses VITE_FIREBASE_PROJECT=DEV + .env credential
+npx tsx scripts/e2e-init/setup-qa-site.ts      # uses VITE_FIREBASE_PROJECT=DEV + .env credential
 # prints PARTICIPANT_USER / PARTICIPANT_PASS to copy into levante-qa/.env
 ```
 
@@ -143,7 +143,7 @@ participant and Cypress run for each task in parallel.
 How it works (per launch):
 
 1. **Provision** — the backend runs
-   `levante-support/scripts/e2e-init/provision-participant.mjs`, which creates a
+   `levante-support/scripts/e2e-init/provision-participant.ts`, which creates a
    unique, test-flagged participant on `hs-levante-admin-dev` whose
    `birthMonth`/`birthYear` are derived from the requested age, and assigns just
    the selected task. (Age drives age-appropriate item selection via
@@ -189,7 +189,7 @@ local-only history. Override via `QA_GCS_BUCKET`, `QA_GCS_PREFIX`,
 
 Requirements: the provisioner needs the `-dev` service-account credential —
 runs against the same `levante-support` `.env`
-(`LEVANTE_ADMIN_FIREBASE_CREDENTIALS`) used by `setup-qa-site.mjs`. Point the
+(`LEVANTE_ADMIN_FIREBASE_CREDENTIALS`) used by `setup-qa-site.ts`. Point the
 backend at a non-default support checkout with `LEVANTE_SUPPORT_DIR`, change the
 port with `QA_DASHBOARD_PORT`. Dev-only by design (the provisioner refuses to
 run outside `hs-levante-admin-dev`).
@@ -743,7 +743,7 @@ dashboard/                  server.mjs (run orchestration backend), catalog.mjs 
 ```
 
 The dashboard's per-run provisioner lives in the sibling repo at
-`levante-support/scripts/e2e-init/provision-participant.mjs`.
+`levante-support/scripts/e2e-init/provision-participant.ts`.
 
 Diagnostic logs written during a run (git-ignored):
 
