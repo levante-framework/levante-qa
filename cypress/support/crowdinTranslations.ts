@@ -41,6 +41,55 @@ function audioBucket(): string | null {
   return value || null;
 }
 
+/**
+ * A short silent PCM WAV as an ArrayBuffer. Built in-memory (rather than served
+ * from a fixture) so the exact bytes reach the browser unmangled — Cypress reads
+ * fixtures with an extension-derived encoding and corrupts binary it doesn't
+ * recognize. Web Audio's decodeAudioData sniffs the RIFF/WAVE header, so the
+ * `.mp3` request URL is irrelevant.
+ */
+function silentWavBytes(): ArrayBuffer {
+  const sampleRate = 44100;
+  const numSamples = Math.floor(sampleRate * 0.2);
+  const dataSize = numSamples * 2;
+  const buf = new ArrayBuffer(44 + dataSize);
+  const dv = new DataView(buf);
+  const writeStr = (offset: number, s: string): void => {
+    for (let i = 0; i < s.length; i += 1) dv.setUint8(offset + i, s.charCodeAt(i));
+  };
+  writeStr(0, 'RIFF');
+  dv.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true); // PCM
+  dv.setUint16(22, 1, true); // mono
+  dv.setUint32(24, sampleRate, true);
+  dv.setUint32(28, sampleRate * 2, true);
+  dv.setUint16(32, 2, true);
+  dv.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  dv.setUint32(40, dataSize, true);
+  // Sample region is left zero-filled (silence).
+  return buf;
+}
+
+/**
+ * Reference locale to source the audio *file list* from when serving silent
+ * placeholders, or null when placeholder mode is off. Enables behavioral testing
+ * of a task whose narration mp3s don't exist yet (e.g. Dutch vocab): the app
+ * still discovers and "plays" every clip, while the spoken word comes from the
+ * Crowdin-approved translation text (the same text the real mp3 will be generated
+ * from). `QA_AUDIO_PLACEHOLDER=1` defaults the reference to `en-US`; an explicit
+ * locale (e.g. `en-US`) is used as-is. The reference must have full audio
+ * coverage in the dev bucket so the rewritten listing names every expected clip.
+ */
+function audioPlaceholderRef(): string | null {
+  const value = String(Cypress.env('QA_AUDIO_PLACEHOLDER') ?? '').trim();
+  if (!value) return null;
+  return /^(1|true|yes)$/i.test(value) ? 'en-US' : value;
+}
+
 function taskFromTranslationUrl(url: string): string | null {
   const match = /\/translations\/itembank\/([^/?#]+)\/[^/?#]+\/item-bank-translations\.json/.exec(url);
   return match?.[1] ?? null;
@@ -63,8 +112,15 @@ export function installAudioAssetIntercept(): void {
   const bucket = audioBucket();
   const sourceLang = audioFallbackLanguage() ?? language;
   const langSwap = sourceLang !== language;
-  if (!bucket && !langSwap) return;
+  const placeholderRef = audioPlaceholderRef();
+  if (!bucket && !langSwap && !placeholderRef) return;
 
+  // The app discovers a locale's clips by listing the bucket, then requests each
+  // listed file. In placeholder mode we source that list from a fully-covered
+  // reference locale in the dev bucket (so every expected clip is named), then
+  // map the names to the requested locale; the file intercept below answers each
+  // with a silent mp3. Otherwise we forward the listing to the override bucket/
+  // locale (audio that really exists elsewhere, e.g. the draft bucket).
   cy.intercept('GET', '**/storage/v1/b/*/o?prefix=audio/**', async (req) => {
     const url = new URL(req.url);
     const prefix = url.searchParams.get('prefix') ?? '';
@@ -72,10 +128,15 @@ export function installAudioAssetIntercept(): void {
       req.continue();
       return;
     }
-    if (langSwap) {
-      url.searchParams.set('prefix', prefix.replace(`audio/${language}/`, `audio/${sourceLang}/`));
+    const fromLang = placeholderRef ?? sourceLang;
+    const swap = fromLang !== language;
+    if (swap) {
+      url.searchParams.set('prefix', prefix.replace(`audio/${language}/`, `audio/${fromLang}/`));
     }
-    const fetchUrl = rewriteAudioListingUrl(url.toString(), bucket);
+    // Placeholder lists from the dev bucket (where the reference locale lives);
+    // the redirect path lists from the configured override bucket.
+    const listingBucket = placeholderRef ? 'levante-assets-dev' : bucket;
+    const fetchUrl = rewriteAudioListingUrl(url.toString(), listingBucket);
     const response = await fetch(fetchUrl);
     const body = await response.json();
     const rewritten = {
@@ -84,11 +145,26 @@ export function installAudioAssetIntercept(): void {
         ...item,
         // Map names back to the requested locale so the app builds
         // `audio/<language>/…` URLs that the file intercept below catches.
-        name: langSwap ? item.name?.replace(`audio/${sourceLang}/`, `audio/${language}/`) : item.name,
+        name: swap ? item.name?.replace(`audio/${fromLang}/`, `audio/${language}/`) : item.name,
       })),
     };
     req.reply({ statusCode: response.status, body: rewritten });
   });
+
+  // Placeholder mode: answer every clip with a valid silent mp3 (+ CORS) so the
+  // app's all-or-nothing preloader succeeds and each clip "plays" (logging its
+  // URL); the transcript then comes from the Crowdin-approved text, not the audio.
+  if (placeholderRef) {
+    const silentBody = silentWavBytes();
+    cy.intercept('GET', `**/audio/${language}/*.mp3*`, (req) => {
+      req.reply({
+        statusCode: 200,
+        headers: { 'access-control-allow-origin': '*', 'content-type': 'audio/wav' },
+        body: silentBody,
+      });
+    });
+    return;
+  }
 
   // A unique-per-process token appended to redirected audio URLs. GCS adds CORS
   // headers per-request, but a no-CORS response cached (by the browser or an

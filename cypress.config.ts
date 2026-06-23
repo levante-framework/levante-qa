@@ -257,6 +257,7 @@ export default defineConfig({
         'QA_STORIES_CORPUS',
         'QA_AUDIO_FALLBACK_LANGUAGE',
         'QA_AUDIO_BUCKET',
+        'QA_AUDIO_PLACEHOLDER',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];

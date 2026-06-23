@@ -1,0 +1,16 @@
+{
+  "task": "vocab",
+  "spec": "cypress/e2e/vocab/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 3,
+  "models": [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro"
+  ],
+  "ages": [6, 8, 11],
+  "_notes": "Vocab = picture-vocabulary (4-AFC). The model is given the spoken word (the narration transcript) and must pick the matching picture by grid position. Ability spread from model tier + child-age IRT persona + temperature seeds; stimulus never altered. Run per language with --lang en-US|de-DE|nl. For nl the narration mp3s don't exist yet, so set QA_AUDIO_PLACEHOLDER=en-US (silent placeholder audio) + QA_TRANSLATIONS_SOURCE=crowdin-approved: the word then comes from the Crowdin-approved Dutch text the real mp3 will be generated from."
+}
