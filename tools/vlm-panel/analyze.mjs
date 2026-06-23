@@ -25,6 +25,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import JSZip from 'jszip';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
@@ -48,6 +49,16 @@ const DIAG_CSV = join(
   'display',
   'diag_items_allstats_selected.csv',
 );
+// Approved-only Crowdin export (built by the crowdin-approved QA path). Used to
+// align languages that have NO column in item_bank_translations.csv (e.g. nl):
+// the XLIFF unit id IS the item_id (same namespace as the CSV), so the existing
+// item_id -> item_uid -> human chain works unchanged. See loadCrowdinAlignment.
+const CROWDIN_CACHE =
+  process.env.QA_CROWDIN_CACHE_PATH ||
+  join(REPO, 'cypress', 'cache', 'crowdin-approved-translations.zip');
+// Per-language Crowdin alignment (normText(approved target) -> item_id),
+// prebuilt in main() for languages not carried by the CSV. Empty otherwise.
+const CROWDIN_ALIGN = {};
 
 // Per-task wiring. The pipeline is identical across tasks; only the scored row
 // type, the item-identity field, the item bank, the human diag task name, and
@@ -63,6 +74,7 @@ const TASKS = {
     hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
     defaultChance: 0.25,
     humanJoin: true,
+    crowdinFile: 'sentence-understanding',
   },
   stories: {
     title: 'Stories (Theory of Mind)',
@@ -76,6 +88,7 @@ const TASKS = {
     hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
     defaultChance: 0.5,
     humanJoin: true,
+    crowdinFile: 'stories',
   },
   swr: {
     title: 'ROAR SWR (Single Word Recognition) VLM difficulty screen',
@@ -377,7 +390,61 @@ const LANG_MAP = {
   en: { cols: ['en-US'], diag: 'en' },
   de: { cols: ['de-DE'], diag: 'de' },
   es: { cols: ['es-CO', 'es-AR'], diag: 'es' },
+  // nl has no column in item_bank_translations.csv (yet) and no human IRT data
+  // (pre-launch). Its text->item_id alignment comes from the Crowdin approved
+  // export (CROWDIN_ALIGN); p_human stays null, which is fine — the
+  // cross-language difficulty shift only needs p_vlm aligned by item_uid.
+  nl: { cols: [], diag: 'nl' },
 };
+
+// Languages carried by item_bank_translations.csv columns; others (e.g. nl) are
+// aligned from the Crowdin approved export instead, leaving CSV langs untouched.
+const CSV_LANGS = new Set(['en', 'de', 'es']);
+
+function decodeXml(value) {
+  return value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&amp;/g, '&');
+}
+
+/**
+ * Build normText(approved target) -> item_id for one language+task from the
+ * cached Crowdin approved-only export. The XLIFF unit id is the item_id (same
+ * namespace as item_bank_translations.csv and the corpus item bank), so the
+ * downstream item_id -> item_uid -> human/cross-language chain is unchanged.
+ * Returns an empty Map if the cache or task file is absent (the per-language
+ * BROKEN screen still works; only nl<->en alignment is lost).
+ */
+async function loadCrowdinAlignment(language, crowdinFile) {
+  const map = new Map();
+  if (!crowdinFile || !existsSync(CROWDIN_CACHE)) return map;
+  let zip;
+  try {
+    zip = await JSZip.loadAsync(readFileSync(CROWDIN_CACHE));
+  } catch {
+    return map;
+  }
+  const file = zip.file(`${language}/main/itembank_by_task/${crowdinFile}.xliff`);
+  if (!file) return map;
+  const xml = await file.async('string');
+  const unitRe =
+    /<(?:[^:\s>]+:)?trans-unit\b([^>]*)>([\s\S]*?)<\/(?:[^:\s>]+:)?trans-unit>|<(?:[^:\s>]+:)?unit\b([^>]*)>([\s\S]*?)<\/(?:[^:\s>]+:)?unit>/g;
+  for (const m of xml.matchAll(unitRe)) {
+    const attrs = m[1] || m[3] || '';
+    const body = m[2] || m[4] || '';
+    const id = /(?:\sid|resname)="([^"]+)"/.exec(attrs)?.[1];
+    const target = /<(?:[^:\s>]+:)?target\b[^>]*>([\s\S]*?)<\/(?:[^:\s>]+:)?target>/.exec(body)?.[1];
+    if (!id || !target) continue;
+    const t = normText(decodeXml(target.replace(/<[^>]+>/g, '')));
+    if (t && !map.has(t)) map.set(t, decodeXml(id));
+  }
+  return map;
+}
 
 // ---------- 5: human join ----------
 // Chain: normalized transcript (in the run language) -> item_id (translations)
@@ -396,6 +463,12 @@ function buildHumanJoin(language) {
       const t = normText(r[col]);
       if (t && r.item_id && !textToId.has(t)) textToId.set(t, r.item_id);
     }
+  }
+  // Languages with no CSV column (e.g. nl) are aligned from the Crowdin approved
+  // export prebuilt in main(); merge it in (CSV wins when both exist).
+  const align = CROWDIN_ALIGN[language];
+  if (align) {
+    for (const [t, id] of align) if (!textToId.has(t)) textToId.set(t, id);
   }
   // item bank: item_id / audio_file -> item_uid (+ per-item chance level)
   const bank = readCsv(ITEM_BANK);
@@ -650,12 +723,27 @@ function analyzeLanguage(language) {
 }
 
 // ---------- main ----------
-function main() {
+async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const langs = discoverLanguages();
   if (langs.length === 0) {
     console.error(`No panel runs found under ${RUNS_DIR}. Run tools/vlm-panel/run_panel.mjs first.`);
     process.exit(1);
+  }
+
+  // Prebuild Crowdin alignment for non-CSV languages (e.g. nl) so the otherwise
+  // synchronous join/cross-language pipeline can read it without async plumbing.
+  if (TASK.humanJoin) {
+    for (const lang of langs) {
+      if (CSV_LANGS.has(lang)) continue;
+      CROWDIN_ALIGN[lang] = await loadCrowdinAlignment(lang, TASK.crowdinFile);
+      if (CROWDIN_ALIGN[lang].size === 0) {
+        console.error(
+          `WARN: no Crowdin alignment for "${lang}" (cache ${existsSync(CROWDIN_CACHE) ? 'present' : 'MISSING'}; ` +
+            `task file ${TASK.crowdinFile}.xliff). Per-language screen still works; ${lang}<->en item alignment will be empty.`,
+        );
+      }
+    }
   }
 
   const rep = [`# ${TASK.title} VLM difficulty screen`, '', `Generated: ${new Date().toISOString()}`, ''];

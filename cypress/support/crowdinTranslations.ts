@@ -1,3 +1,5 @@
+import { rewriteAudioFileUrl, rewriteAudioListingUrl } from './audio/audioAssetRewrite';
+
 type TranslationMap = Record<string, string>;
 
 interface CrowdinApprovedTranslationsPayload {
@@ -33,14 +35,35 @@ function audioFallbackLanguage(): string | null {
   return value || null;
 }
 
+/** Target bucket for audio assets (e.g. `levante-assets-draft`), or null. */
+function audioBucket(): string | null {
+  const value = String(Cypress.env('QA_AUDIO_BUCKET') ?? '').trim();
+  return value || null;
+}
+
 function taskFromTranslationUrl(url: string): string | null {
   const match = /\/translations\/itembank\/([^/?#]+)\/[^/?#]+\/item-bank-translations\.json/.exec(url);
   return match?.[1] ?? null;
 }
 
-function installAudioFallbackIntercept(language: string): void {
-  const fallbackLanguage = audioFallbackLanguage();
-  if (!fallbackLanguage || fallbackLanguage === language) return;
+/**
+ * Redirect the app's audio-asset requests to a different bucket and/or locale
+ * folder than core-tasks hard-codes. The app requests
+ * `levante-assets-dev/audio/<QA_LANGUAGE>/…`; this can serve them from
+ * `QA_AUDIO_BUCKET` (e.g. `levante-assets-draft`) under `QA_AUDIO_FALLBACK_LANGUAGE`
+ * (e.g. `nl-NL`). Returned listing names are rewritten back to the requested
+ * locale so the app's subsequent file requests still match the file intercept.
+ *
+ * No-op unless a bucket override or a distinct fallback locale is configured.
+ * Exported so it applies to every launch, independent of crowdin-approved text.
+ */
+export function installAudioAssetIntercept(): void {
+  const language = qaLanguage();
+  if (!language) return;
+  const bucket = audioBucket();
+  const sourceLang = audioFallbackLanguage() ?? language;
+  const langSwap = sourceLang !== language;
+  if (!bucket && !langSwap) return;
 
   cy.intercept('GET', '**/storage/v1/b/*/o?prefix=audio/**', async (req) => {
     const url = new URL(req.url);
@@ -49,23 +72,37 @@ function installAudioFallbackIntercept(language: string): void {
       req.continue();
       return;
     }
-
-    url.searchParams.set('prefix', prefix.replace(`audio/${language}/`, `audio/${fallbackLanguage}/`));
-    const response = await fetch(url.toString());
+    if (langSwap) {
+      url.searchParams.set('prefix', prefix.replace(`audio/${language}/`, `audio/${sourceLang}/`));
+    }
+    const fetchUrl = rewriteAudioListingUrl(url.toString(), bucket);
+    const response = await fetch(fetchUrl);
     const body = await response.json();
     const rewritten = {
       ...body,
       items: (body.items ?? []).map((item: { name?: string }) => ({
         ...item,
-        name: item.name?.replace(`audio/${fallbackLanguage}/`, `audio/${language}/`),
+        // Map names back to the requested locale so the app builds
+        // `audio/<language>/…` URLs that the file intercept below catches.
+        name: langSwap ? item.name?.replace(`audio/${sourceLang}/`, `audio/${language}/`) : item.name,
       })),
     };
     req.reply({ statusCode: response.status, body: rewritten });
   });
 
-  cy.intercept('GET', `**/audio/${language}/*.mp3*`, async (req) => {
-    const fallbackUrl = req.url.replace(`/audio/${language}/`, `/audio/${fallbackLanguage}/`);
-    req.redirect(fallbackUrl, 302);
+  // A unique-per-process token appended to redirected audio URLs. GCS adds CORS
+  // headers per-request, but a no-CORS response cached (by the browser or an
+  // intermediary keyed on URL without `Vary: Origin`) before the bucket's CORS
+  // policy propagated will keep being served stale — and the app's preloader is
+  // all-or-nothing, so one stale clip aborts the whole task. Busting the cache
+  // key forces a fresh fetch that carries the now-present CORS headers.
+  const cacheBust = `qa_cb=${Date.now()}`;
+  cy.intercept('GET', `**/audio/${language}/*.mp3*`, (req) => {
+    const target = rewriteAudioFileUrl(req.url, { bucket, fromLang: language, toLang: sourceLang });
+    if (target !== req.url) {
+      const sep = target.includes('?') ? '&' : '?';
+      req.redirect(`${target}${sep}${cacheBust}`, 302);
+    } else req.continue();
   });
 }
 
@@ -73,7 +110,6 @@ export function installCrowdinApprovedTranslationIntercept(): void {
   if (!enabled()) return;
   const language = qaLanguage();
   expect(language, 'QA_LANGUAGE is required for QA_TRANSLATIONS_SOURCE=crowdin-approved').to.not.equal('');
-  installAudioFallbackIntercept(language);
 
   cy.task<CrowdinApprovedTranslationsPayload>('loadCrowdinApprovedTranslations', {
     language,

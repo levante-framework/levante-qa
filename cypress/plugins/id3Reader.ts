@@ -1,6 +1,22 @@
 import NodeID3 from 'node-id3';
 
 import type { AudioSource, Mp3Tags } from '../support/tasks/types';
+import { rewriteAudioFileUrl } from '../support/audio/audioAssetRewrite';
+
+/**
+ * Apply the same bucket/locale audio redirect the browser intercept uses (see
+ * installAudioAssetIntercept), so the transcript is read from the file that was
+ * actually played. `__audioPlayLog` records the URL the app *requested* (e.g.
+ * `levante-assets-dev/audio/nl/…`), which 404s; the played bytes come from the
+ * override (`levante-assets-draft/audio/nl-NL/…`). No-op without overrides.
+ */
+function resolvePlayedUrl(url: string): string {
+  const bucket = process.env.QA_AUDIO_BUCKET?.trim() || null;
+  const fromLang = process.env.QA_LANGUAGE?.trim() || null;
+  const toLang = process.env.QA_AUDIO_FALLBACK_LANGUAGE?.trim() || fromLang;
+  if (!bucket && (!toLang || toLang === fromLang)) return url;
+  return rewriteAudioFileUrl(url, { bucket, fromLang, toLang });
+}
 
 // node-id3 is CommonJS; under the ts-node/esm loader Cypress uses, a namespace
 // import (`import * as`) does not expose `.read`, so we use the default import
@@ -105,7 +121,7 @@ export async function readMp3Tags(url: string): Promise<Mp3Tags> {
 
   let result: Mp3Tags;
   try {
-    const res = await fetch(url);
+    const res = await fetch(resolvePlayedUrl(url));
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }

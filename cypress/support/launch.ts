@@ -1,5 +1,8 @@
 import { waitForParticipantHomeReady } from './tasks/roar';
-import { installCrowdinApprovedTranslationIntercept } from './crowdinTranslations';
+import {
+  installAudioAssetIntercept,
+  installCrowdinApprovedTranslationIntercept,
+} from './crowdinTranslations';
 
 /**
  * Task launch strategies.
@@ -180,6 +183,7 @@ export function launchRoarTask(taskId: string): void {
  */
 export function launchTask(opts: LaunchOptions): void {
   installCrowdinApprovedTranslationIntercept();
+  installAudioAssetIntercept();
 
   if (isRoarTaskId(opts.taskId)) {
     Cypress.env('TASK_ID', opts.taskId);

@@ -2052,6 +2052,25 @@
     "elapsedMs": 583421
   },
   {
+    "runId": "panel_stories_nl_25flashlite_a6_r1",
+    "task": "stories",
+    "spec": "cypress/e2e/stories/vlm_agent.cy.ts",
+    "provider": "gemini",
+    "language": "nl",
+    "qaLanguage": "nl",
+    "model": "gemini-2.5-flash-lite",
+    "age": 6,
+    "repeat": 1,
+    "temperature": 0.8,
+    "personaAbility": "irt",
+    "status": "failed",
+    "startedAt": "2026-06-23T21:26:16.719Z",
+    "logFile": "tools/vlm-panel/out/logs/panel_stories_nl_25flashlite_a6_r1.log",
+    "finishedAt": "2026-06-23T21:27:07.273Z",
+    "exitCode": 1,
+    "elapsedMs": 50543
+  },
+  {
     "runId": "panel_swr_de_25flash_a10_r1",
     "task": "swr",
     "language": "de",

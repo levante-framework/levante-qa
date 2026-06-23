@@ -1,6 +1,6 @@
 # Stories (Theory of Mind) VLM difficulty screen
 
-Generated: 2026-06-14T22:40:19.062Z
+Generated: 2026-06-23T19:57:10.174Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
 
