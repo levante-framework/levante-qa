@@ -36,7 +36,7 @@ const TIMEOUT_MS = 10000;
 const LIVE_LOG = 'cypress/logs/_sds_vlm_live.jsonl';
 const MATCH_STUCK_LOG = 'cypress/logs/_sds_match_stuck.jsonl';
 const MATCH_STALL_LIMIT = 15;
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`Same-Different Selection — VLM agent (${provider})`, () => {
   const records: SdsTrialRecord[] = [];

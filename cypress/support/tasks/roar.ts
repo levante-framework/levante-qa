@@ -21,7 +21,7 @@ const ROAR_START_FAILED = /error occurred while starting the task/i;
 const ROAR_TRACE_LOG = 'cypress/logs/_roar_vlm_wait_trace.jsonl';
 
 function isRoarTraceOn(): boolean {
-  const raw = String(Cypress.env('QA_ROAR_TRACE') ?? '').trim().toLowerCase();
+  const raw = String(Cypress.expose('QA_ROAR_TRACE') ?? '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 

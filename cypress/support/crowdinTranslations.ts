@@ -9,35 +9,35 @@ interface CrowdinApprovedTranslationsPayload {
 }
 
 function enabled(): boolean {
-  return String(Cypress.env('QA_TRANSLATIONS_SOURCE') ?? '').toLowerCase() === 'crowdin-approved';
+  return String(Cypress.expose('QA_TRANSLATIONS_SOURCE') ?? '').toLowerCase() === 'crowdin-approved';
 }
 
 function qaLanguage(): string {
-  return String(Cypress.env('QA_LANGUAGE') ?? '').trim();
+  return String(Cypress.expose('QA_LANGUAGE') ?? '').trim();
 }
 
 function projectId(): string | undefined {
-  const value = String(Cypress.env('QA_CROWDIN_PROJECT_ID') ?? '').trim();
+  const value = String(Cypress.expose('QA_CROWDIN_PROJECT_ID') ?? '').trim();
   return value || undefined;
 }
 
 function cachePath(): string | undefined {
-  const value = String(Cypress.env('QA_CROWDIN_CACHE_PATH') ?? '').trim();
+  const value = String(Cypress.expose('QA_CROWDIN_CACHE_PATH') ?? '').trim();
   return value || undefined;
 }
 
 function refresh(): boolean {
-  return /^(1|true|yes)$/i.test(String(Cypress.env('QA_CROWDIN_REFRESH') ?? ''));
+  return /^(1|true|yes)$/i.test(String(Cypress.expose('QA_CROWDIN_REFRESH') ?? ''));
 }
 
 function audioFallbackLanguage(): string | null {
-  const value = String(Cypress.env('QA_AUDIO_FALLBACK_LANGUAGE') ?? '').trim();
+  const value = String(Cypress.expose('QA_AUDIO_FALLBACK_LANGUAGE') ?? '').trim();
   return value || null;
 }
 
 /** Target bucket for audio assets (e.g. `levante-assets-draft`), or null. */
 function audioBucket(): string | null {
-  const value = String(Cypress.env('QA_AUDIO_BUCKET') ?? '').trim();
+  const value = String(Cypress.expose('QA_AUDIO_BUCKET') ?? '').trim();
   return value || null;
 }
 
@@ -85,7 +85,7 @@ function silentWavBytes(): ArrayBuffer {
  * coverage in the dev bucket so the rewritten listing names every expected clip.
  */
 function audioPlaceholderRef(): string | null {
-  const value = String(Cypress.env('QA_AUDIO_PLACEHOLDER') ?? '').trim();
+  const value = String(Cypress.expose('QA_AUDIO_PLACEHOLDER') ?? '').trim();
   if (!value) return null;
   return /^(1|true|yes)$/i.test(value) ? 'en-US' : value;
 }

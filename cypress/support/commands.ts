@@ -186,9 +186,9 @@ Cypress.Commands.add('confirmSdsMatch', () => {
   cy.get('body', { log: false }).then(($body) => {
     const $ok = $body.find(SDS_MATCH_CONFIRM_BUTTON).filter(':visible');
     if ($ok.length === 0) return;
-    const $enabled = $ok.filter((_, el) => !(el as HTMLButtonElement).disabled);
+    const $enabled = $ok.filter((_, el) => !(el as unknown as HTMLButtonElement).disabled);
     const $target = ($enabled.length ? $enabled : $ok).first();
-    if (($target[0] as HTMLButtonElement).disabled) {
+    if (($target[0] as unknown as HTMLButtonElement).disabled) {
       cy.wrap($target).should('not.be.disabled', { timeout: 60000 });
     }
     cy.wrap($target).click({ force: true });

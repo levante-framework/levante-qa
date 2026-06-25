@@ -30,7 +30,7 @@ const TASK = 'matrix-reasoning';
 const TIMEOUT_MS = 10000;
 
 const LIVE_LOG = 'cypress/logs/_matrix_vlm_live.jsonl';
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`Matrix Reasoning — VLM agent (${provider})`, () => {
   const records: MatrixReasoningTrialRecord[] = [];

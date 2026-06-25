@@ -23,7 +23,7 @@ const TASK = 'trog';
 const TIMEOUT_MS = 10000;
 
 const LIVE_LOG = 'cypress/logs/_trog_vlm_live.jsonl';
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`TROG — VLM agent (${provider})`, () => {
   const records: TrogTrialRecord[] = [];

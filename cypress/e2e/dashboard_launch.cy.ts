@@ -16,7 +16,7 @@ import { isDashboardLaunch, loginToDashboard, launchCoreTask } from '../support/
  * unless dashboard launch is configured (LAUNCH=dashboard + participant creds),
  * so it never breaks the default standalone-demo runs.
  */
-const dashboardConfigured = isDashboardLaunch() && !!Cypress.env('PARTICIPANT_USER');
+const dashboardConfigured = isDashboardLaunch() && !!Cypress.expose('PARTICIPANT_USER');
 
 (dashboardConfigured ? describe : describe.skip)('dashboard launch', () => {
   it('logs in, shows the assignment, and launches egma-math', () => {

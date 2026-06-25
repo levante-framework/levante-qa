@@ -21,7 +21,7 @@ export const CHOICE_IMG = 'img[src*=".webp"]';
 // Any button that advances a non-trial screen (intro / tutorial / break / end).
 export const ADVANCE_BTN = `${CONTINUE}, ${JSPSYCH_BTN}`;
 
-/** Matches roar-dashboard `Cypress.env('timeout')` default (10s). */
+/** Matches roar-dashboard `Cypress.expose('timeout')` default (10s). */
 export const PA_STEP_MS = 10_000;
 export const PA_ASSET_WAIT_MS = PA_STEP_MS * 1.5;
 

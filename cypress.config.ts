@@ -111,6 +111,7 @@ async function crowdinApprovedTranscriptForAudio(url: string): Promise<string | 
 }
 
 export default defineConfig({
+  allowCypressEnv: false,
   e2e: {
     baseUrl: undefined,
     video: false,
@@ -235,10 +236,10 @@ export default defineConfig({
         },
       });
 
-      // Surface the resolved provider to specs via Cypress.env('provider').
+      // Surface the resolved provider to specs via Cypress.expose('provider').
       config.env.provider = provider;
 
-      // Surface dashboard-launch settings (.env) to specs via Cypress.env(...).
+      // Surface dashboard-launch settings (.env) to specs via Cypress.expose(...).
       // LAUNCH=dashboard switches specs from the standalone demo to logging in
       // to the -dev dashboard and starting the assigned task.
       for (const key of [
@@ -268,6 +269,11 @@ export default defineConfig({
       if (process.env.BASE_URL) {
         config.baseUrl = process.env.BASE_URL;
       }
+
+      // Mirror all resolved env (static block + CLI --env + dynamic overrides) into
+      // `expose` so specs can read them via Cypress.expose() now that Cypress.env()
+      // is disabled (allowCypressEnv: false).
+      config.expose = { ...(config.expose || {}), ...config.env };
 
       return config;
     },

@@ -20,15 +20,15 @@ import {
 import { launchTask } from '../../support/launch';
 import { parseStoriesTrialRecord, type StoriesTrialRecord } from '../../support/tasks/types';
 
-const MAX_STEPS = Number(Cypress.env('QA_STORIES_MAX_STEPS') ?? 4000);
+const MAX_STEPS = Number(Cypress.expose('QA_STORIES_MAX_STEPS') ?? 4000);
 const TASK = 'theory-of-mind';
 const TIMEOUT_MS = 10000;
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
-const STOP_AFTER_TEXT = String(Cypress.env('QA_STORIES_STOP_AFTER_TEXT') ?? '').trim();
+const STOP_AFTER_TEXT = String(Cypress.expose('QA_STORIES_STOP_AFTER_TEXT') ?? '').trim();
 
 const LIVE_LOG = 'cypress/logs/_stories_vlm_live.jsonl';
 
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
   const records: StoriesTrialRecord[] = [];

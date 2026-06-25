@@ -29,7 +29,7 @@ const LIVE_LOG = 'cypress/logs/_vocab_vlm_live.jsonl';
 
 // Provider is chosen node-side by VLM_PROVIDER, surfaced here for log labelling
 // and so the spec can be run with `--env provider=gemini`.
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`Vocab — VLM agent (${provider})`, () => {
   const records: VocabTrialRecord[] = [];
