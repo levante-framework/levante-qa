@@ -24,7 +24,7 @@ const TASK = 'mental-rotation';
 const TIMEOUT_MS = 10000;
 
 const LIVE_LOG = 'cypress/logs/_mr_vlm_live.jsonl';
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`Mental Rotation — VLM agent (${provider})`, () => {
   const records: MentalRotationTrialRecord[] = [];

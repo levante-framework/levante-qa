@@ -43,7 +43,7 @@ const PROMPT_POLLS = 14;
 // to the English alts without a translation table; there we drive and score the
 // oracle from the app's own answer key (the `.correct` marker) instead.
 function crossCheckEnabled(): boolean {
-  const lang = String(Cypress.env('QA_LANGUAGE') ?? '')
+  const lang = String(Cypress.expose('QA_LANGUAGE') ?? '')
     .trim()
     .toLowerCase();
   return lang === '' || lang.startsWith('en');

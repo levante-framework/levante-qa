@@ -95,7 +95,7 @@ export function buildUrl(
 function isInteractable(el: Element | null): boolean {
   if (!el) return false;
   const htmlEl = el as HTMLElement;
-  if ((htmlEl as HTMLButtonElement).disabled) return false;
+  if ((htmlEl as unknown as HTMLButtonElement).disabled) return false;
   const style = el.ownerDocument?.defaultView?.getComputedStyle(htmlEl);
   if (
     style &&
@@ -150,7 +150,7 @@ function findEnabledStartButton(doc: Document): HTMLElement | null {
   const fullscreen = doc.querySelector(
     '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn',
   ) as HTMLElement | null;
-  if (fullscreen && isInteractable(fullscreen) && !(fullscreen as HTMLButtonElement).disabled) {
+  if (fullscreen && isInteractable(fullscreen) && !(fullscreen as unknown as HTMLButtonElement).disabled) {
     return fullscreen;
   }
   for (const el of doc.querySelectorAll('button.primary, button.jspsych-btn')) {
@@ -324,7 +324,7 @@ export function readSingleChoices(win: TaskWindow): string[] {
  */
 export function readReferenceAlt(win: TaskWindow): string | null {
   const ref = Array.from(win.document.querySelectorAll('button.image-medium')).find(
-    (b) => (b as HTMLButtonElement).disabled && !b.closest(SINGLE_GROUP),
+    (b) => (b as unknown as HTMLButtonElement).disabled && !b.closest(SINGLE_GROUP),
   );
   const alt = ref?.querySelector('img')?.getAttribute('alt');
   return alt ? alt.trim() : null;

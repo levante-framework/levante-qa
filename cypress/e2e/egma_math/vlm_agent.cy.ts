@@ -47,7 +47,7 @@ const GATE_PERSIST = 18;
 
 // Provider is chosen node-side by VLM_PROVIDER, surfaced here for log labelling
 // and so the spec can be run with `--env provider=gemini`.
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 
 describe(`EGMA math — VLM agent (${provider})`, () => {
   const records: EgmaTrialRecord[] = [];

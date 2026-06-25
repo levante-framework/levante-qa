@@ -26,9 +26,9 @@ const STARTUP_TRACE_LOG = 'cypress/logs/_roar_vlm_stage_trace.jsonl';
 const MAX_ITER = 800;
 const STALL_LIMIT = 30;
 const TIMEOUT_MS = 10000;
-const provider = String(Cypress.env('provider') ?? 'gemini');
+const provider = String(Cypress.expose('provider') ?? 'gemini');
 const TRACE_ON = ['1', 'true', 'yes', 'on'].includes(
-  String(Cypress.env('QA_ROAR_TRACE') ?? '').trim().toLowerCase(),
+  String(Cypress.expose('QA_ROAR_TRACE') ?? '').trim().toLowerCase(),
 );
 
 describe(`SRE — VLM agent (${provider})`, () => {

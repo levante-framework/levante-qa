@@ -21,9 +21,9 @@ const TASK = 'hearts-and-flowers';
 const TIMEOUT_MS = 2000;
 
 // Provider is chosen node-side by VLM_PROVIDER, but is surfaced to the spec via
-// Cypress.env('provider') so logs are labelled and the spec can be run with
+// Cypress.expose('provider') so logs are labelled and the spec can be run with
 // `npx cypress run --env provider=openai`.
-const provider = String(Cypress.env('provider') ?? 'openai');
+const provider = String(Cypress.expose('provider') ?? 'openai');
 
 describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
   const records: TrialRecord[] = [];

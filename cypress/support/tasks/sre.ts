@@ -15,7 +15,7 @@ export const JSPSYCH_BTN = '.jspsych-btn';
 export const STIMULUS = '.stimulus';
 export const PROGRESS_INNER = '#jspsych-progressbar-inner';
 
-/** Matches roar-dashboard `Cypress.env('timeout')` default (10s). */
+/** Matches roar-dashboard `Cypress.expose('timeout')` default (10s). */
 export const SRE_STEP_MS = 10_000;
 export const SRE_ASSET_WAIT_MS = SRE_STEP_MS * 1.5;
 

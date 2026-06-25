@@ -33,7 +33,7 @@ export interface LaunchOptions {
 
 /** True when specs should launch via the dashboard participant flow. */
 export function isDashboardLaunch(): boolean {
-  return String(Cypress.env('LAUNCH') ?? '').toLowerCase() === 'dashboard';
+  return String(Cypress.expose('LAUNCH') ?? '').toLowerCase() === 'dashboard';
 }
 
 /** ROAR tasks are not served from levante-tasks-demo; they require dashboard launch. */
@@ -42,7 +42,7 @@ export function isRoarTaskId(taskId: string): boolean {
 }
 
 function isRoarTraceOn(): boolean {
-  const raw = String(Cypress.env('QA_ROAR_TRACE') ?? '').trim().toLowerCase();
+  const raw = String(Cypress.expose('QA_ROAR_TRACE') ?? '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
@@ -56,9 +56,9 @@ function traceRoar(stage: string, detail?: Record<string, unknown>): void {
         {
           ts: new Date().toISOString(),
           stage,
-          taskId: String(Cypress.env('TASK_ID') ?? ''),
-          launch: String(Cypress.env('LAUNCH') ?? ''),
-          language: String(Cypress.env('QA_LANGUAGE') ?? ''),
+          taskId: String(Cypress.expose('TASK_ID') ?? ''),
+          launch: String(Cypress.expose('LAUNCH') ?? ''),
+          language: String(Cypress.expose('QA_LANGUAGE') ?? ''),
           ...detail,
         },
       ],
@@ -68,12 +68,12 @@ function traceRoar(stage: string, detail?: Record<string, unknown>): void {
 }
 
 function dashboardBase(): string {
-  return String(Cypress.env('DASHBOARD_URL') ?? DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
+  return String(Cypress.expose('DASHBOARD_URL') ?? DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
 }
 
 /** App UI + narration locale for this run (set by the dashboard language picker). */
 function qaLocale(): string {
-  return String(Cypress.env('QA_LANGUAGE') ?? '').trim();
+  return String(Cypress.expose('QA_LANGUAGE') ?? '').trim();
 }
 
 /**
@@ -103,8 +103,8 @@ function withQaLocale(onBeforeLoad: (win: Window) => void): (win: Window) => voi
  * `PARTICIPANT_USER` / `PARTICIPANT_PASS` env vars.
  */
 export function loginToDashboard(onBeforeLoad: (win: Window) => void): void {
-  const user = String(Cypress.env('PARTICIPANT_USER') ?? '');
-  const pass = String(Cypress.env('PARTICIPANT_PASS') ?? '');
+  const user = String(Cypress.expose('PARTICIPANT_USER') ?? '');
+  const pass = String(Cypress.expose('PARTICIPANT_PASS') ?? '');
   expect(user, 'PARTICIPANT_USER env is set').to.not.equal('');
   expect(pass, 'PARTICIPANT_PASS env is set').to.not.equal('');
 
@@ -186,7 +186,7 @@ export function launchTask(opts: LaunchOptions): void {
   installAudioAssetIntercept();
 
   if (isRoarTaskId(opts.taskId)) {
-    Cypress.env('TASK_ID', opts.taskId);
+    Cypress.expose('TASK_ID', opts.taskId);
     expect(isDashboardLaunch(), 'ROAR tasks (pa/sre/swr) require LAUNCH=dashboard').to.equal(
       true,
     );
