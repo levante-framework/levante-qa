@@ -90,6 +90,21 @@ const TASKS = {
     humanJoin: true,
     crowdinFile: 'stories',
   },
+  vocab: {
+    title: 'Picture Vocabulary (4-AFC)',
+    diagTask: 'vocab',
+    scoredType: 'word',
+    itemBank: join(CORPORA, 'vocab-test', 'shared', 'corpora', 'vocab-item-bank.csv'),
+    // The spoken word is the item identity. In placeholder-audio (nl) runs the
+    // transcript is the Crowdin-approved target word the mp3 will be generated
+    // from, so it aligns to the same item_id via the vocab.xliff unit id (which
+    // equals the bank `audio_file`). `targetWord` is the same value as a fallback.
+    identity: (rec) => rec.audioTranscript || rec.targetWord,
+    hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
+    defaultChance: 0.25,
+    humanJoin: true,
+    crowdinFile: 'vocab',
+  },
   swr: {
     title: 'ROAR SWR (Single Word Recognition) VLM difficulty screen',
     diagTask: null,
