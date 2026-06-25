@@ -260,7 +260,7 @@ export function isInstructionScreen(win: TaskWindow): boolean {
 export function clickSdsInstructionOk(): void {
   cy.get('body', { log: false }).then(($body) => {
     const $buttons = $body.find(INSTRUCTION_OK_BUTTON).filter(':visible');
-    const $enabled = $buttons.filter((_, el) => !(el as HTMLButtonElement).disabled);
+    const $enabled = $buttons.filter((_, el) => !(el as unknown as HTMLButtonElement).disabled);
     const $target = ($enabled.length ? $enabled : $buttons).last();
     if (!$target.length) {
       cy.contains('button', /^OK$/i, { timeout: 120000, log: false })
@@ -269,7 +269,7 @@ export function clickSdsInstructionOk(): void {
         .click({ force: true });
       return;
     }
-    if (($target[0] as HTMLButtonElement).disabled) {
+    if (($target[0] as unknown as HTMLButtonElement).disabled) {
       cy.wrap($target).should('not.be.disabled', { timeout: 120000 });
     }
     cy.wrap($target).click({ force: true });
