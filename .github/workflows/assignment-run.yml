@@ -97,7 +97,7 @@ jobs:
           # Pin below 20.19: Node >=20.19 enables require(esm) by default, which makes
           # Cypress load cypress.config.ts via the sync-ESM path and bypass its ts-node
           # transpiler ("SyntaxError: Unexpected token ':'").
-          node-version: 20.18.3
+          node-version: 24
           cache: pnpm
 
       - name: Install levante-qa dependencies

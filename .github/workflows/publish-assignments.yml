@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           # Pin below 20.19 to match the other QA workflows (see assignment-run.yml).
-          node-version: 20.18.3
+          node-version: 24
           cache: pnpm
 
       - name: Install levante-qa dependencies
