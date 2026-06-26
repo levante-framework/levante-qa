@@ -33,8 +33,8 @@ export const DEFAULT_PARAMS = {
 } as const;
 
 function qaLanguage(): string | null {
-  const cypressEnv = (globalThis as { Cypress?: { env?: (key: string) => unknown } }).Cypress?.env;
-  const value = typeof cypressEnv === 'function' ? cypressEnv('QA_LANGUAGE') : null;
+  const expose = (globalThis as { Cypress?: { expose?: (key: string) => unknown } }).Cypress?.expose;
+  const value = typeof expose === 'function' ? expose('QA_LANGUAGE') : null;
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 

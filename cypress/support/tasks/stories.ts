@@ -38,21 +38,21 @@ export const DEFAULT_PARAMS = {
 } as const;
 
 function qaLanguage(): string | null {
-  const cypressEnv = (globalThis as { Cypress?: { env?: (key: string) => unknown } }).Cypress?.env;
-  const value = typeof cypressEnv === 'function' ? cypressEnv('QA_LANGUAGE') : null;
+  const expose = (globalThis as { Cypress?: { expose?: (key: string) => unknown } }).Cypress?.expose;
+  const value = typeof expose === 'function' ? expose('QA_LANGUAGE') : null;
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function qaNumberOfStories(): number | null {
-  const cypressEnv = (globalThis as { Cypress?: { env?: (key: string) => unknown } }).Cypress?.env;
-  const value = typeof cypressEnv === 'function' ? cypressEnv('QA_STORIES_NUMBER_OF_STORIES') : null;
+  const expose = (globalThis as { Cypress?: { expose?: (key: string) => unknown } }).Cypress?.expose;
+  const value = typeof expose === 'function' ? expose('QA_STORIES_NUMBER_OF_STORIES') : null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
 }
 
 function qaCorpus(): string | null {
-  const cypressEnv = (globalThis as { Cypress?: { env?: (key: string) => unknown } }).Cypress?.env;
-  const value = typeof cypressEnv === 'function' ? cypressEnv('QA_STORIES_CORPUS') : null;
+  const expose = (globalThis as { Cypress?: { expose?: (key: string) => unknown } }).Cypress?.expose;
+  const value = typeof expose === 'function' ? expose('QA_STORIES_CORPUS') : null;
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 

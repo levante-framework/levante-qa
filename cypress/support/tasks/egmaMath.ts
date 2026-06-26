@@ -229,7 +229,7 @@ const NUMBER_TO_WORDS: Record<string, (n: number) => string> = {
 /** The current run's base language code (`es-AR` -> `es`), or '' when unset. */
 export function qaLangBase(): string {
   try {
-    const raw = String((globalThis as { Cypress?: { env(k: string): unknown } }).Cypress?.env('QA_LANGUAGE') ?? '');
+    const raw = String((globalThis as { Cypress?: { expose(k: string): unknown } }).Cypress?.expose('QA_LANGUAGE') ?? '');
     return raw.trim().toLowerCase().split('-')[0];
   } catch {
     return '';
