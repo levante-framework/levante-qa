@@ -32,6 +32,7 @@ import {
   LANGUAGES,
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
+  legacyLanguageReplacement,
   findTask,
   isTaskSupportedInLanguage,
   buildTaskSupport,
@@ -709,6 +710,12 @@ function startAssignmentRuns(assignment, opts) {
       skipped.push({ taskId: t.taskId, reason: `${task.label} is oracle-only (no VLM agent)` });
       continue;
     }
+    // Reject legacy locale codes loudly rather than silently defaulting.
+    const legacyLang = legacyLanguageReplacement(t.language);
+    if (legacyLang) {
+      skipped.push({ taskId: t.taskId, reason: `legacy locale "${t.language}"; use "${legacyLang}"` });
+      continue;
+    }
     // Honor the assignment's per-task language when we recognize it; else default.
     const language = isSupportedLanguage(t.language) ? t.language : DEFAULT_LANGUAGE;
     if (!isTaskSupportedInLanguage(task, language, taskOptionsByLang)) {
@@ -852,6 +859,12 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 400, { error: `${task.label} has no VLM agent (oracle only).` });
         }
         const provider = isVlmBacked ? String(p.provider || VLM_PROVIDERS[0]) : null;
+        const legacyLang = legacyLanguageReplacement(p.language);
+        if (legacyLang) {
+          return sendJson(res, 400, {
+            error: `Locale "${p.language}" is legacy; use "${legacyLang}" instead.`,
+          });
+        }
         const language = isSupportedLanguage(p.language) ? p.language : DEFAULT_LANGUAGE;
         if (!isTaskSupportedInLanguage(task, language, taskOptionsByLang)) {
           return sendJson(res, 400, {

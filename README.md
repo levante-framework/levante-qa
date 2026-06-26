@@ -91,7 +91,7 @@ from Crowdin's approved XLIFF export instead of GCS. It is opt-in and affects
 only the Cypress run.
 
 ```bash
-QA_LANGUAGE=nl QA_TRANSLATIONS_SOURCE=crowdin-approved \
+QA_LANGUAGE=nl-NL QA_TRANSLATIONS_SOURCE=crowdin-approved \
   pnpm cy:run:vocab:vlm -- --env provider=gemini
 ```
 

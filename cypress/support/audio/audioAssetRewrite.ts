@@ -3,14 +3,15 @@
  * can pull narration from a different GCS bucket and/or locale folder than the
  * one core-tasks hard-codes.
  *
- * Motivating case: Dutch (`nl`) narration is published to the **draft** bucket
- * under `audio/nl-NL/`, but the deployed core-tasks always requests
- * `levante-assets-dev/audio/<QA_LANGUAGE>/…` and has no `nl → nl-NL` remap. With
+ * Motivating case: Dutch (`nl-NL`) narration is published to the **draft** bucket
+ * under `audio/nl-NL/` but hasn't been promoted to `levante-assets-dev` yet. The
+ * app requests `levante-assets-dev/audio/<QA_LANGUAGE>/…`, so with
  *   QA_AUDIO_BUCKET=levante-assets-draft
- *   QA_LANGUAGE=nl
- *   QA_AUDIO_FALLBACK_LANGUAGE=nl-NL
- * an app request for `…/levante-assets-dev/audio/nl/foo.mp3` is rewritten to
- * `…/levante-assets-draft/audio/nl-NL/foo.mp3`.
+ *   QA_LANGUAGE=nl-NL
+ * an app request for `…/levante-assets-dev/audio/nl-NL/foo.mp3` is rewritten to
+ * `…/levante-assets-draft/audio/nl-NL/foo.mp3`. The optional
+ * `QA_AUDIO_FALLBACK_LANGUAGE` also remaps the locale folder (e.g. for a legacy
+ * `nl → nl-NL` folder difference); it's identity when source and target match.
  *
  * Both functions are pure and no-op when the relevant override is absent, so the
  * default (dev bucket, same locale) behaviour is unchanged.
@@ -18,7 +19,7 @@
 export interface AudioRewrite {
   /** Target bucket (e.g. `levante-assets-draft`); null keeps the requested one. */
   bucket: string | null;
-  /** Locale folder the app requests (= QA_LANGUAGE, e.g. `nl`). */
+  /** Locale folder the app requests (= QA_LANGUAGE, e.g. `nl-NL`). */
   fromLang: string | null;
   /** Locale folder that actually holds the assets (e.g. `nl-NL`). */
   toLang: string | null;

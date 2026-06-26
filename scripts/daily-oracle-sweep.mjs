@@ -131,6 +131,17 @@ async function ensureDashboard() {
 // --- matrix ----------------------------------------------------------------
 async function buildMatrix() {
   const { tasks, languages, taskSupport } = await api('GET', '/api/tasks');
+  // Fail loudly on unknown/legacy --languages values (e.g. legacy `nl`, now
+  // `nl-NL`) rather than silently matching no cells.
+  if (ONLY_LANGS) {
+    const known = new Set(languages.map((l) => l.code));
+    const unknown = ONLY_LANGS.filter((c) => !known.has(c));
+    if (unknown.length) {
+      throw new Error(
+        `Unknown --languages value(s): ${unknown.join(', ')}. Supported: ${[...known].join(', ')}.`,
+      );
+    }
+  }
   const labelById = new Map(tasks.map((t) => [t.id, t.label]));
   const cells = [];
   for (const lang of languages) {

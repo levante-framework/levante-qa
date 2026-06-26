@@ -7,8 +7,9 @@ import { rewriteAudioFileUrl } from '../support/audio/audioAssetRewrite';
  * Apply the same bucket/locale audio redirect the browser intercept uses (see
  * installAudioAssetIntercept), so the transcript is read from the file that was
  * actually played. `__audioPlayLog` records the URL the app *requested* (e.g.
- * `levante-assets-dev/audio/nl/…`), which 404s; the played bytes come from the
- * override (`levante-assets-draft/audio/nl-NL/…`). No-op without overrides.
+ * `levante-assets-dev/audio/nl-NL/…`), which 404s until the assets are promoted;
+ * the played bytes come from the override
+ * (`levante-assets-draft/audio/nl-NL/…`). No-op without overrides.
  */
 function resolvePlayedUrl(url: string): string {
   const bucket = process.env.QA_AUDIO_BUCKET?.trim() || null;

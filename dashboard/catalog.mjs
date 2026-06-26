@@ -117,7 +117,7 @@ export const LANGUAGES = [
   { code: 'de-DE', label: 'German (Germany)' },
   { code: 'es-CO', label: 'Spanish (Colombia)' },
   { code: 'es-AR', label: 'Spanish (Argentina)' },
-  { code: 'nl', label: 'Dutch' },
+  { code: 'nl-NL', label: 'Dutch' },
   // Flagged "testing" on the LEVANTE platform (RTL, in-progress translations).
   { code: 'ar-IL', label: 'Arabic (Israel)', testing: true },
   { code: 'he-IL', label: 'Hebrew (Israel)', testing: true },
@@ -127,6 +127,20 @@ export const DEFAULT_LANGUAGE = LANGUAGES[0].code;
 
 export function isSupportedLanguage(code) {
   return LANGUAGES.some((l) => l.code === code);
+}
+
+/**
+ * Locale codes that were renamed on the LEVANTE platform. Callers must reject
+ * these (rather than silently falling back to DEFAULT_LANGUAGE) so a stale
+ * config surfaces loudly. Maps the legacy code → its canonical replacement.
+ */
+export const LEGACY_LANGUAGE_CODES = { nl: 'nl-NL' };
+
+/** Canonical replacement for a legacy locale code, or null if not legacy. */
+export function legacyLanguageReplacement(code) {
+  return Object.prototype.hasOwnProperty.call(LEGACY_LANGUAGE_CODES, code)
+    ? LEGACY_LANGUAGE_CODES[code]
+    : null;
 }
 
 export function findTask(id) {
@@ -162,7 +176,7 @@ export const FALLBACK_TASK_OPTIONS = {
   'de-DE': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
   'es-CO': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
   'es-AR': ['hearts-and-flowers', 'same-different-selection', 'trog', 'theory-of-mind'],
-  nl: ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
+  'nl-NL': ['egma-math', 'matrix-reasoning', 'mental-rotation', 'hearts-and-flowers', 'memory-game', 'same-different-selection', 'trog', 'vocab', 'theory-of-mind'],
   'ar-IL': [],
   'he-IL': [],
 };

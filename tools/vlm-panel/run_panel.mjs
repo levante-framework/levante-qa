@@ -32,6 +32,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { legacyLanguageReplacement } from '../../dashboard/catalog.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
@@ -163,6 +164,10 @@ function main() {
   const args = parseArgs(process.argv);
   const grid = JSON.parse(readFileSync(args.grid, 'utf-8'));
   const locale = args.lang ?? grid.language ?? 'en';
+  const legacyLocale = legacyLanguageReplacement(locale);
+  if (legacyLocale) {
+    throw new Error(`Locale "${locale}" is legacy; use "${legacyLocale}" (e.g. --lang ${legacyLocale}).`);
+  }
   const token = locale.split('-')[0].toLowerCase();
   mkdirSync(LOG_DIR, { recursive: true });
 
