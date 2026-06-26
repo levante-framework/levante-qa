@@ -32,6 +32,14 @@ import { parseVocabTrialRecord, type VocabTrialRecord } from '../../support/task
 // The loop normally exits on the completion screen first.
 const MAX_STEPS = 4000;
 const TASK = 'vocab';
+// Boot gate: wait for vocab's first interactive screen after launch. 300 s is
+// ample for a healthy boot (when it mounts, it does so in well under this).
+// NOTE: raising this to 600 s was tested and did NOT help — when vocab fails to
+// launch on `-dev` it stalls indefinitely on the LEVANTE splash at
+// /game/core-tasks/vocab (logged in, Firestore polling, task never mounts), so
+// the failure is an intermittent app-side boot stall, not harness impatience.
+// See docs/known-issues/vocab-en-US-slow-boot.md.
+const BOOT_TIMEOUT_MS = 300_000;
 // The target word is delivered only by narration, so poll for the clip to start
 // before solving (same as EGMA number-identification).
 const PROMPT_POLLS = 14;
@@ -328,7 +336,7 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
   it('completes the task at 100% accuracy', () => {
     resetAudioCapture();
     launchTask({ taskId: 'vocab', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    cy.contains('OK', { timeout: BOOT_TIMEOUT_MS }).should('be.visible').click({ force: true });
     step(0);
   });
 });
