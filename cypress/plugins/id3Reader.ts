@@ -122,7 +122,18 @@ export async function readMp3Tags(url: string): Promise<Mp3Tags> {
 
   let result: Mp3Tags;
   try {
-    const res = await fetch(resolvePlayedUrl(url));
+    // Cache-bust: GCS objects are served with `Cache-Control: public,
+    // max-age=3600`, so the public edge can hand back a stale copy of a
+    // just-re-uploaded asset for up to an hour. After an ID3 backfill that looks
+    // like a missing transcript and fails the oracle on assets that are actually
+    // fixed at origin. A unique query string forces a fresh read. (Mirrors
+    // backfill_audio_transcripts.ts; the per-URL `cache` Map below still dedupes
+    // within a run.)
+    const playedUrl = resolvePlayedUrl(url);
+    const fresh = `${playedUrl}${playedUrl.includes('?') ? '&' : '?'}qa_cb=${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}`;
+    const res = await fetch(fresh);
     if (!res.ok) {
       throw new Error(`HTTP ${res.status} ${res.statusText}`);
     }
