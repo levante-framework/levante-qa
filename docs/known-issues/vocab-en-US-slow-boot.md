@@ -1,6 +1,8 @@
 # Vocab (en-US) intermittent slow-boot timeout on `-dev`
 
-- **Status:** Open — needs core-tasks/perf triage
+- **Status:** Open — two distinct issues (see Update 2026-06-26 22:00):
+  (1) intermittent boot stall, currently dormant; (2) 7 en-US items missing
+  narration transcript, deterministic/currently present.
 - **First flagged:** 2026-06-26 (daily oracle sweep)
 - **Environment:** `hs-levante-admin-dev.web.app` / `levante-assets-dev`
 - **Task:** `vocab` (Picture Vocabulary, 4-AFC) · agent: oracle
@@ -30,6 +32,38 @@ URL is `/game/core-tasks/vocab`, the participant is signed in (see `qa-f6f95b1f`
 top-right), and the Cypress command log shows healthy repeating Firestore
 `Listen/channel` `GET 200`s — i.e. the page is alive and talking to Firestore,
 but the task never initializes off the splash.
+
+## Update 2026-06-26 ~22:00 PT — re-test (boot stall is intermittent; now dormant)
+
+Three fresh vocab/en-US oracle runs (`d1d03564`, `8f3bc935`, `a41f3cfa`) were
+launched together. **All 3 booted and ran all 164 items to completion** — i.e.
+the boot stall was **not** reproducing. So the daily-sweep + 600 s failures were
+a **transient, time-bounded `-dev` condition** (genuine, not a false signal —
+the splash screenshot is real — but intermittent), and it had cleared by
+evening. 3/3 booting does not *prove* it's fixed given the morning's ~67% fail
+rate; treat the boot stall as **intermittent, currently dormant**.
+
+### Second, distinct issue surfaced by the re-test: 7 items missing narration
+
+When it *does* boot, vocab/en-US now fails a **different** (non-boot) assertion:
+
+```
+AssertionError: narration word not among choice alts … expected 7 to equal 0
+```
+
+The same **7 en-US vocab MP3s have no resolvable narration transcript** (their
+ID3 `original_translation_text` is missing/empty), identical across all 3 runs
+(deterministic, not flaky):
+
+`vocab-item-001, -032, -071, -100, -102, -134, -136` (under
+`levante-assets-dev/audio/en-US/`).
+
+The oracle still scores **95.7%** off the app answer key, but the audio-content
+integrity guard fails because those 7 items can't be independently verified.
+This is a **content/asset-metadata gap** (missing transcript tag), separate from
+the boot stall, and should be triaged on its own (likely an audio-generation /
+ID3-tagging gap for those 7 items). Per-run detail:
+`cypress/logs/runs/<id>/_vocab_audio_content.jsonl`.
 
 ## Symptom
 

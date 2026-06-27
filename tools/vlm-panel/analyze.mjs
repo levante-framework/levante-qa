@@ -26,6 +26,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
+import { summarizeFailures, renderSummaryMarkdown } from './classify_failures.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
@@ -769,6 +770,19 @@ async function main() {
       'against human pass-rates where those exist.',
   );
   rep.push('');
+
+  // Failure triage first: a panel that Google ate (TOOL failures) is not
+  // trustworthy for content, and any -dev/app failure is a readiness flag.
+  const reliability = summarizeFailures(join(OUT_DIR, 'manifest.json'), { task: TASK_NAME, langs });
+  const scopeLabel = `${TASK_NAME}/${langs.join('+')}`;
+  rep.push(renderSummaryMarkdown(reliability, scopeLabel));
+  if (reliability.ok && reliability.failed > 0) {
+    console.log(
+      `[reliability] ${scopeLabel}: ${reliability.failed} failed ` +
+        `(TOOL ${reliability.buckets.tool} / -dev ${reliability.buckets.dev} / unknown ${reliability.buckets.unknown})` +
+        `${reliability.inconclusive ? ' — INCONCLUSIVE for content' : ''}`,
+    );
+  }
 
   for (const lang of langs) {
     const out = analyzeLanguage(lang);

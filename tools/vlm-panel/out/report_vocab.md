@@ -1,8 +1,15 @@
 # Picture Vocabulary (4-AFC) VLM difficulty screen
 
-Generated: 2026-06-26T04:35:59.509Z
+Generated: 2026-06-27T04:56:32.572Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
+
+## Run reliability (failure triage)
+
+54 runs for vocab/en+nl: **44 done**, **10 failed**.
+Failures by cause: TOOL/Google **10** · `-dev`/app **0** · unknown **0**
+- ✅ No `-dev`/app failures — launch + audio looked healthy in this panel.
+- ⚠️ TOOL-failure rate **18.5%** > 10% — **INCONCLUSIVE for content**; Google overload ate too much of this panel, re-run before trusting difficulty/translation numbers.
 
 ## EN
 - Respondents: **18** | common items (coverage >= 11): **170** | matched to human: **146**
