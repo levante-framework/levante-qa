@@ -5,6 +5,7 @@
   "description": "QA / regression and VLM-agent benchmarking for LEVANTE core tasks using Cypress.",
   "license": "MIT",
   "type": "module",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=22"
   },
