@@ -74,6 +74,11 @@ def main() -> int:
     p.add_argument("--vocab-image-dir",
                    default="../../../core-task-assets/vocab/original,../../../core-task-assets/vocab/images",
                    help="Comma-separated local image dir(s) for --image-source local.")
+    p.add_argument("--corpus-csv",
+                   default="../../../crowdin-projects/corpora/vocab-test/shared/corpora/vocab-item-bank.csv",
+                   help="Vocab item-bank with the IRT `d` difficulty column.")
+    p.add_argument("--hard-difficulty", type=float, default=1.0,
+                   help="Vocab items with IRT d >= this aren't flagged just for being hard.")
     p.add_argument("--max-mqm", type=int, default=300, help="Cap MQM calls (Tier 2 budget).")
     p.add_argument("--mqm-sample", type=int, default=0,
                    help="Also MQM this many random non-flagged rows (appropriateness coverage).")
@@ -128,9 +133,10 @@ def main() -> int:
     # for vocab the adequacy verdict comes from "does the word name the picture?".
     if not args.no_vocab_vision:
         from vocab_vision_eval import (VocabVisionEvaluator, ImageResolver,
-                                       normalize_en, _vid)
+                                       load_difficulty, normalize_en, _vid)
         resolver = ImageResolver(args.image_source, local_dirs=args.vocab_image_dir,
                                  bucket=args.gcs_bucket, prefix=args.gcs_prefix)
+        difficulty = load_difficulty(args.corpus_csv)
         print(f"[queue] vocab images: {len(resolver)} from {resolver.label}")
         vocab = []
         for c in cands:
@@ -141,13 +147,16 @@ def main() -> int:
                 c["is_vocab"] = True
                 c["_en_word"] = en_word
                 c["_image"] = img
+                d = difficulty.get(vid)
+                c["_is_hard"] = d is not None and d >= args.hard_difficulty
                 vocab.append(c)
         if vocab:
             print(f"[queue] vocab vision: word-vs-image on {len(vocab)} vocab items.")
             from tqdm import tqdm
             vev = VocabVisionEvaluator()
             for c in tqdm(vocab, desc="vision"):
-                res = vev.evaluate(c["_en_word"], c["translation"], c["locale"], c["_image"])
+                res = vev.evaluate(c["_en_word"], c["translation"], c["locale"], c["_image"],
+                                   is_hard=c["_is_hard"])
                 c["vision_match"] = res["match"]
                 # vision REPLACES COMET/E5 for vocab: flag only a true word/image mismatch.
                 c["adequacy_flag"] = 1 if res["match"] == "no" else 0

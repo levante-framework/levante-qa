@@ -201,6 +201,15 @@ as stale; one item, `vocab-item-171` "colander", has no matching image — the b
 only has the synonym `strainer.*` — and is skipped until that asset is renamed.) It
 runs for any locale(s):
 
+**Difficulty-aware:** some items are *meant* to be hard/abstract (`mammalogy`, `triad`,
+`sedentary`), so the corpus's IRT difficulty `d` (`vocab-item-bank.csv`) is joined in
+(`difficulty`/`hard` columns; shown as `d=` in the report). For items with
+`d >= --hard-difficulty` (default `1.0`) the VLM is told **not** to answer "no" just
+because the word is advanced/abstract or unlikely to be known by a young child — it
+flags those only for a *genuine* word↔image error. This cleared ~19/22 hard es-AR
+items (e.g. `triad`, `posterior`, `sedentary`) while keeping true errors like `claw`
+(the picture is pliers).
+
 ```bash
 cd scripts/eval
 # one or many locales (image is shared; only the word changes)

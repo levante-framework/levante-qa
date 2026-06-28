@@ -38,7 +38,7 @@ from typing import Dict, List, Optional
 from cache import JsonDirCache
 from envload import load_env
 
-PROMPT_VERSION = "vocab-vision-v1"
+PROMPT_VERSION = "vocab-vision-v2"
 IMAGE_EXTS = [(".jpg", "image/jpeg"), (".jpeg", "image/jpeg"), (".webp", "image/webp"), (".png", "image/png")]
 
 PROMPT = """You are checking a picture-vocabulary test item for young children.
@@ -50,12 +50,23 @@ The translation being checked (in {locale}) is: "{word}".
 Looking ONLY at the image, decide whether the {locale} word "{word}" correctly and
 naturally names the MAIN object shown — well enough that a {locale}-speaking child
 would confidently pick this picture when they hear that word.
-
+{hard_note}
 Respond with ONLY a JSON object:
 {{"match": "yes" | "no" | "uncertain",
   "object_in_locale": "the most natural {locale} name for the object shown",
   "confidence": 0.0-1.0,
   "reason": "one short sentence"}}"""
+
+# Inserted only for items the item-bank marks as intentionally difficult.
+HARD_NOTE = """
+NOTE: This is an INTENTIONALLY ADVANCED item — it is supposed to be hard, abstract,
+or unfamiliar for young children. Do NOT answer "no" merely because the word is
+advanced/technical/abstract, because a young child is unlikely to know it, or because
+the picture does not obviously depict the concept. Judge ONLY correctness: answer
+"yes" if "{word}" is a correct and standard {locale} name for what is pictured (even
+if sophisticated), and "no" ONLY for a genuine error — the word names a different
+object than the one shown, or is a mistranslation. Still report any such real issue.
+"""
 
 
 class VocabVisionEvaluator:
@@ -100,16 +111,17 @@ class VocabVisionEvaluator:
             raise
 
     def evaluate(self, en_word: str, word: str, locale: str, image_path: Path,
-                 max_retries: int = 3) -> Dict:
+                 is_hard: bool = False, max_retries: int = 3) -> Dict:
         mime = next((m for ext, m in IMAGE_EXTS if image_path.suffix.lower() == ext), "image/jpeg")
         img_bytes = image_path.read_bytes()
         key = JsonDirCache.make_key(PROMPT_VERSION, self.model_name, locale, en_word, word,
-                                    str(len(img_bytes)))
+                                    str(len(img_bytes)), "hard" if is_hard else "std")
         cached = self.cache.get(key)
         if cached is not None:
             return cached
         img_b64 = base64.b64encode(img_bytes).decode("ascii")
-        prompt = PROMPT.format(en_word=en_word, word=word, locale=locale)
+        hard_note = HARD_NOTE.format(word=word, locale=locale) if is_hard else ""
+        prompt = PROMPT.format(en_word=en_word, word=word, locale=locale, hard_note=hard_note)
         last = ""
         for attempt in range(max_retries):
             try:
@@ -142,6 +154,26 @@ def _vid(item_id: str) -> Optional[str]:
         return m.group(1)
     m = re.search(r"(vocab-item-\d+)", item_id or "")
     return m.group(1) if m else None
+
+
+def load_difficulty(corpus_csv: str) -> Dict[str, float]:
+    """vocab-item-NNN -> IRT difficulty `d` from the corpus item-bank (negative =
+    easier). Items above a threshold are intentionally hard and shouldn't be flagged
+    just for being hard. Missing/blank `d` is simply absent (treated as not-hard)."""
+    out: Dict[str, float] = {}
+    try:
+        with open(corpus_csv, encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                vid = (r.get("audio_file") or "").strip()
+                d = (r.get("d") or "").strip()
+                if vid.startswith("vocab-item-") and d:
+                    try:
+                        out[vid] = float(d)
+                    except ValueError:
+                        pass
+    except OSError:
+        pass
+    return out
 
 
 def normalize_en(en_raw: Optional[str], fallback: str = "") -> str:
@@ -265,7 +297,10 @@ def load_translation_rows(args) -> List[dict]:
 
 
 def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
-               resolver: "ImageResolver", limit: int) -> List[dict]:
+               resolver: "ImageResolver", limit: int,
+               difficulty: Optional[Dict[str, float]] = None,
+               hard_threshold: float = 1.0) -> List[dict]:
+    difficulty = difficulty or {}
     items = []
     for r in rows:
         vid = _vid(r.get("item_id") or r.get("identifier") or "")
@@ -284,11 +319,15 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
         items = items[:limit]
     out = []
     for it in items:
-        res = ev.evaluate(it["en_word"], it["word"], locale, it["image"])
+        d = difficulty.get(it["vid"])
+        is_hard = d is not None and d >= hard_threshold
+        res = ev.evaluate(it["en_word"], it["word"], locale, it["image"], is_hard=is_hard)
         out.append({"locale": locale, "item_id": f"vocab.xliff::{it['vid']}", "vid": it["vid"],
                     "en_word": it["en_word"], "translation": it["word"], "vision_match": res["match"],
                     "object_in_locale": res["object_in_locale"], "confidence": res["confidence"],
-                    "reason": res["reason"]})
+                    "reason": res["reason"],
+                    "difficulty": "" if d is None else round(d, 4),
+                    "hard": 1 if is_hard else 0})
     return out
 
 
@@ -360,7 +399,9 @@ def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) 
             rs = sorted(by_vid[vid], key=lambda r: r["locale"])
             en = rs[0]["en_word"]
             checked = next((r["n_locales_checked"] for r in all_rows if r["vid"] == vid), len(locales))
-            lines.append(f"### {vid} — “{en}”  ({len(rs)}/{checked} locales)")
+            d = rs[0].get("difficulty", "")
+            d_str = f", d={d}" if d != "" else ""
+            lines.append(f"### {vid} — “{en}”  ({len(rs)}/{checked} locales{d_str})")
             lines.append("")
             lines.append("| locale | translation | model sees | why |")
             lines.append("|---|---|---|---|")
@@ -387,6 +428,12 @@ def main() -> int:
                    default="../../../core-task-assets/vocab/original,../../../core-task-assets/vocab/images",
                    help="Comma-separated local image dir(s) for --image-source local.")
     p.add_argument("--locales", default="es-AR", help="Comma-separated locales (column names).")
+    p.add_argument("--corpus-csv",
+                   default="../../../crowdin-projects/corpora/vocab-test/shared/corpora/vocab-item-bank.csv",
+                   help="Vocab item-bank with the IRT `d` difficulty column.")
+    p.add_argument("--hard-difficulty", type=float, default=1.0,
+                   help="Items with IRT d >= this are intentionally hard; the VLM is told "
+                        "not to flag them just for being hard (still flags real errors).")
     p.add_argument("--source-min-locales", type=int, default=0,
                    help="Mismatches in >= this many locales are tagged source_image_issue "
                         "(0 = all locales the item was checked in).")
@@ -397,13 +444,17 @@ def main() -> int:
     rows = load_translation_rows(args)
     resolver = ImageResolver(args.image_source, local_dirs=args.image_dir,
                              bucket=args.gcs_bucket, prefix=args.gcs_prefix)
+    difficulty = load_difficulty(args.corpus_csv)
     locales = [l.strip() for l in args.locales.split(",") if l.strip()]
+    n_hard = sum(1 for d in difficulty.values() if d >= args.hard_difficulty)
     print(f"[vision] {len(resolver)} images indexed from {resolver.label}")
+    print(f"[vision] difficulty for {len(difficulty)} items; "
+          f"{n_hard} are hard (d >= {args.hard_difficulty}) and won't be flagged for difficulty.")
 
     ev = VocabVisionEvaluator()
     all_rows: List[dict] = []
     for loc in locales:
-        res = run_locale(ev, rows, loc, resolver, args.limit)
+        res = run_locale(ev, rows, loc, resolver, args.limit, difficulty, args.hard_difficulty)
         bad = [r for r in res if r["vision_match"] == "no"]
         unc = sum(1 for r in res if r["vision_match"] == "uncertain")
         print(f"\n[{loc}] {len(res)} checked | {len(bad)} MISMATCH | {unc} uncertain")
@@ -417,7 +468,7 @@ def main() -> int:
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     field_order = ["locale", "item_id", "vid", "en_word", "translation", "vision_match",
-                   "object_in_locale", "confidence", "reason", "tag",
+                   "object_in_locale", "confidence", "reason", "tag", "difficulty", "hard",
                    "n_locales_mismatch", "n_locales_checked"]
 
     def write_csv(path: Path, data: List[dict]) -> None:
