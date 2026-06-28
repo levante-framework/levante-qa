@@ -178,7 +178,7 @@ now — recalibrate per locale (above) before trusting other locales' absolute f
 to a `vocab-item-NNN` answer image, the queue replaces the adequacy verdict with the
 word-vs-image vision call (`vision_match` column; `reasons=vision_word_image_mismatch`
 when it fails). This is what clears the COMET/E5 vocab false positives — on es-AR,
-170 vocab rows collapse from 136 text-flags to 11 vision flags. Disable with
+170 vocab rows collapse from 136 text-flags to 4 vision flags. Disable with
 `--no-vocab-vision` to fall back to COMET/E5.
 
 ## Vocab: word-vs-image vision check
@@ -191,6 +191,14 @@ Gemini each answer image + the translated word and asks exactly that. Both the
 English source word and the per-locale word come from the Crowdin corpus (`en` /
 locale columns); the **answer image is matched to that English word** by normalizing
 names (case/spaces/`_`/`-` ignored).
+
+**Distractor-aware (the real 4-AFC task).** A vocab item shows four pictures; the
+child hears one word and taps the one it names. So a broader/category word is fine as
+long as it still uniquely points to the keyed picture. The VLM is given the item's
+three distractor options (the corpus `response_alternatives`) and told to accept a
+category word (e.g. `percussion` for a hi-hat) **unless** it also fits a distractor —
+it answers "no" only for a wrong object, a mistranslation, or genuine ambiguity. This
+removed the category-vs-instance false positives while keeping true errors.
 
 By default it pulls images from the **deployed GCS bucket** the tasks actually serve
 (`gs://levante-assets-dev/visual/vocab/`, downloaded + cached under
@@ -221,21 +229,23 @@ python vocab_vision_eval.py --from-crowdin --locales de,nl
 
 Writes `output/vocab-vision-<locale>.csv` per locale, `vocab-vision-all.csv`, and a
 human-readable `vocab-vision-report.md`; responses cache under
-`output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to a
-handful of real mismatches (`the scoop -> el cucharón`, `the claw -> la garra` over
-a pliers image, `the bulldozer -> la excavadora`) and cleared the false positives.
-Across all five locales it surfaced **57** mismatches over **25** items.
+`output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to 4 real
+mismatches (e.g. `claw -> la garra` over a pliers image). Across **all nine locales
+with vocab coverage** (es-AR, de, nl, es-CO, fr-CA, pt-PT, eo, en-GB; pt-BR has no
+vocab translations) a 1357-check sweep surfaced **50** mismatches over **24** items
+(Esperanto alone accounts for 15 — several are outright wrong words).
 
 Each mismatch is auto-tagged (the `tag` column / report sections) by its cross-locale
 spread, which separates two very different fixes:
 - **`source_image_issue`** — the *English* keyword / shared picture is the problem, so
-  it mismatches in (nearly) every locale (e.g. `claw` over a pliers image,
-  `aesthete`/`mammalogy` are too abstract to name an object). **Fix the item, not the
-  translation.** A row counts as source-wide when it fails in `--source-min-locales`
-  locales (default: all locales the item was checked in).
+  it mismatches across locales (e.g. `claw` over a pliers image, 7/8 locales;
+  `mammalogy` is too abstract to name an object, 6/8). **Fix the item, not the
+  translation.** A row counts as source-wide when it fails in at least
+  `--source-frac` of the locales it was checked in (default `0.6`); pass an absolute
+  count via `--source-min-locales` to override.
 - **`translation_issue`** — locale-specific: the picture is fine but that language's
-  word is wrong/too narrow (e.g. `scoop -> el cucharón` es-AR, `cloak -> la capucha`
-  es-CO, `fetch -> bringen` de). **Fix the per-locale word.**
+  word is wrong/too narrow (e.g. `scoop -> la cuillère` fr-CA, `cloak -> la capucha`
+  es-CO, `suede -> der Velours` de). **Fix the per-locale word.**
 
 This is the vocab track — it judges by the real task criterion (would a child pick
 this picture hearing the word), so it is high-precision. `review_queue.py` uses it
