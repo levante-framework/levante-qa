@@ -187,12 +187,15 @@ Picture-vocabulary items are single words backed by an answer image, and COMET/E
 are unreliable on single words — on es-AR they flagged 136/171 vocab items, mostly
 false positives (correct one-word translations score low). The right signal is
 whether the translated word names the pictured object. `vocab_vision_eval.py` sends
-Gemini each answer image + the translated word and asks exactly that. It uses
-`core-task-assets/vocab/filenames.csv` **only to locate the image file**, and takes
-both the English source word and the per-locale word from the Crowdin export — the
-asset filename can be stale (e.g. `tourniquet.jpg`/`stretcher.jpg` actually show a
-turnstile / a rubber band, whose corpus words are `turnstile`/`rubber band`), and
-trusting it would create false mismatches. It runs for any locale(s):
+Gemini each answer image + the translated word and asks exactly that. Both the
+English source word and the per-locale word come from the Crowdin corpus (`en` /
+locale columns); the **answer image is matched to that English word** by scanning the
+asset dirs and normalizing names (case/spaces/`_`/`-` ignored). It indexes
+`core-task-assets/vocab/{original,images}` (earlier wins), which covers the corrected
+asset names — the old `filenames.csv` map was deleted as stale (it mapped
+`tourniquet`/`stretcher` to items the corpus now calls `turnstile`/`rubber band`).
+One item (`vocab-item-171` "colander") has no matching image file (only `strainer.*`,
+a synonym) and is skipped until the asset is renamed. It runs for any locale(s):
 
 ```bash
 cd scripts/eval

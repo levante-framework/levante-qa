@@ -144,31 +144,47 @@ def _vid(item_id: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def load_vid2word(filenames_csv: str) -> Dict[str, str]:
-    """vocab-item-NNN -> answer-image word stem (e.g. vocab-item-055 -> 'scoop')."""
-    return {row["output"].strip(): row["input"].strip()
-            for row in csv.DictReader(open(filenames_csv, encoding="utf-8"))
-            if row.get("output", "").startswith("vocab-item-")}
-
-
-def normalize_en(en_raw: Optional[str], fallback_stem: str) -> str:
-    """The corpus English source word, minus a leading article, falling back to the
-    asset filename stem only if the corpus has nothing. Lowercased + article-stripped
-    so it matches the stem form for unchanged items (keeps the vision cache warm)."""
+def normalize_en(en_raw: Optional[str], fallback: str = "") -> str:
+    """The corpus English source word, minus a leading article (e.g. 'the turnstile'
+    -> 'turnstile'). This is the keyed answer word; the picture is resolved from it."""
     en = (en_raw or "").strip()
     for art in ("the ", "a ", "an "):
         if en.lower().startswith(art):
             en = en[len(art):].strip()
             break
-    return en or fallback_stem
+    return en or fallback
 
 
-def find_image(img_dir: Path, word: str) -> Optional[Path]:
-    for ext, _ in IMAGE_EXTS:
-        p = img_dir / f"{word}{ext}"
-        if p.is_file():
-            return p
-    return None
+def _norm_key(s: str) -> str:
+    """Collapse a word/filename stem to a comparison key, ignoring case and
+    separators so 'rubber band', 'rubberBand', 'rubber_band' all match."""
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def build_image_index(img_dirs) -> Dict[str, Path]:
+    """Scan image dir(s) once and index by normalized stem. Replaces the legacy
+    filenames.csv map: images are matched to the corpus word, not a stale asset map.
+
+    Accepts a single path or a comma-separated string / iterable of dirs; earlier
+    dirs win on collision (so `original/` source images take precedence over the
+    derived `images/` copies, which only fill gaps like the corrected turnstile)."""
+    if isinstance(img_dirs, (str, Path)):
+        img_dirs = str(img_dirs).split(",")
+    exts = {ext for ext, _ in IMAGE_EXTS}
+    index: Dict[str, Path] = {}
+    for d in img_dirs:
+        d = Path(str(d).strip())
+        if not d.is_dir():
+            continue
+        for p in sorted(d.iterdir()):
+            if p.suffix.lower() in exts:
+                index.setdefault(_norm_key(p.stem), p)
+    return index
+
+
+def resolve_image(index: Dict[str, Path], word: str) -> Optional[Path]:
+    """Find the answer image for an English word via the normalized index."""
+    return index.get(_norm_key(word))
 
 
 def load_translation_rows(args) -> List[dict]:
@@ -180,21 +196,20 @@ def load_translation_rows(args) -> List[dict]:
 
 
 def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
-               vid2word: Dict[str, str], img_dir: Path, limit: int) -> List[dict]:
+               img_index: Dict[str, Path], limit: int) -> List[dict]:
     items = []
     for r in rows:
         vid = _vid(r.get("item_id") or r.get("identifier") or "")
-        if not vid or vid not in vid2word:
+        if not vid:
             continue
         word = (r.get(locale) or "").strip()
         if not word:
             continue
-        # English source word comes from the corpus (`en`), NOT the asset filename:
-        # the image file stem can be stale (e.g. tourniquet.jpg actually shows a
-        # turnstile). filenames.csv is only used to locate the image on disk.
-        en_word = normalize_en(r.get("en"), vid2word[vid])
-        img = find_image(img_dir, vid2word[vid])
-        if img:
+        # Both the English keyed word and the image come from the corpus word
+        # (`en`), so a stale asset name can't desync them.
+        en_word = normalize_en(r.get("en"))
+        img = resolve_image(img_index, en_word)
+        if en_word and img:
             items.append({"vid": vid, "en_word": en_word, "word": word, "image": img})
     if limit:
         items = items[:limit]
@@ -290,13 +305,13 @@ def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) 
 def main() -> int:
     load_env()
     p = argparse.ArgumentParser(description="Vision check: does the translated word name the pictured object?")
-    p.add_argument("--filenames-csv", default="../../../core-task-assets/vocab/filenames.csv",
-                   help="Authoritative word<->vocab-item-id map (input=word,output=item-id).")
     src = p.add_mutually_exclusive_group()
     src.add_argument("--translations-csv", default="output/crowdin-approved.csv",
-                     help="Merged Crowdin CSV (item_id + per-locale columns).")
+                     help="Merged Crowdin CSV (item_id + per-locale columns, incl. `en`).")
     src.add_argument("--from-crowdin", action="store_true")
-    p.add_argument("--image-dir", default="../../../core-task-assets/vocab/original")
+    p.add_argument("--image-dir",
+                   default="../../../core-task-assets/vocab/original,../../../core-task-assets/vocab/images",
+                   help="Comma-separated image dir(s); earlier wins on name collision.")
     p.add_argument("--locales", default="es-AR", help="Comma-separated locales (column names).")
     p.add_argument("--source-min-locales", type=int, default=0,
                    help="Mismatches in >= this many locales are tagged source_image_issue "
@@ -305,15 +320,15 @@ def main() -> int:
     p.add_argument("--output-dir", default="output")
     args = p.parse_args()
 
-    vid2word = load_vid2word(args.filenames_csv)
     rows = load_translation_rows(args)
-    img_dir = Path(args.image_dir)
+    img_index = build_image_index(args.image_dir)
     locales = [l.strip() for l in args.locales.split(",") if l.strip()]
+    print(f"[vision] {len(img_index)} images indexed from {args.image_dir}")
 
     ev = VocabVisionEvaluator()
     all_rows: List[dict] = []
     for loc in locales:
-        res = run_locale(ev, rows, loc, vid2word, img_dir, args.limit)
+        res = run_locale(ev, rows, loc, img_index, args.limit)
         bad = [r for r in res if r["vision_match"] == "no"]
         unc = sum(1 for r in res if r["vision_match"] == "uncertain")
         print(f"\n[{loc}] {len(res)} checked | {len(bad)} MISMATCH | {unc} uncertain")

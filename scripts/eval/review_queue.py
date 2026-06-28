@@ -67,8 +67,9 @@ def main() -> int:
     p.add_argument("--tier1-only", action="store_true", help="Skip MQM (free adequacy pass).")
     p.add_argument("--no-vocab-vision", action="store_true",
                    help="Don't use the word-vs-image vision check for vocab (fall back to COMET/E5).")
-    p.add_argument("--filenames-csv", default="../../../core-task-assets/vocab/filenames.csv")
-    p.add_argument("--vocab-image-dir", default="../../../core-task-assets/vocab/original")
+    p.add_argument("--vocab-image-dir",
+                   default="../../../core-task-assets/vocab/original,../../../core-task-assets/vocab/images",
+                   help="Comma-separated image dir(s) for vocab answer images.")
     p.add_argument("--max-mqm", type=int, default=300, help="Cap MQM calls (Tier 2 budget).")
     p.add_argument("--mqm-sample", type=int, default=0,
                    help="Also MQM this many random non-flagged rows (appropriateness coverage).")
@@ -122,25 +123,25 @@ def main() -> int:
     # Vocab vision: single words are image-backed and COMET/E5 over-flag them, so
     # for vocab the adequacy verdict comes from "does the word name the picture?".
     if not args.no_vocab_vision:
-        from vocab_vision_eval import (VocabVisionEvaluator, load_vid2word, find_image,
-                                       normalize_en, _vid)
-        vid2word = load_vid2word(args.filenames_csv)
-        img_dir = Path(args.vocab_image_dir)
+        from vocab_vision_eval import (VocabVisionEvaluator, build_image_index,
+                                       resolve_image, normalize_en, _vid)
+        img_index = build_image_index(args.vocab_image_dir)
         vocab = []
         for c in cands:
             vid = _vid(c["item_id"])
-            if vid and vid in vid2word and find_image(img_dir, vid2word[vid]):
+            en_word = normalize_en(c["source_en"])
+            img = resolve_image(img_index, en_word)
+            if vid and img:
                 c["is_vocab"] = True
-                c["_vid"] = vid
+                c["_en_word"] = en_word
+                c["_image"] = img
                 vocab.append(c)
         if vocab:
             print(f"[queue] vocab vision: word-vs-image on {len(vocab)} vocab items.")
             from tqdm import tqdm
             vev = VocabVisionEvaluator()
             for c in tqdm(vocab, desc="vision"):
-                en_word = normalize_en(c["source_en"], vid2word[c["_vid"]])
-                res = vev.evaluate(en_word, c["translation"], c["locale"],
-                                   find_image(img_dir, vid2word[c["_vid"]]))
+                res = vev.evaluate(c["_en_word"], c["translation"], c["locale"], c["_image"])
                 c["vision_match"] = res["match"]
                 # vision REPLACES COMET/E5 for vocab: flag only a true word/image mismatch.
                 c["adequacy_flag"] = 1 if res["match"] == "no" else 0
