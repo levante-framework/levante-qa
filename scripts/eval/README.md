@@ -227,9 +227,10 @@ python vocab_vision_eval.py --translations-csv output/crowdin-approved.csv \
 python vocab_vision_eval.py --from-crowdin --locales de,nl
 ```
 
-Writes `output/vocab-vision-<locale>.csv` per locale, `vocab-vision-all.csv`, and a
-human-readable `vocab-vision-report.md`; responses cache under
-`output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to 4 real
+Writes `output/vocab-vision-<locale>.csv` per locale, `vocab-vision-all.csv`, a
+human-readable `vocab-vision-report.md`, and a styled `vocab-vision-report.pdf`
+(rendered from the Markdown via `pandoc` + headless Chrome; pass `--no-pdf` to skip,
+e.g. on a machine without them); responses cache under `output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to 4 real
 mismatches (e.g. `claw -> la garra` over a pliers image). Across **all nine locales
 with vocab coverage** (es-AR, de, nl, es-CO, fr-CA, pt-PT, eo, en-GB; pt-BR has no
 vocab translations) a 1357-check sweep surfaced **50** mismatches over **24** items

@@ -27,6 +27,8 @@ import base64
 import csv
 import json
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -451,6 +453,61 @@ def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) 
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+PDF_CSS = """<style>
+  @page { size: A4 landscape; margin: 14mm; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         font-size: 10pt; line-height: 1.4; color: #1a1a1a; }
+  h1 { font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 4px; }
+  h2 { font-size: 13pt; margin-top: 18px; color: #b03000; border-bottom: 1px solid #ccc; }
+  h3 { font-size: 11pt; margin-top: 14px; color: #00408a; page-break-after: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 14px;
+          table-layout: fixed; page-break-inside: auto; }
+  th, td { border: 1px solid #bbb; padding: 4px 6px; text-align: left;
+           vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; }
+  th { background: #f0f0f0; font-weight: 600; }
+  tr { page-break-inside: avoid; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td:nth-child(1), th:nth-child(1) { width: 8%; }
+  td:nth-child(2), th:nth-child(2) { width: 20%; }
+  td:nth-child(3), th:nth-child(3) { width: 22%; }
+  td:nth-child(4), th:nth-child(4) { width: 50%; }
+  code { background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
+</style>
+"""
+
+
+def render_pdf(md_path: Path, pdf_path: Path) -> bool:
+    """Render the Markdown report to a styled PDF via pandoc (md->html) + headless
+    Chrome (html->pdf). Best-effort: returns False (with a note) if either tool is
+    missing rather than failing the run."""
+    pandoc = shutil.which("pandoc")
+    chrome = next((shutil.which(b) for b in
+                   ("google-chrome", "chromium", "chromium-browser", "google-chrome-stable")
+                   if shutil.which(b)), None)
+    if not pandoc or not chrome:
+        missing = "pandoc" if not pandoc else "chrome/chromium"
+        print(f"[pdf] skipped (no {missing} on PATH).")
+        return False
+    css = md_path.with_suffix(".pdfcss.html")
+    html = md_path.with_suffix(".pdf.html")
+    try:
+        css.write_text(PDF_CSS, encoding="utf-8")
+        subprocess.run([pandoc, str(md_path), "-s",
+                        "--metadata", "title=Vocab Word-vs-Image Vision Report",
+                        f"--include-in-header={css}", "-o", str(html)],
+                       check=True, capture_output=True, text=True)
+        subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox",
+                        "--no-pdf-header-footer", f"--print-to-pdf={pdf_path}", str(html)],
+                       check=True, capture_output=True, text=True)
+        return pdf_path.is_file()
+    except (subprocess.CalledProcessError, OSError) as e:
+        print(f"[pdf] skipped (render failed: {e}).")
+        return False
+    finally:
+        for f in (css, html):
+            f.unlink(missing_ok=True)
+
+
 def main() -> int:
     load_env()
     p = argparse.ArgumentParser(description="Vision check: does the translated word name the pictured object?")
@@ -481,6 +538,8 @@ def main() -> int:
                         "(0 = use --source-frac instead).")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--output-dir", default="output")
+    p.add_argument("--no-pdf", action="store_true",
+                   help="Skip rendering vocab-vision-report.pdf (needs pandoc + chrome).")
     args = p.parse_args()
 
     rows = load_translation_rows(args)
@@ -531,6 +590,8 @@ def main() -> int:
 
     report = out_dir / "vocab-vision-report.md"
     write_markdown_report(all_rows, report, locales)
+    pdf = out_dir / "vocab-vision-report.pdf"
+    pdf_ok = render_pdf(report, pdf) if not args.no_pdf else False
 
     total_bad = sum(1 for r in all_rows if r["vision_match"] == "no")
     n_src = len({r["vid"] for r in all_rows if r["tag"] == "source_image_issue"})
@@ -539,6 +600,8 @@ def main() -> int:
           f"{total_bad} mismatch(es): {n_src} source/item, {n_tr} translation.")
     print(f"       CSV -> {out_dir / 'vocab-vision-all.csv'}")
     print(f"       report -> {report}")
+    if pdf_ok:
+        print(f"       pdf -> {pdf}")
     return 0
 
 
