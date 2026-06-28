@@ -157,7 +157,7 @@ How it works (per launch):
    Cypress lock files do not trip `EEXIST` when launching many tasks at once.
 3. **Monitor** — the UI polls per-run status; a run is flagged **failed** on a
    non-zero Cypress exit code or any non-empty diagnostic log
-   (`*_no_key` / `*_key_mismatch` / `*_unsolved` / `*_audio_content` / `*_audio_overlap` / `*_match_stuck`).
+   (`*_no_key` / `*_key_mismatch` / `*_unsolved` / `*_audio_content` / `*_audio_overlap` / `*_match_stuck` / `*_layout`).
 4. **Accumulate** — on completion the backend appends a record (task, agent,
    provider, age, status, accuracy, trials, errors, timings) to
    `results/runs.json`, shown on the **Results** tab.
@@ -425,6 +425,51 @@ LEVANTE narration is pre-recorded and the canonical script is embedded in each `
 **Content QA (free side-effect):** `audio_assets.cy.ts` reads the task's full asset manifest (`window.__mediaAssets`) and asserts every *narration* asset has a non-empty transcript (non-speech cues like `coin`/`select`/`nullAudio` are exempt). Known upstream gaps are quarantined in that spec so it fails loud only on **new** untagged narration.
 
 **Backfilling missing tags:** `scripts/backfill_audio_transcripts.ts` repairs assets in the bucket that are missing transcript frames. It scans every item-bank audio file, looks up the canonical text from the audio-generation source of truth (`levante_translations/.../item_bank_translations.csv`, keyed by `item_id` + locale), writes the TXXX frames, and re-uploads via `gsutil`. Dry run by default; pass `--apply` to write (and `--locale=`/`--task=`/`--limit=` to scope).
+
+## Visual layout (overlapping tap targets)
+
+A second, deterministic content-QA channel watches for **overlapping interactive
+elements** — two buttons (or links / `role="button"`) drawn on top of each other,
+which causes a child to mis-tap. It complements the agents: the oracle reads task
+*state* and the VLM only picks an answer, so neither would otherwise notice a
+broken layout.
+
+- **How it works:** `cypress/support/layout/layoutCapture.ts` installs a small
+  in-page sampler (mirroring `installAudioCapture`) that, every ~750ms, scans the
+  live DOM for visible tap targets whose painted boxes overlap by more than a few
+  pixels, confirms the two controls actually stack at the shared region (via
+  `elementFromPoint`, so transparent wrappers aren't flagged), and accumulates the
+  distinct offenders on `window.__layoutOverlaps`. It is wired **globally** in
+  `cypress/support/e2e.ts` (`Cypress.on('window:before:load', …)`), so it rides
+  along with every spec on every screen the agent visits — no per-task code.
+- **The guard:** an `afterEach` in `cypress/support/e2e.ts` persists any offenders
+  to `cypress/logs/_<task>_layout.jsonl` and **fails the run** (skipped when the
+  test already failed for another reason). Deterministic, free, language-agnostic,
+  and CI-friendly.
+
+### Testing at a specific resolution
+
+Layout bugs (including the overlaps above) are most likely on **small or unusual
+screens** with long text — e.g. German on a tablet for a 5-year-old (larger
+fonts). By default the tasks call the Fullscreen API at the OK prompt, after
+which they fill the browser window (landscape) and ignore the configured
+viewport. To reproduce a fixed size instead, set both `QA_VIEWPORT_WIDTH` and
+`QA_VIEWPORT_HEIGHT`:
+
+```bash
+QA_VIEWPORT_WIDTH=1000 QA_VIEWPORT_HEIGHT=600 \
+  SWEEP_AGE_YEARS=5 SWEEP_AGE_MONTHS=0 \
+  npm run sweep -- --languages=de-DE
+```
+
+- **How it works:** `cypress.config.ts` applies the requested size as the Cypress
+  viewport, and `cypress/support/e2e.ts` neuters `requestFullscreen` (+ vendor
+  variants) via `window:before:load` **only when these vars are set** — so the
+  task actually renders at that size instead of snapping to the window.
+- **Default behavior is unchanged:** omit the vars and runs use real fullscreen
+  at 1024×768.
+- **Dashboard:** restart it so it inherits the vars (the sweep does this
+  automatically when it (re)starts a down dashboard).
 
 ## EGMA math
 
@@ -758,6 +803,7 @@ cypress/logs/_vocab_key_mismatch.jsonl   vocab items where our answer ≠ the an
 cypress/logs/_vocab_unsolved.jsonl       vocab items the audio solver could not match (no key)
 cypress/logs/_vocab_audio_content.jsonl  vocab: narration word ∉ choices (wrong corpus audio_file)
 cypress/logs/_<task>_audio_overlap.jsonl two narration clips played at once (speech-on-speech; any audio task)
+cypress/logs/_<task>_layout.jsonl       overlapping interactive elements (e.g. buttons drawn on top of each other; any task)
 cypress/logs/_stories_oracle_live.jsonl  append-as-you-go oracle trial log (Stories)
 cypress/logs/_stories_vlm_live.jsonl     append-as-you-go VLM trial log (Stories)
 cypress/logs/_stories_no_key.jsonl       Stories question items that shipped no answer key

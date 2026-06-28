@@ -115,8 +115,13 @@ export default defineConfig({
   e2e: {
     baseUrl: undefined,
     video: false,
-    viewportWidth: 1024,
-    viewportHeight: 768,
+    // Defaults to 1024×768. Requesting a specific resolution via
+    // QA_VIEWPORT_WIDTH/HEIGHT also disables the tasks' fullscreen (see
+    // support/e2e.ts), so the layout actually renders at that size rather than
+    // snapping to the browser window — useful for reproducing small-screen /
+    // tablet layouts where controls are more likely to overlap.
+    viewportWidth: Number(process.env.QA_VIEWPORT_WIDTH) || 1024,
+    viewportHeight: Number(process.env.QA_VIEWPORT_HEIGHT) || 768,
     // Per-spec screenshot folders are derived automatically by Cypress under
     // cypress/screenshots/<spec>/ so no extra wiring is needed here.
     screenshotsFolder: 'cypress/screenshots',
@@ -259,6 +264,8 @@ export default defineConfig({
         'QA_AUDIO_FALLBACK_LANGUAGE',
         'QA_AUDIO_BUCKET',
         'QA_AUDIO_PLACEHOLDER',
+        'QA_VIEWPORT_WIDTH',
+        'QA_VIEWPORT_HEIGHT',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];
