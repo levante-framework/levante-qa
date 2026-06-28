@@ -174,9 +174,30 @@ signals, and `reasons`. On es-AR this surfaces real errors at the top (e.g.
 `Foster Parent -> Tutor/a legal`). Thresholds are calibrated on es-AR only for
 now — recalibrate per locale (above) before trusting other locales' absolute flags.
 
+## Vocab: word-vs-image vision check
+
+Picture-vocabulary items are single words backed by an answer image, and COMET/E5
+are unreliable on single words — on es-AR they flagged 136/171 vocab items, mostly
+false positives (correct one-word translations score low). The right signal is
+whether the translated word names the pictured object. `vocab_vision_eval.py` sends
+Gemini each answer image + the translated word and asks exactly that.
+
+```bash
+cd scripts/eval
+python vocab_vision_eval.py --only-flagged --limit 20
+```
+
+On the flagged es-AR vocab it collapsed those 136 text-flags to **one** real
+mismatch (`the scoop -> el cucharón`; the picture is a wooden scoop = `la pala`,
+not a ladle) and cleared the false positives (coaster->posavasos, rickety->
+desvencijado, fork->tenedor, ...). It judges by the real task criterion (would a
+child pick this picture hearing the word), so it is high-precision; results cache
+under `output/vocab_vision_cache/`. Use this as the vocab track instead of COMET/E5.
+
 ## Files
 
 - `evaluate_translations.py` — orchestrator (scores a CSV or `--from-crowdin`)
+- `vocab_vision_eval.py` — vocab word-vs-answer-image check (Gemini vision)
 - `validate_evaluators.py` — validation harness (seed schema + v2 two-axis, auto-detected)
 - `dashboard_labels.py` — adapt dashboard human-review logs (Prolific / shared) to v2 labels
 - `calibrate_thresholds.py` — pick per-axis flag thresholds from the Prolific ROC
