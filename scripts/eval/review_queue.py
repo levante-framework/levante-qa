@@ -133,10 +133,11 @@ def main() -> int:
     # for vocab the adequacy verdict comes from "does the word name the picture?".
     if not args.no_vocab_vision:
         from vocab_vision_eval import (VocabVisionEvaluator, ImageResolver,
-                                       load_difficulty, normalize_en, _vid)
+                                       load_difficulty, load_distractors, normalize_en, _vid)
         resolver = ImageResolver(args.image_source, local_dirs=args.vocab_image_dir,
                                  bucket=args.gcs_bucket, prefix=args.gcs_prefix)
         difficulty = load_difficulty(args.corpus_csv)
+        distractors = load_distractors(args.corpus_csv)
         print(f"[queue] vocab images: {len(resolver)} from {resolver.label}")
         vocab = []
         for c in cands:
@@ -149,6 +150,7 @@ def main() -> int:
                 c["_image"] = img
                 d = difficulty.get(vid)
                 c["_is_hard"] = d is not None and d >= args.hard_difficulty
+                c["_distractors"] = distractors.get(vid)
                 vocab.append(c)
         if vocab:
             print(f"[queue] vocab vision: word-vs-image on {len(vocab)} vocab items.")
@@ -156,7 +158,7 @@ def main() -> int:
             vev = VocabVisionEvaluator()
             for c in tqdm(vocab, desc="vision"):
                 res = vev.evaluate(c["_en_word"], c["translation"], c["locale"], c["_image"],
-                                   is_hard=c["_is_hard"])
+                                   is_hard=c["_is_hard"], distractors=c["_distractors"])
                 c["vision_match"] = res["match"]
                 # vision REPLACES COMET/E5 for vocab: flag only a true word/image mismatch.
                 c["adequacy_flag"] = 1 if res["match"] == "no" else 0

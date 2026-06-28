@@ -38,18 +38,26 @@ from typing import Dict, List, Optional
 from cache import JsonDirCache
 from envload import load_env
 
-PROMPT_VERSION = "vocab-vision-v2"
+PROMPT_VERSION = "vocab-vision-v3"
 IMAGE_EXTS = [(".jpg", "image/jpeg"), (".jpeg", "image/jpeg"), (".webp", "image/webp"), (".png", "image/png")]
 
 PROMPT = """You are checking a picture-vocabulary test item for young children.
-The child sees this image and hears ONE word; they must tap the picture the word names.
+This is a four-choice task: the child sees FOUR pictures, hears ONE word, and taps the
+picture that word names. You are shown the KEYED-CORRECT picture for this item.
 
-The English word for the keyed-correct picture is: "{en_word}".
+The English word for it is: "{en_word}".
 The translation being checked (in {locale}) is: "{word}".
+The other three options the child can choose from are: {distractors}.
 
-Looking ONLY at the image, decide whether the {locale} word "{word}" correctly and
-naturally names the MAIN object shown — well enough that a {locale}-speaking child
-would confidently pick this picture when they hear that word.
+The translation WORKS if, hearing "{word}", a {locale}-speaking child would pick THIS
+picture rather than the other three. That needs both:
+  (1) "{word}" names — or is clearly the best match for — the object shown, and
+  (2) "{word}" does not equally fit any of the other three options.
+
+A broader/category word (e.g. "percussion" for a hi-hat) is FINE as long as it still
+points to this picture and to none of the other three. Answer "no" ONLY for a real
+problem: the word names a different object than the one shown, is a mistranslation, or
+is ambiguous because it also fits one of the other three options (say which).
 {hard_note}
 Respond with ONLY a JSON object:
 {{"match": "yes" | "no" | "uncertain",
@@ -111,17 +119,21 @@ class VocabVisionEvaluator:
             raise
 
     def evaluate(self, en_word: str, word: str, locale: str, image_path: Path,
-                 is_hard: bool = False, max_retries: int = 3) -> Dict:
+                 is_hard: bool = False, distractors: Optional[List[str]] = None,
+                 max_retries: int = 3) -> Dict:
         mime = next((m for ext, m in IMAGE_EXTS if image_path.suffix.lower() == ext), "image/jpeg")
         img_bytes = image_path.read_bytes()
+        distractor_str = ", ".join(distractors) if distractors else "(not available)"
         key = JsonDirCache.make_key(PROMPT_VERSION, self.model_name, locale, en_word, word,
-                                    str(len(img_bytes)), "hard" if is_hard else "std")
+                                    str(len(img_bytes)), "hard" if is_hard else "std",
+                                    distractor_str)
         cached = self.cache.get(key)
         if cached is not None:
             return cached
         img_b64 = base64.b64encode(img_bytes).decode("ascii")
         hard_note = HARD_NOTE.format(word=word, locale=locale) if is_hard else ""
-        prompt = PROMPT.format(en_word=en_word, word=word, locale=locale, hard_note=hard_note)
+        prompt = PROMPT.format(en_word=en_word, word=word, locale=locale,
+                               distractors=distractor_str, hard_note=hard_note)
         last = ""
         for attempt in range(max_retries):
             try:
@@ -171,6 +183,23 @@ def load_difficulty(corpus_csv: str) -> Dict[str, float]:
                         out[vid] = float(d)
                     except ValueError:
                         pass
+    except OSError:
+        pass
+    return out
+
+
+def load_distractors(corpus_csv: str) -> Dict[str, List[str]]:
+    """vocab-item-NNN -> the 3 other answer options (English `response_alternatives`).
+    Used to judge the real 4-AFC task: a too-broad/category word is fine as long as it
+    doesn't also fit one of the distractors."""
+    out: Dict[str, List[str]] = {}
+    try:
+        with open(corpus_csv, encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                vid = (r.get("audio_file") or "").strip()
+                alts = (r.get("response_alternatives") or "").strip()
+                if vid.startswith("vocab-item-") and alts:
+                    out[vid] = [a.strip() for a in alts.split(",") if a.strip()]
     except OSError:
         pass
     return out
@@ -299,8 +328,10 @@ def load_translation_rows(args) -> List[dict]:
 def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
                resolver: "ImageResolver", limit: int,
                difficulty: Optional[Dict[str, float]] = None,
-               hard_threshold: float = 1.0) -> List[dict]:
+               hard_threshold: float = 1.0,
+               distractors: Optional[Dict[str, List[str]]] = None) -> List[dict]:
     difficulty = difficulty or {}
+    distractors = distractors or {}
     items = []
     for r in rows:
         vid = _vid(r.get("item_id") or r.get("identifier") or "")
@@ -321,7 +352,8 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
     for it in items:
         d = difficulty.get(it["vid"])
         is_hard = d is not None and d >= hard_threshold
-        res = ev.evaluate(it["en_word"], it["word"], locale, it["image"], is_hard=is_hard)
+        res = ev.evaluate(it["en_word"], it["word"], locale, it["image"], is_hard=is_hard,
+                          distractors=distractors.get(it["vid"]))
         out.append({"locale": locale, "item_id": f"vocab.xliff::{it['vid']}", "vid": it["vid"],
                     "en_word": it["en_word"], "translation": it["word"], "vision_match": res["match"],
                     "object_in_locale": res["object_in_locale"], "confidence": res["confidence"],
@@ -331,15 +363,21 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
     return out
 
 
-def tag_mismatches(all_rows: List[dict], source_min_locales: int) -> None:
+def tag_mismatches(all_rows: List[dict], source_min_locales: int,
+                   source_frac: float = 0.6) -> None:
     """Tag each mismatch by its cross-locale spread (mutates rows, adds 'tag').
 
-    A vid that mismatches in (nearly) every locale it was checked in is almost
-    always a SOURCE/ITEM problem — the shared English keyword doesn't match the
-    picture, or the word is too abstract to name an object — so the translation is
-    not the thing to fix. A vid that mismatches in only some locales is a real
-    per-locale TRANSLATION issue (the picture is fine; that language's word is off).
+    A vid that mismatches in most locales it was checked in is almost always a
+    SOURCE/ITEM problem — the shared English keyword doesn't match the picture, or
+    the word is too abstract to name an object — so the translation is not the thing
+    to fix. A vid that mismatches in only a few locales is a real per-locale
+    TRANSLATION issue (the picture is fine; that language's word is off).
+
+    By default an item is "source-wide" when it fails in >= `source_frac` of the
+    locales it was checked in (and at least 2). `source_min_locales > 0` overrides
+    this with an absolute locale count.
     """
+    import math
     by_vid: Dict[str, List[dict]] = {}
     for r in all_rows:
         by_vid.setdefault(r["vid"], []).append(r)
@@ -347,7 +385,8 @@ def tag_mismatches(all_rows: List[dict], source_min_locales: int) -> None:
         n_checked = len(rs)
         bad = [r for r in rs if r["vision_match"] == "no"]
         n_bad = len(bad)
-        threshold = source_min_locales if source_min_locales > 0 else n_checked
+        threshold = (source_min_locales if source_min_locales > 0
+                     else math.ceil(source_frac * n_checked))
         source_wide = n_bad >= 2 and n_bad >= threshold
         for r in rs:
             r["n_locales_checked"] = n_checked
@@ -434,9 +473,12 @@ def main() -> int:
     p.add_argument("--hard-difficulty", type=float, default=1.0,
                    help="Items with IRT d >= this are intentionally hard; the VLM is told "
                         "not to flag them just for being hard (still flags real errors).")
+    p.add_argument("--source-frac", type=float, default=0.6,
+                   help="Fraction of checked locales an item must fail in to be tagged "
+                        "source_image_issue (default 0.6 = most locales).")
     p.add_argument("--source-min-locales", type=int, default=0,
-                   help="Mismatches in >= this many locales are tagged source_image_issue "
-                        "(0 = all locales the item was checked in).")
+                   help="Absolute locale-count override for source_image_issue tagging "
+                        "(0 = use --source-frac instead).")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--output-dir", default="output")
     args = p.parse_args()
@@ -445,16 +487,20 @@ def main() -> int:
     resolver = ImageResolver(args.image_source, local_dirs=args.image_dir,
                              bucket=args.gcs_bucket, prefix=args.gcs_prefix)
     difficulty = load_difficulty(args.corpus_csv)
+    distractors = load_distractors(args.corpus_csv)
     locales = [l.strip() for l in args.locales.split(",") if l.strip()]
     n_hard = sum(1 for d in difficulty.values() if d >= args.hard_difficulty)
     print(f"[vision] {len(resolver)} images indexed from {resolver.label}")
     print(f"[vision] difficulty for {len(difficulty)} items; "
           f"{n_hard} are hard (d >= {args.hard_difficulty}) and won't be flagged for difficulty.")
+    print(f"[vision] distractor options for {len(distractors)} items (category words OK "
+          f"unless a distractor also fits).")
 
     ev = VocabVisionEvaluator()
     all_rows: List[dict] = []
     for loc in locales:
-        res = run_locale(ev, rows, loc, resolver, args.limit, difficulty, args.hard_difficulty)
+        res = run_locale(ev, rows, loc, resolver, args.limit, difficulty, args.hard_difficulty,
+                         distractors)
         bad = [r for r in res if r["vision_match"] == "no"]
         unc = sum(1 for r in res if r["vision_match"] == "uncertain")
         print(f"\n[{loc}] {len(res)} checked | {len(bad)} MISMATCH | {unc} uncertain")
@@ -463,7 +509,7 @@ def main() -> int:
                   f"   model sees: '{r['object_in_locale']}'  ({r['reason']})")
         all_rows.extend(res)
 
-    tag_mismatches(all_rows, args.source_min_locales)
+    tag_mismatches(all_rows, args.source_min_locales, args.source_frac)
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
