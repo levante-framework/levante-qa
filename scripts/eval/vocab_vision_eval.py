@@ -320,11 +320,15 @@ class ImageResolver:
 
 
 def load_translation_rows(args) -> List[dict]:
-    if args.from_crowdin:
-        from crowdin_source import fetch_approved_rows
-        rows, _ = fetch_approved_rows(approved_only=True)
-        return rows
-    return list(csv.DictReader(open(args.translations_csv, encoding="utf-8")))
+    # Default: pull approved translations live from Crowdin. A saved export CSV is
+    # used only when --translations-csv is given explicitly.
+    if args.translations_csv:
+        print(f"[words] reading saved Crowdin export: {args.translations_csv}")
+        return list(csv.DictReader(open(args.translations_csv, encoding="utf-8")))
+    print("[words] pulling approved translations live from Crowdin (--from-crowdin default)")
+    from crowdin_source import fetch_approved_rows
+    rows, _ = fetch_approved_rows(approved_only=True)
+    return rows
 
 
 def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
@@ -511,10 +515,14 @@ def render_pdf(md_path: Path, pdf_path: Path) -> bool:
 def main() -> int:
     load_env()
     p = argparse.ArgumentParser(description="Vision check: does the translated word name the pictured object?")
+    # WORDS (translations) source. Default = live Crowdin.
     src = p.add_mutually_exclusive_group()
-    src.add_argument("--translations-csv", default="output/crowdin-approved.csv",
-                     help="Merged Crowdin CSV (item_id + per-locale columns, incl. `en`).")
-    src.add_argument("--from-crowdin", action="store_true")
+    src.add_argument("--from-crowdin", action="store_true",
+                     help="(Default) Pull approved translations live from Crowdin. Kept for "
+                          "explicitness; the live pull happens unless --translations-csv is given.")
+    src.add_argument("--translations-csv", default=None,
+                     help="Use a saved Crowdin export CSV (item_id + per-locale cols incl. `en`) "
+                          "instead of pulling live, e.g. output/crowdin-approved.csv.")
     p.add_argument("--image-source", choices=["gcs", "local"], default="gcs",
                    help="Where answer images come from (default: deployed GCS visual bucket).")
     p.add_argument("--gcs-bucket", default="levante-assets-dev",

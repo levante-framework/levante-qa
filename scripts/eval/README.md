@@ -200,14 +200,30 @@ category word (e.g. `percussion` for a hi-hat) **unless** it also fits a distrac
 it answers "no" only for a wrong object, a mistranslation, or genuine ambiguity. This
 removed the category-vs-instance false positives while keeping true errors.
 
-By default it pulls images from the **deployed GCS bucket** the tasks actually serve
-(`gs://levante-assets-dev/visual/vocab/`, downloaded + cached under
-`output/gcs_vocab_cache/`), so it validates exactly what children see. Use
-`--image-source local` to read `core-task-assets/vocab/{original,images}` instead, or
-`--gcs-bucket levante-assets-prod` for prod. (The old `filenames.csv` map was deleted
-as stale; one item, `vocab-item-171` "colander", has no matching image — the bucket
-only has the synonym `strainer.*` — and is skipped until that asset is renamed.) It
-runs for any locale(s):
+### Two independent data sources
+
+The check compares a **word** against a **picture**, and each side has its own source
+(pick them independently):
+
+| Side | Default | Flag(s) to change it | Other locations |
+| --- | --- | --- | --- |
+| **Words** (translations) | **Live Crowdin** approved translations | `--translations-csv <file>` to use a saved export instead | `output/crowdin-approved.csv` (snapshot from `crowdin_source.py`) |
+| **Images** (answer pictures) | **Deployed `-dev` GCS bucket** `gs://levante-assets-dev/visual/vocab/` | `--gcs-bucket levante-assets-prod` (prod) · `--image-source local` (repo assets) | local: `core-task-assets/vocab/{original,images}` |
+
+- **Words — live by default.** Running with no `--translations-csv` pulls approved
+  translations straight from Crowdin at run time (needs `CROWDIN_API_TOKEN` in `.env`),
+  so you always score the current approved words. Pass `--from-crowdin` to be explicit,
+  or `--translations-csv output/crowdin-approved.csv` to score a frozen snapshot
+  (faster, offline, reproducible). Both the English keyword and the per-locale word
+  come from the same source row (`en` / locale columns).
+- **Images — deployed `-dev` bucket by default**, downloaded + cached under
+  `output/gcs_vocab_cache/`, so it validates exactly what children see. Switch to
+  `--gcs-bucket levante-assets-prod` for prod, or `--image-source local` to read the
+  repo's `core-task-assets/vocab/{original,images}`. (The old `filenames.csv` map was
+  deleted as stale; one item, `vocab-item-171` "colander", has no matching image — the
+  bucket only has the synonym `strainer.*` — and is skipped until that asset is renamed.)
+
+It runs for any locale(s):
 
 **Difficulty-aware:** some items are *meant* to be hard/abstract (`mammalogy`, `triad`,
 `sedentary`), so the corpus's IRT difficulty `d` (`vocab-item-bank.csv`) is joined in
@@ -220,11 +236,15 @@ items (e.g. `triad`, `posterior`, `sedentary`) while keeping true errors like `c
 
 ```bash
 cd scripts/eval
-# one or many locales (image is shared; only the word changes)
-python vocab_vision_eval.py --translations-csv output/crowdin-approved.csv \
-  --locales es-AR,de,nl,es-CO,fr-CA
-# or pull translations live
-python vocab_vision_eval.py --from-crowdin --locales de,nl
+# Default: live Crowdin words + deployed -dev images. One or many locales
+# (the image is shared; only the word changes per locale).
+python vocab_vision_eval.py --locales es-AR,de,nl,es-CO,fr-CA,pt-PT,en-GB
+
+# Score a saved snapshot instead of pulling live (offline / reproducible):
+python vocab_vision_eval.py --translations-csv output/crowdin-approved.csv --locales de,nl
+
+# Validate prod images instead of -dev:
+python vocab_vision_eval.py --gcs-bucket levante-assets-prod --locales es-AR
 ```
 
 Writes `output/vocab-vision-<locale>.csv` per locale, `vocab-vision-all.csv`, a
