@@ -151,6 +151,18 @@ def load_vid2word(filenames_csv: str) -> Dict[str, str]:
             if row.get("output", "").startswith("vocab-item-")}
 
 
+def normalize_en(en_raw: Optional[str], fallback_stem: str) -> str:
+    """The corpus English source word, minus a leading article, falling back to the
+    asset filename stem only if the corpus has nothing. Lowercased + article-stripped
+    so it matches the stem form for unchanged items (keeps the vision cache warm)."""
+    en = (en_raw or "").strip()
+    for art in ("the ", "a ", "an "):
+        if en.lower().startswith(art):
+            en = en[len(art):].strip()
+            break
+    return en or fallback_stem
+
+
 def find_image(img_dir: Path, word: str) -> Optional[Path]:
     for ext, _ in IMAGE_EXTS:
         p = img_dir / f"{word}{ext}"
@@ -177,9 +189,13 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
         word = (r.get(locale) or "").strip()
         if not word:
             continue
+        # English source word comes from the corpus (`en`), NOT the asset filename:
+        # the image file stem can be stale (e.g. tourniquet.jpg actually shows a
+        # turnstile). filenames.csv is only used to locate the image on disk.
+        en_word = normalize_en(r.get("en"), vid2word[vid])
         img = find_image(img_dir, vid2word[vid])
         if img:
-            items.append({"vid": vid, "en_word": vid2word[vid], "word": word, "image": img})
+            items.append({"vid": vid, "en_word": en_word, "word": word, "image": img})
     if limit:
         items = items[:limit]
     out = []

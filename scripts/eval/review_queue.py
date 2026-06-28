@@ -122,7 +122,8 @@ def main() -> int:
     # Vocab vision: single words are image-backed and COMET/E5 over-flag them, so
     # for vocab the adequacy verdict comes from "does the word name the picture?".
     if not args.no_vocab_vision:
-        from vocab_vision_eval import VocabVisionEvaluator, load_vid2word, find_image, _vid
+        from vocab_vision_eval import (VocabVisionEvaluator, load_vid2word, find_image,
+                                       normalize_en, _vid)
         vid2word = load_vid2word(args.filenames_csv)
         img_dir = Path(args.vocab_image_dir)
         vocab = []
@@ -137,7 +138,8 @@ def main() -> int:
             from tqdm import tqdm
             vev = VocabVisionEvaluator()
             for c in tqdm(vocab, desc="vision"):
-                res = vev.evaluate(vid2word[c["_vid"]], c["translation"], c["locale"],
+                en_word = normalize_en(c["source_en"], vid2word[c["_vid"]])
+                res = vev.evaluate(en_word, c["translation"], c["locale"],
                                    find_image(img_dir, vid2word[c["_vid"]]))
                 c["vision_match"] = res["match"]
                 # vision REPLACES COMET/E5 for vocab: flag only a true word/image mismatch.
