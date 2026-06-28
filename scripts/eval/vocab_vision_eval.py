@@ -133,9 +133,63 @@ class VocabVisionEvaluator:
                 "reason": "", "error": last}
 
 
+VOCAB_ITEM_RE = re.compile(r"vocab\.xliff::(vocab-item-\d+)")
+
+
 def _vid(item_id: str) -> Optional[str]:
+    m = VOCAB_ITEM_RE.search(item_id or "")
+    if m:
+        return m.group(1)
     m = re.search(r"(vocab-item-\d+)", item_id or "")
     return m.group(1) if m else None
+
+
+def load_vid2word(filenames_csv: str) -> Dict[str, str]:
+    """vocab-item-NNN -> answer-image word stem (e.g. vocab-item-055 -> 'scoop')."""
+    return {row["output"].strip(): row["input"].strip()
+            for row in csv.DictReader(open(filenames_csv, encoding="utf-8"))
+            if row.get("output", "").startswith("vocab-item-")}
+
+
+def find_image(img_dir: Path, word: str) -> Optional[Path]:
+    for ext, _ in IMAGE_EXTS:
+        p = img_dir / f"{word}{ext}"
+        if p.is_file():
+            return p
+    return None
+
+
+def load_translation_rows(args) -> List[dict]:
+    if args.from_crowdin:
+        from crowdin_source import fetch_approved_rows
+        rows, _ = fetch_approved_rows(approved_only=True)
+        return rows
+    return list(csv.DictReader(open(args.translations_csv, encoding="utf-8")))
+
+
+def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
+               vid2word: Dict[str, str], img_dir: Path, limit: int) -> List[dict]:
+    items = []
+    for r in rows:
+        vid = _vid(r.get("item_id") or r.get("identifier") or "")
+        if not vid or vid not in vid2word:
+            continue
+        word = (r.get(locale) or "").strip()
+        if not word:
+            continue
+        img = find_image(img_dir, vid2word[vid])
+        if img:
+            items.append({"vid": vid, "en_word": vid2word[vid], "word": word, "image": img})
+    if limit:
+        items = items[:limit]
+    out = []
+    for it in items:
+        res = ev.evaluate(it["en_word"], it["word"], locale, it["image"])
+        out.append({"locale": locale, "item_id": f"vocab.xliff::{it['vid']}", "vid": it["vid"],
+                    "en_word": it["en_word"], "translation": it["word"], "vision_match": res["match"],
+                    "object_in_locale": res["object_in_locale"], "confidence": res["confidence"],
+                    "reason": res["reason"]})
+    return out
 
 
 def main() -> int:
@@ -143,62 +197,49 @@ def main() -> int:
     p = argparse.ArgumentParser(description="Vision check: does the translated word name the pictured object?")
     p.add_argument("--filenames-csv", default="../../../core-task-assets/vocab/filenames.csv",
                    help="Authoritative word<->vocab-item-id map (input=word,output=item-id).")
-    p.add_argument("--queue-csv", default="output/review-queue-es-AR.csv")
+    src = p.add_mutually_exclusive_group()
+    src.add_argument("--translations-csv", default="output/crowdin-approved.csv",
+                     help="Merged Crowdin CSV (item_id + per-locale columns).")
+    src.add_argument("--from-crowdin", action="store_true")
     p.add_argument("--image-dir", default="../../../core-task-assets/vocab/original")
-    p.add_argument("--locale", default="es-AR")
-    p.add_argument("--only-flagged", action="store_true", help="Only items the queue tagged review/likely_bad.")
+    p.add_argument("--locales", default="es-AR", help="Comma-separated locales (column names).")
     p.add_argument("--limit", type=int, default=0)
-    p.add_argument("--output", default="output/vocab-vision-es-AR.csv")
+    p.add_argument("--output-dir", default="output")
     args = p.parse_args()
 
-    # vocab-item-NNN -> answer-image word stem (e.g. vocab-item-055 -> "scoop").
-    vid2word = {row["output"].strip(): row["input"].strip()
-                for row in csv.DictReader(open(args.filenames_csv, encoding="utf-8"))
-                if row.get("output", "").startswith("vocab-item-")}
-    queue = [r for r in csv.DictReader(open(args.queue_csv, encoding="utf-8")) if _vid(r["item_id"])]
-    if args.only_flagged:
-        queue = [r for r in queue if r.get("tier") != "ok"]
+    vid2word = load_vid2word(args.filenames_csv)
+    rows = load_translation_rows(args)
     img_dir = Path(args.image_dir)
-
-    items = []
-    for r in queue:
-        vid = _vid(r["item_id"])
-        word_img = vid2word.get(vid, "").strip()  # answer image filename stem (English word)
-        if not word_img:
-            continue
-        img = next((img_dir / f"{word_img}{ext}" for ext, _ in IMAGE_EXTS if (img_dir / f"{word_img}{ext}").is_file()), None)
-        if not img:
-            continue
-        items.append({"item_id": r["item_id"], "vid": vid, "en_word": r["source_en"],
-                      "es_word": r["translation"], "tier": r.get("tier", ""), "image": img})
-    # likely_bad first, then by worst adequacy already encoded in queue order.
-    items.sort(key=lambda x: 0 if x["tier"] == "likely_bad" else 1)
-    if args.limit:
-        items = items[:args.limit]
-    if not items:
-        sys.exit("No vocab items with images to check.")
-    print(f"[vision] checking {len(items)} vocab items ...")
+    locales = [l.strip() for l in args.locales.split(",") if l.strip()]
 
     ev = VocabVisionEvaluator()
-    rows = []
-    for it in items:
-        res = ev.evaluate(it["en_word"].replace("the ", "").strip(), it["es_word"], args.locale, it["image"])
-        rows.append({"item_id": it["item_id"], "tier": it["tier"], "en_word": it["en_word"],
-                     "es_word": it["es_word"], "vision_match": res["match"],
-                     "object_in_locale": res["object_in_locale"], "confidence": res["confidence"],
-                     "reason": res["reason"]})
-        mark = {"yes": "OK ", "no": "BAD", "uncertain": "?? "}[res["match"]]
-        print(f"  [{mark}] {it['vid']:16} '{it['en_word']}' -> '{it['es_word']}'"
-              f"   model sees: '{res['object_in_locale']}'  ({res['reason']})")
+    all_rows: List[dict] = []
+    for loc in locales:
+        res = run_locale(ev, rows, loc, vid2word, img_dir, args.limit)
+        bad = [r for r in res if r["vision_match"] == "no"]
+        unc = sum(1 for r in res if r["vision_match"] == "uncertain")
+        print(f"\n[{loc}] {len(res)} checked | {len(bad)} MISMATCH | {unc} uncertain")
+        for r in bad:
+            print(f"   BAD {r['vid']:16} '{r['en_word']}' -> '{r['translation']}'"
+                  f"   model sees: '{r['object_in_locale']}'  ({r['reason']})")
+        all_rows.extend(res)
+        out = Path(args.output_dir) / f"vocab-vision-{loc}.csv"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with out.open("w", encoding="utf-8", newline="") as f:
+            if res:
+                w = csv.DictWriter(f, fieldnames=list(res[0].keys()))
+                w.writeheader()
+                w.writerows(res)
 
-    out = Path(args.output)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        w.writeheader()
-        w.writerows(rows)
-    bad = sum(1 for r in rows if r["vision_match"] == "no")
-    print(f"\n[done] {len(rows)} checked, {bad} word/image MISMATCH -> {out}")
+    combined = Path(args.output_dir) / "vocab-vision-all.csv"
+    if all_rows:
+        with combined.open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=list(all_rows[0].keys()))
+            w.writeheader()
+            w.writerows(all_rows)
+    total_bad = sum(1 for r in all_rows if r["vision_match"] == "no")
+    print(f"\n[done] {len(all_rows)} checks across {len(locales)} locale(s), "
+          f"{total_bad} mismatch(es) -> {combined}")
     return 0
 
 

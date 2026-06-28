@@ -174,25 +174,50 @@ signals, and `reasons`. On es-AR this surfaces real errors at the top (e.g.
 `Foster Parent -> Tutor/a legal`). Thresholds are calibrated on es-AR only for
 now — recalibrate per locale (above) before trusting other locales' absolute flags.
 
+**Vocab rows are scored by the vision check, not COMET/E5.** For any item that maps
+to a `vocab-item-NNN` answer image, the queue replaces the adequacy verdict with the
+word-vs-image vision call (`vision_match` column; `reasons=vision_word_image_mismatch`
+when it fails). This is what clears the COMET/E5 vocab false positives — on es-AR,
+170 vocab rows collapse from 136 text-flags to 11 vision flags. Disable with
+`--no-vocab-vision` to fall back to COMET/E5.
+
 ## Vocab: word-vs-image vision check
 
 Picture-vocabulary items are single words backed by an answer image, and COMET/E5
 are unreliable on single words — on es-AR they flagged 136/171 vocab items, mostly
 false positives (correct one-word translations score low). The right signal is
 whether the translated word names the pictured object. `vocab_vision_eval.py` sends
-Gemini each answer image + the translated word and asks exactly that.
+Gemini each answer image + the translated word and asks exactly that. It maps each
+`vocab-item-NNN` to its answer image via `core-task-assets/vocab/filenames.csv` and
+pulls the per-locale word from the Crowdin export, so it runs for any locale(s):
 
 ```bash
 cd scripts/eval
-python vocab_vision_eval.py --only-flagged --limit 20
+# one or many locales (image is shared; only the word changes)
+python vocab_vision_eval.py --translations-csv output/crowdin-approved.csv \
+  --locales es-AR,de,nl,es-CO,fr-CA
+# or pull translations live
+python vocab_vision_eval.py --from-crowdin --locales de,nl
 ```
 
-On the flagged es-AR vocab it collapsed those 136 text-flags to **one** real
-mismatch (`the scoop -> el cucharón`; the picture is a wooden scoop = `la pala`,
-not a ladle) and cleared the false positives (coaster->posavasos, rickety->
-desvencijado, fork->tenedor, ...). It judges by the real task criterion (would a
-child pick this picture hearing the word), so it is high-precision; results cache
-under `output/vocab_vision_cache/`. Use this as the vocab track instead of COMET/E5.
+Writes `output/vocab-vision-<locale>.csv` per locale plus `vocab-vision-all.csv`;
+responses cache under `output/vocab_vision_cache/`. On es-AR it collapsed 136
+COMET/E5 text-flags to a handful of real mismatches (`the scoop -> el cucharón`,
+`the claw -> la garra` over a pliers image, `the bulldozer -> la excavadora`) and
+cleared the false positives. Across all five locales it surfaced **57** mismatches.
+
+Two distinct signals come out of a multi-locale run:
+- **Source/image problems** — the *English* keyword already doesn't match the shared
+  picture (e.g. `stretcher`/`tourniquet` over rubber-band / turnstile images), so it
+  mismatches in *every* locale. Fix the item/image, not the translation.
+- **Real translation issues** — mismatch in some locales but not others (the picture
+  is fine, the chosen word is wrong/too narrow for that language).
+- Abstract/advanced words (`aesthete`, `precarious`, `triad`, `mammalogy`) can't be
+  named by a concrete object and recur across locales; treat those as low-priority.
+
+This is the vocab track — it judges by the real task criterion (would a child pick
+this picture hearing the word), so it is high-precision. `review_queue.py` uses it
+automatically for vocab rows (below).
 
 ## Files
 

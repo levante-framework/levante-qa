@@ -38,7 +38,7 @@ from envload import load_env
 
 FIXED_COLS = {"identifier", "item_id", "labels", "contentType", "_path", "en"}
 OUT_COLS = ["tier", "priority", "item_id", "locale", "contentType", "source_en", "translation",
-            "e5_direct", "comet", "adequacy_flag", "mqm_score", "mqm_major",
+            "e5_direct", "comet", "adequacy_flag", "vision_match", "mqm_score", "mqm_major",
             "appropriateness_flag", "reasons"]
 
 
@@ -65,6 +65,10 @@ def main() -> int:
     p.add_argument("--locales", required=True, help="Comma-separated target locales.")
     p.add_argument("--config", default="output/scoring-config.json")
     p.add_argument("--tier1-only", action="store_true", help="Skip MQM (free adequacy pass).")
+    p.add_argument("--no-vocab-vision", action="store_true",
+                   help="Don't use the word-vs-image vision check for vocab (fall back to COMET/E5).")
+    p.add_argument("--filenames-csv", default="../../../core-task-assets/vocab/filenames.csv")
+    p.add_argument("--vocab-image-dir", default="../../../core-task-assets/vocab/original")
     p.add_argument("--max-mqm", type=int, default=300, help="Cap MQM calls (Tier 2 budget).")
     p.add_argument("--mqm-sample", type=int, default=0,
                    help="Also MQM this many random non-flagged rows (appropriateness coverage).")
@@ -109,9 +113,35 @@ def main() -> int:
         c["e5_direct"] = round(a, 4)
         c["comet"] = round(b, 4)
         c["adequacy_flag"] = 1 if (a < t_e5 or b < t_comet) else 0
+        c["vision_match"] = ""
+        c["is_vocab"] = False
         c["mqm_score"] = ""
         c["mqm_major"] = ""
         c["appropriateness_flag"] = ""
+
+    # Vocab vision: single words are image-backed and COMET/E5 over-flag them, so
+    # for vocab the adequacy verdict comes from "does the word name the picture?".
+    if not args.no_vocab_vision:
+        from vocab_vision_eval import VocabVisionEvaluator, load_vid2word, find_image, _vid
+        vid2word = load_vid2word(args.filenames_csv)
+        img_dir = Path(args.vocab_image_dir)
+        vocab = []
+        for c in cands:
+            vid = _vid(c["item_id"])
+            if vid and vid in vid2word and find_image(img_dir, vid2word[vid]):
+                c["is_vocab"] = True
+                c["_vid"] = vid
+                vocab.append(c)
+        if vocab:
+            print(f"[queue] vocab vision: word-vs-image on {len(vocab)} vocab items.")
+            from tqdm import tqdm
+            vev = VocabVisionEvaluator()
+            for c in tqdm(vocab, desc="vision"):
+                res = vev.evaluate(vid2word[c["_vid"]], c["translation"], c["locale"],
+                                   find_image(img_dir, vid2word[c["_vid"]]))
+                c["vision_match"] = res["match"]
+                # vision REPLACES COMET/E5 for vocab: flag only a true word/image mismatch.
+                c["adequacy_flag"] = 1 if res["match"] == "no" else 0
 
     # Tier 2: MQM on the flagged tail (+ optional random sample), capped.
     if not args.tier1_only and t_mqm is not None:
@@ -141,10 +171,14 @@ def main() -> int:
         app = c["appropriateness_flag"] == 1
         c["tier"] = "likely_bad" if (adq and app) else ("review" if (adq or app) else "ok")
         reasons = []
-        if c["e5_direct"] < t_e5:
-            reasons.append("low_e5")
-        if c["comet"] < t_comet:
-            reasons.append("low_comet")
+        if c.get("is_vocab"):
+            if c["vision_match"] == "no":
+                reasons.append("vision_word_image_mismatch")
+        else:
+            if c["e5_direct"] < t_e5:
+                reasons.append("low_e5")
+            if c["comet"] < t_comet:
+                reasons.append("low_comet")
         if app:
             reasons.append("mqm_appropriateness")
         c["reasons"] = ";".join(reasons)
