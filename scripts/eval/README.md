@@ -140,10 +140,47 @@ The v2 file is multi-locale, so locale is read per row (no `--target-locale`
 needed). Unlabeled rows are skipped, so you can validate a partially-annotated
 file as labels trickle in.
 
+## Ground truth & calibration
+
+The trustworthy labels are the **Prolific crowdsourced ratings** (purpose-built,
+two-axis, external). `dashboard_labels.py --source prolific` is the reproducible
+calibration seed; treat it as the source of truth until a larger v2 set exists.
+The dashboard `needsReview` flag is **not** usable as truth (heterogeneous flag +
+version-decoupled text — every signal, legacy included, scores at chance on it).
+
+To extend across locales, run the same Prolific-style two-axis rating on the
+`build_validation_pool.py` output for ~3-5 locales (using `ANNOTATOR_GUIDE.md`),
+then re-run `calibrate_thresholds.py` per locale to get per-locale thresholds.
+
+## Production: calibrate, then run the review queue
+
+```bash
+cd scripts/eval
+# 1. Calibrate flag thresholds from the Prolific labels (writes output/scoring-config.json):
+python dashboard_labels.py --source prolific
+python calibrate_thresholds.py --labels-csv output/prolific-v2-es-AR.csv --target-recall 0.80
+
+# 2. Rank approved translations worst-first (Tier 1 = E5+COMET on all, Tier 2 = MQM
+#    only on the flagged tail, capped by --max-mqm):
+python review_queue.py --from-crowdin --locales es-AR --max-mqm 300
+#    ...or a free adequacy-only pass:
+python review_queue.py --from-crowdin --locales es-AR --tier1-only
+```
+
+`output/review-queue.csv` is sorted worst-first with a `tier`
+(`likely_bad` = both axes flagged, `review` = one, `ok` = neither), the raw
+signals, and `reasons`. On es-AR this surfaces real errors at the top (e.g.
+`the sorbet -> el helado`, `Shape Rotation -> Rotación Mental`,
+`Foster Parent -> Tutor/a legal`). Thresholds are calibrated on es-AR only for
+now — recalibrate per locale (above) before trusting other locales' absolute flags.
+
 ## Files
 
 - `evaluate_translations.py` — orchestrator (scores a CSV or `--from-crowdin`)
 - `validate_evaluators.py` — validation harness (seed schema + v2 two-axis, auto-detected)
+- `dashboard_labels.py` — adapt dashboard human-review logs (Prolific / shared) to v2 labels
+- `calibrate_thresholds.py` — pick per-axis flag thresholds from the Prolific ROC
+- `review_queue.py` — tiered advisory review queue over approved translations
 - `build_validation_pool.py` — blind, unbiased v2 label pool builder
 - `ensemble_eval.py` — legacy + COMET + MQM-major-count blend, leave-one-out CV
 - `crowdin_source.py` — fetch approved translations from Crowdin (stdlib only)
@@ -151,4 +188,4 @@ file as labels trickle in.
 - `stats.py` — Spearman / Kendall / ROC-AUC / P@k (numpy only)
 - `cache.py` — resume-safe disk cache for the LLM pass
 - `envload.py` — loads `levante-qa/.env`
-- `VALIDATION_SET_PLAN.md` — labeling & sampling spec for the v2 set
+- `VALIDATION_SET_PLAN.md` / `ANNOTATOR_GUIDE.md` — v2 sampling spec + annotator rubric
