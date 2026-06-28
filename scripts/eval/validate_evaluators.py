@@ -49,10 +49,25 @@ NOTES_TO_ORDINAL = {
 }
 DEFAULT_SEED = "../../../levante-web-dashboard/data/validation/human-review-seed-es-AR.csv"
 
+# v2 two-axis schema (build_validation_pool.py output, once annotated).
+V2_AXES = ("adequacy", "appropriateness", "overall")
+V2_POOR_VERDICTS = {"poor", "poor translation quality", "bad", "unusable"}
+# Which axis each method is *meant* to measure (for the focused summary line).
+PRIMARY_AXIS = {
+    "comet_qe": "adequacy",
+    "e5_direct_sim": "adequacy",
+    "e5_centroid_sim": "adequacy",
+    "mqm": "appropriateness",
+    "legacy_ai_score": "overall",
+    "legacy_composite_score": "overall",
+}
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Validate translation evaluators against human labels.")
     p.add_argument("--labels-csv", default=DEFAULT_SEED)
+    p.add_argument("--schema", choices=["auto", "seed", "v2"], default="auto",
+                   help="Label schema. 'auto' detects the v2 two-axis pool by its 'adequacy' column.")
     p.add_argument("--target-locale", default="es-AR")
     p.add_argument("--source-col", default="source_en")
     p.add_argument("--target-col", default="translation_current")
@@ -110,6 +125,64 @@ def _to_float(v) -> Optional[float]:
         return float(s) if s else None
     except (TypeError, ValueError):
         return None
+
+
+def _to_int(v) -> Optional[int]:
+    f = _to_float(v)
+    return int(round(f)) if f is not None else None
+
+
+def detect_schema(path: Path) -> str:
+    """v2 if the file carries the two-axis 'adequacy' column, else the seed schema."""
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as f:
+            header = next(csv.reader(f), [])
+        return "v2" if "adequacy" in {h.strip() for h in header} else "seed"
+    except OSError:
+        return "seed"
+
+
+def load_gold_v2(args: argparse.Namespace) -> List[dict]:
+    """Load the annotated two-axis pool (per-row locale, adequacy + appropriateness)."""
+    path = Path(args.labels_csv)
+    if not path.exists():
+        sys.exit(f"Error: labels CSV not found: {path}")
+    rows: List[dict] = []
+    skipped_unlabeled = 0
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        for r in csv.DictReader(f):
+            adq = _to_int(r.get("adequacy"))
+            app = _to_int(r.get("appropriateness"))
+            if adq is None and app is None:
+                skipped_unlabeled += 1
+                continue
+            src = (r.get("source_en") or "").strip()
+            tgt = (r.get("translation") or "").strip()
+            loc = (r.get("locale") or "").strip()
+            if not src or not tgt or not loc:
+                continue
+            verdict = (r.get("overall_verdict") or "").strip().lower()
+            is_poor = 1 if (
+                verdict in V2_POOR_VERDICTS
+                or (adq is not None and adq <= 1)
+                or (app is not None and app <= 1)
+            ) else 0
+            present = [v for v in (adq, app) if v is not None]
+            rows.append({
+                "item_id": (r.get("item_id") or r.get("identifier") or "").strip(),
+                "locale": loc,
+                "source": src,
+                "target": tgt,
+                "adequacy": adq,
+                "appropriateness": app,
+                "overall": min(present) if present else None,
+                "is_poor": is_poor,
+                "legacy_ai_score": _to_float(r.get("ai_score")),
+                "legacy_composite_score": _to_float(r.get("composite_score")),
+            })
+    if skipped_unlabeled:
+        print(f"[gold] skipped {skipped_unlabeled} unlabeled rows (no adequacy/appropriateness yet).")
+    return rows
 
 
 def load_centroid_langs(
@@ -187,11 +260,121 @@ def metrics_for(name: str, scores: List[Optional[float]], gold: List[dict]) -> O
     }
 
 
+def metrics_axis(name: str, scores: List[Optional[float]], gold: List[dict], axis: str) -> Optional[dict]:
+    """metrics_for restricted to rows that carry a label on this axis."""
+    sub_scores: List[Optional[float]] = []
+    sub_gold: List[dict] = []
+    for s, g in zip(scores, gold):
+        lab = g.get(axis)
+        if lab is None:
+            continue
+        sub_scores.append(s)
+        sub_gold.append({"ordinal": lab, "is_poor": g["is_poor"] if axis == "overall"
+                         else (1 if lab <= 1 else 0)})
+    return metrics_for(name, sub_scores, sub_gold)
+
+
+def compute_method_scores_v2(args: argparse.Namespace, gold: List[dict]) -> Dict[str, List[Optional[float]]]:
+    sources = [g["source"] for g in gold]
+    targets = [g["target"] for g in gold]
+    locales = [g["locale"] for g in gold]
+    scores: Dict[str, List[Optional[float]]] = {}
+
+    for col in ("legacy_ai_score", "legacy_composite_score"):
+        vals = [g[col] for g in gold]
+        if any(v is not None for v in vals):
+            scores[col] = vals
+
+    if args.run_embedding:
+        try:
+            from embedding_eval import EmbeddingEvaluator
+            ev = EmbeddingEvaluator()
+            scores["e5_direct_sim"] = [float(x) for x in ev.evaluate_batch(sources, targets)]
+            if args.from_crowdin:
+                by_id, _ = load_centroid_from_crowdin([g["item_id"] for g in gold], "__none__")
+                if by_id:
+                    all_langs = sorted({l for m in by_id.values() for l in m})
+                    centroid: List[Optional[float]] = [None] * len(gold)
+                    groups: Dict[str, List[int]] = {}
+                    for i, loc in enumerate(locales):
+                        groups.setdefault(loc, []).append(i)
+                    for loc, idxs in groups.items():
+                        rows = []
+                        for i in idxs:
+                            m = dict(by_id.get(gold[i]["item_id"], {}))
+                            m[loc] = gold[i]["target"]
+                            rows.append(m)
+                        other = [l for l in all_langs if l != loc]
+                        for j, val in enumerate(ev.centroid_scores(rows, loc, other)):
+                            centroid[idxs[j]] = val
+                    scores["e5_centroid_sim"] = centroid
+                else:
+                    print("[warn] no Crowdin rows joined; skipping centroid.")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] embedding method unavailable: {exc}")
+
+    if args.run_comet:
+        try:
+            from comet_eval import CometQEEvaluator
+            scores["comet_qe"] = [float(x) for x in CometQEEvaluator().evaluate_batch(sources, targets)]
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] COMET method unavailable: {exc}")
+
+    if args.run_llm:
+        try:
+            from llm_mqm_eval import LlmMqmEvaluator
+            from tqdm import tqdm
+            ev = LlmMqmEvaluator()
+            out: List[Optional[float]] = []
+            for s, t, loc in tqdm(list(zip(sources, targets, locales)), desc="MQM"):
+                res = ev.evaluate_single(s, t, loc)
+                out.append(res["score"] if res["ok"] else None)
+            scores["mqm"] = out
+        except Exception as exc:  # noqa: BLE001
+            print(f"[warn] LLM method unavailable: {exc}")
+
+    return scores
+
+
+def main_v2(args: argparse.Namespace) -> int:
+    gold = load_gold_v2(args)
+    if not gold:
+        sys.exit("No labeled v2 rows yet (need adequacy and/or appropriateness filled in).")
+    locs = _dist_str([g["locale"] for g in gold])
+    print(f"[gold v2] {len(gold)} labeled rows; poor(overall)={sum(g['is_poor'] for g in gold)}; locales: {locs}")
+    print(f"          adequacy dist={_dist([g['adequacy'] for g in gold if g['adequacy'] is not None])}, "
+          f"appropriateness dist={_dist([g['appropriateness'] for g in gold if g['appropriateness'] is not None])}")
+
+    method_scores = compute_method_scores_v2(args, gold)
+
+    report: Dict[str, List[dict]] = {axis: [] for axis in V2_AXES}
+    for axis in V2_AXES:
+        for name, scores in method_scores.items():
+            m = metrics_axis(name, scores, gold, axis)
+            if m:
+                m["primary"] = (PRIMARY_AXIS.get(name) == axis)
+                report[axis].append(m)
+        report[axis].sort(key=lambda r: -(r["auc_detect_poor"] if r["auc_detect_poor"] == r["auc_detect_poor"] else 0))
+
+    for axis in V2_AXES:
+        _print_axis_table(axis, report[axis])
+
+    out_path = Path(args.output_json)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps({"schema": "v2", "gold_n": len(gold), "axes": report}, indent=2), encoding="utf-8")
+    print(f"\n[done] report -> {out_path}")
+    return 0
+
+
 def main() -> int:
     load_env()
     args = parse_args()
     if args.all:
         args.run_comet = args.run_embedding = args.run_llm = True
+
+    schema = args.schema if args.schema != "auto" else detect_schema(Path(args.labels_csv))
+    if schema == "v2":
+        return main_v2(args)
 
     gold = load_gold(args)
     if not gold:
@@ -273,6 +456,29 @@ def _dist(values: Sequence[int]) -> Dict[int, int]:
     for v in values:
         out[v] = out.get(v, 0) + 1
     return dict(sorted(out.items()))
+
+
+def _dist_str(values: Sequence[str]) -> str:
+    out: Dict[str, int] = {}
+    for v in values:
+        out[v] = out.get(v, 0) + 1
+    return ", ".join(f"{k}={v}" for k, v in sorted(out.items()))
+
+
+def _print_axis_table(axis: str, report: List[dict]) -> None:
+    print("\n" + "=" * 96)
+    print(f"AXIS: {axis}   (poor = label <= 1; '*' marks the method this axis is meant to test)")
+    print("-" * 96)
+    if not report:
+        print("  (no methods produced metrics on this axis)")
+        return
+    print(f"{'method':<26}{'n':>5}{'spearman':>10}{'kendall':>9}{'AUC_poor':>10}{'P@k':>8}{'R@k':>8}{'k':>5}")
+    for r in report:
+        k = r["k"]
+        star = "*" if r.get("primary") else " "
+        print(f"{star}{r['method']:<25}{r['n']:>5}{r['spearman_vs_human']:>10}{r['kendall_vs_human']:>9}"
+              f"{r['auc_detect_poor']:>10}{r[f'precision_at_{k}']:>8}{r[f'recall_at_{k}']:>8}{k:>5}")
+    print("=" * 96)
 
 
 def _print_table(report: List[dict]) -> None:

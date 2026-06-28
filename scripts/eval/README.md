@@ -93,12 +93,58 @@ for flagging the "Poor" items, and precision/recall@k, written to
 `output/validation-report.json`. With no flags it still validates the legacy
 baselines (no models or network needed), which is handy as a smoke test.
 
+> On the current es-AR seed the legacy back-translation score still wins (it built
+> the seed, so the seed is biased toward it; the "Poor" label also mixes adequacy
+> with child-appropriateness, which the adequacy metrics intentionally ignore). The
+> fix is a better, unbiased, two-axis label set — see below.
+
+## Building an unbiased v2 label set
+
+`VALIDATION_SET_PLAN.md` is the full spec. `build_validation_pool.py` produces a
+blind pool: ~70% stratified-uniform-random (an unbiased base rate, anchored to no
+method) plus ~30% enrichment chosen by **evaluator disagreement** (spread of
+z-scored E5-direct, E5-centroid, and optional COMET), so hard cases come from
+method conflict rather than any single score's tail.
+
+```bash
+cd scripts/eval
+python build_validation_pool.py --from-crowdin \
+  --locales es-AR,es-CO,de,nl,fr-CA --backbone 560 --enrich 240 --enrich-with-comet
+```
+
+Outputs to `output/validation-pool-v2/`: `blind/<locale>.csv` + `blind/combined.csv`
+(annotator files — inputs plus empty `adequacy`, `appropriateness`, `mqm_errors`,
+`overall_verdict`, `rater_id`, `notes`; strata shuffled so annotators stay blind)
+and a separate `provenance.csv` (stratum + raw signals, kept out of the annotator
+file). Annotators score **two axes**: `adequacy` (meaning, 0-3) and
+`appropriateness` (register/vocab for the age group, 0-3).
+
+## Validating against the v2 two-axis labels
+
+Once the blind CSV is annotated, point the same harness at it. The v2 schema is
+auto-detected (by the `adequacy` column), and each method is scored against
+`adequacy`, `appropriateness`, and the combined `overall` gate. A `*` marks the
+axis each method is meant to measure (COMET/E5 -> adequacy, MQM -> appropriateness).
+
+```bash
+cd scripts/eval
+python validate_evaluators.py --labels-csv output/validation-pool-v2/blind/combined.csv \
+  --all --from-crowdin        # --from-crowdin enables the per-locale centroid signal
+```
+
+The v2 file is multi-locale, so locale is read per row (no `--target-locale`
+needed). Unlabeled rows are skipped, so you can validate a partially-annotated
+file as labels trickle in.
+
 ## Files
 
 - `evaluate_translations.py` — orchestrator (scores a CSV or `--from-crowdin`)
-- `validate_evaluators.py` — validation harness (scores the scorers vs humans)
+- `validate_evaluators.py` — validation harness (seed schema + v2 two-axis, auto-detected)
+- `build_validation_pool.py` — blind, unbiased v2 label pool builder
+- `ensemble_eval.py` — legacy + COMET + MQM-major-count blend, leave-one-out CV
 - `crowdin_source.py` — fetch approved translations from Crowdin (stdlib only)
 - `embedding_eval.py` / `comet_eval.py` / `llm_mqm_eval.py` — the three signals
 - `stats.py` — Spearman / Kendall / ROC-AUC / P@k (numpy only)
 - `cache.py` — resume-safe disk cache for the LLM pass
 - `envload.py` — loads `levante-qa/.env`
+- `VALIDATION_SET_PLAN.md` — labeling & sampling spec for the v2 set
