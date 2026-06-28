@@ -36,7 +36,7 @@ from envload import load_env
 DASH = Path("../../../levante-web-dashboard/data/validation")
 V2_HEADER = ["item_id", "identifier", "locale", "source_en", "translation", "contentType",
              "length_bucket", "adequacy", "appropriateness", "mqm_errors",
-             "overall_verdict", "rater_id", "notes"]
+             "overall_verdict", "rater_id", "notes", "ai_score", "composite_score"]
 
 
 def _length_bucket(text: str) -> str:
@@ -107,11 +107,28 @@ def from_prolific(path: Path, locale: str) -> List[dict]:
     return rows
 
 
-def from_shared_validation(path: Path) -> List[dict]:
-    """Dashboard manualApproved / needsReview -> overall axis only (no source/target
-    inline, so this is a flag list; useful for the overall gate after a join)."""
+def _load_merged_texts(path: Path) -> dict:
+    """item_id -> {'en': src, '<locale>': text, ...} from crowdin-xliff-merged.csv."""
+    if not path.is_file():
+        return {}
+    meta = {"identifier", "item_id", "labels", "contentType", "_path"}
+    out: dict = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        for r in csv.DictReader(f):
+            iid = (r.get("item_id") or r.get("identifier") or "").strip()
+            if iid:
+                out[iid] = {k: (v or "").strip() for k, v in r.items() if k not in meta}
+    return out
+
+
+def from_shared_validation(path: Path, merged_csv: Path) -> List[dict]:
+    """Dashboard manualApproved / needsReview -> overall axis. Source/target are not
+    stored in the validation JSON, so they are joined from crowdin-xliff-merged.csv
+    by item_id + locale (same join build_human_review_seed.py uses)."""
     data = json.loads(path.read_text(encoding="utf-8"))
+    texts = _load_merged_texts(merged_csv)
     rows: List[dict] = []
+    missing = 0
     for item_id, by_lang in (data.get("validation_results", data) or {}).items():
         if not isinstance(by_lang, dict):
             continue
@@ -122,16 +139,26 @@ def from_shared_validation(path: Path) -> List[dict]:
             flagged = bool(rec.get("needsReview"))
             if not approved and not flagged:
                 continue
+            merged = texts.get(item_id, {})
+            src = (rec.get("source_en") or merged.get("en") or "").strip()
+            tgt = (rec.get("translation_current") or rec.get("target") or merged.get(lang) or "").strip()
+            if not src or not tgt:
+                missing += 1
+                continue
             rows.append({
                 "item_id": item_id, "identifier": item_id, "locale": lang,
-                "source_en": (rec.get("source_en") or "").strip(),
-                "translation": (rec.get("translation_current") or rec.get("target") or "").strip(),
-                "contentType": "", "length_bucket": "",
+                "source_en": src, "translation": tgt,
+                "contentType": merged.get("contentType", ""),
+                "length_bucket": _length_bucket(src),
                 "adequacy": "", "appropriateness": "", "mqm_errors": "",
                 "overall_verdict": "Poor" if flagged else "OK",
                 "rater_id": "dashboard_reviewer",
                 "notes": (rec.get("reason") or rec.get("notes") or "").strip(),
+                "ai_score": rec.get("aiScore", ""),
+                "composite_score": rec.get("compositeScore", ""),
             })
+    if missing:
+        print(f"[warn] dropped {missing} rows with no source/target after join.")
     return rows
 
 
@@ -151,7 +178,7 @@ def main() -> int:
     else:
         inp = Path(args.input) if args.input else DASH / "validation_results.shared.json"
         out = Path(args.output) if args.output else Path("output/shared-validation-v2.csv")
-        rows = from_shared_validation(inp)
+        rows = from_shared_validation(inp, DASH / "crowdin-xliff-merged.csv")
 
     if not rows:
         sys.exit(f"No usable rows from {inp}.")

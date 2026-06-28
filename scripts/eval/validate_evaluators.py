@@ -153,7 +153,8 @@ def load_gold_v2(args: argparse.Namespace) -> List[dict]:
         for r in csv.DictReader(f):
             adq = _to_int(r.get("adequacy"))
             app = _to_int(r.get("appropriateness"))
-            if adq is None and app is None:
+            verdict = (r.get("overall_verdict") or "").strip().lower()
+            if adq is None and app is None and not verdict:
                 skipped_unlabeled += 1
                 continue
             src = (r.get("source_en") or "").strip()
@@ -161,7 +162,6 @@ def load_gold_v2(args: argparse.Namespace) -> List[dict]:
             loc = (r.get("locale") or "").strip()
             if not src or not tgt or not loc:
                 continue
-            verdict = (r.get("overall_verdict") or "").strip().lower()
             is_poor = 1 if (
                 verdict in V2_POOR_VERDICTS
                 or (adq is not None and adq <= 1)
@@ -175,7 +175,9 @@ def load_gold_v2(args: argparse.Namespace) -> List[dict]:
                 "target": tgt,
                 "adequacy": adq,
                 "appropriateness": app,
-                "overall": min(present) if present else None,
+                # ordinal for the overall axis: finest signal available, else a
+                # 2-level ordinal from the binary verdict so it is never None.
+                "overall": min(present) if present else (0 if is_poor else 3),
                 "is_poor": is_poor,
                 "legacy_ai_score": _to_float(r.get("ai_score")),
                 "legacy_composite_score": _to_float(r.get("composite_score")),
