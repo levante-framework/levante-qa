@@ -189,13 +189,17 @@ false positives (correct one-word translations score low). The right signal is
 whether the translated word names the pictured object. `vocab_vision_eval.py` sends
 Gemini each answer image + the translated word and asks exactly that. Both the
 English source word and the per-locale word come from the Crowdin corpus (`en` /
-locale columns); the **answer image is matched to that English word** by scanning the
-asset dirs and normalizing names (case/spaces/`_`/`-` ignored). It indexes
-`core-task-assets/vocab/{original,images}` (earlier wins), which covers the corrected
-asset names — the old `filenames.csv` map was deleted as stale (it mapped
-`tourniquet`/`stretcher` to items the corpus now calls `turnstile`/`rubber band`).
-One item (`vocab-item-171` "colander") has no matching image file (only `strainer.*`,
-a synonym) and is skipped until the asset is renamed. It runs for any locale(s):
+locale columns); the **answer image is matched to that English word** by normalizing
+names (case/spaces/`_`/`-` ignored).
+
+By default it pulls images from the **deployed GCS bucket** the tasks actually serve
+(`gs://levante-assets-dev/visual/vocab/`, downloaded + cached under
+`output/gcs_vocab_cache/`), so it validates exactly what children see. Use
+`--image-source local` to read `core-task-assets/vocab/{original,images}` instead, or
+`--gcs-bucket levante-assets-prod` for prod. (The old `filenames.csv` map was deleted
+as stale; one item, `vocab-item-171` "colander", has no matching image — the bucket
+only has the synonym `strainer.*` — and is skipped until that asset is renamed.) It
+runs for any locale(s):
 
 ```bash
 cd scripts/eval

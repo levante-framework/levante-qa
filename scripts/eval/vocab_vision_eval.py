@@ -13,12 +13,11 @@ For each vocab item we send Gemini the answer image + the translated word and as
 whether the word names the main object, returning a structured verdict. Results
 are cached (resume-safe) like the MQM pass.
 
-Inputs default to the artifacts already produced:
-  --corpus-csv  output/_vocab_esar.csv          (maps vocab-item-NNN -> answer image word)
-  --queue-csv   output/review-queue-es-AR.csv    (es-AR translation per item; which are flagged)
-  --image-dir   ../../../core-task-assets/vocab/original
+Translations (English + per-locale word) come from the Crowdin corpus; the answer
+image is resolved from the English word against the deployed GCS `visual/vocab`
+bucket (default) or a local asset dir, matching names case/separator-insensitively.
 
-    python vocab_vision_eval.py --only-flagged --limit 20
+    python vocab_vision_eval.py --locales es-AR,de,nl,es-CO,fr-CA
 """
 
 from __future__ import annotations
@@ -31,6 +30,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -187,6 +187,75 @@ def resolve_image(index: Dict[str, Path], word: str) -> Optional[Path]:
     return index.get(_norm_key(word))
 
 
+_EXT_RANK = {".webp": 0, ".jpg": 1, ".jpeg": 2, ".png": 3}
+
+
+def _gcs_list(bucket: str, prefix: str) -> List[str]:
+    """All object names under a public GCS bucket prefix (paginated)."""
+    names: List[str] = []
+    token = ""
+    while True:
+        url = (f"https://storage.googleapis.com/storage/v1/b/{bucket}/o"
+               f"?prefix={urllib.parse.quote(prefix)}&maxResults=1000")
+        if token:
+            url += f"&pageToken={token}"
+        with urllib.request.urlopen(url, timeout=60) as r:
+            data = json.load(r)
+        names += [it["name"] for it in data.get("items", [])]
+        token = data.get("nextPageToken")
+        if not token:
+            return names
+
+
+class ImageResolver:
+    """Resolves an English vocab word to a local image file, from either the local
+    asset repo or the deployed GCS `visual/<task>` bucket (downloaded + cached).
+
+    GCS is the truer source — it is exactly what children are served — and is
+    independent of whatever happens to be checked out locally."""
+
+    def __init__(self, source: str = "gcs", local_dirs: str = "",
+                 bucket: str = "levante-assets-dev", prefix: str = "visual/vocab/",
+                 cache_dir: str = "output/gcs_vocab_cache"):
+        self.source = source
+        if source == "local":
+            self.index = build_image_index(local_dirs)
+            self.label = local_dirs
+            return
+        self.bucket = bucket
+        self.cache = Path(cache_dir)
+        self.cache.mkdir(parents=True, exist_ok=True)
+        self.label = f"gs://{bucket}/{prefix}"
+        exts = set(_EXT_RANK)
+        objs = [n for n in _gcs_list(bucket, prefix) if Path(n).suffix.lower() in exts]
+        objs.sort(key=lambda n: _EXT_RANK.get(Path(n).suffix.lower(), 9))  # webp wins
+        self.gcs_index: Dict[str, str] = {}
+        for n in objs:
+            self.gcs_index.setdefault(_norm_key(Path(n).stem), n)
+
+    def __len__(self) -> int:
+        return len(self.index if self.source == "local" else self.gcs_index)
+
+    def resolve(self, word: str) -> Optional[Path]:
+        key = _norm_key(word)
+        if self.source == "local":
+            return self.index.get(key)
+        name = self.gcs_index.get(key)
+        if not name:
+            return None
+        dest = self.cache / Path(name).name
+        if dest.is_file() and dest.stat().st_size > 0:
+            return dest
+        try:
+            with urllib.request.urlopen(f"https://storage.googleapis.com/{self.bucket}/"
+                                        f"{urllib.parse.quote(name)}", timeout=60) as r:
+                data = r.read()
+            dest.write_bytes(data)
+            return dest
+        except (urllib.error.URLError, OSError):
+            return None
+
+
 def load_translation_rows(args) -> List[dict]:
     if args.from_crowdin:
         from crowdin_source import fetch_approved_rows
@@ -196,7 +265,7 @@ def load_translation_rows(args) -> List[dict]:
 
 
 def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
-               img_index: Dict[str, Path], limit: int) -> List[dict]:
+               resolver: "ImageResolver", limit: int) -> List[dict]:
     items = []
     for r in rows:
         vid = _vid(r.get("item_id") or r.get("identifier") or "")
@@ -208,8 +277,8 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
         # Both the English keyed word and the image come from the corpus word
         # (`en`), so a stale asset name can't desync them.
         en_word = normalize_en(r.get("en"))
-        img = resolve_image(img_index, en_word)
-        if en_word and img:
+        img = resolver.resolve(en_word) if en_word else None
+        if img:
             items.append({"vid": vid, "en_word": en_word, "word": word, "image": img})
     if limit:
         items = items[:limit]
@@ -309,9 +378,14 @@ def main() -> int:
     src.add_argument("--translations-csv", default="output/crowdin-approved.csv",
                      help="Merged Crowdin CSV (item_id + per-locale columns, incl. `en`).")
     src.add_argument("--from-crowdin", action="store_true")
+    p.add_argument("--image-source", choices=["gcs", "local"], default="gcs",
+                   help="Where answer images come from (default: deployed GCS visual bucket).")
+    p.add_argument("--gcs-bucket", default="levante-assets-dev",
+                   help="GCS bucket for --image-source gcs (use levante-assets-prod for prod).")
+    p.add_argument("--gcs-prefix", default="visual/vocab/")
     p.add_argument("--image-dir",
                    default="../../../core-task-assets/vocab/original,../../../core-task-assets/vocab/images",
-                   help="Comma-separated image dir(s); earlier wins on name collision.")
+                   help="Comma-separated local image dir(s) for --image-source local.")
     p.add_argument("--locales", default="es-AR", help="Comma-separated locales (column names).")
     p.add_argument("--source-min-locales", type=int, default=0,
                    help="Mismatches in >= this many locales are tagged source_image_issue "
@@ -321,14 +395,15 @@ def main() -> int:
     args = p.parse_args()
 
     rows = load_translation_rows(args)
-    img_index = build_image_index(args.image_dir)
+    resolver = ImageResolver(args.image_source, local_dirs=args.image_dir,
+                             bucket=args.gcs_bucket, prefix=args.gcs_prefix)
     locales = [l.strip() for l in args.locales.split(",") if l.strip()]
-    print(f"[vision] {len(img_index)} images indexed from {args.image_dir}")
+    print(f"[vision] {len(resolver)} images indexed from {resolver.label}")
 
     ev = VocabVisionEvaluator()
     all_rows: List[dict] = []
     for loc in locales:
-        res = run_locale(ev, rows, loc, img_index, args.limit)
+        res = run_locale(ev, rows, loc, resolver, args.limit)
         bad = [r for r in res if r["vision_match"] == "no"]
         unc = sum(1 for r in res if r["vision_match"] == "uncertain")
         print(f"\n[{loc}] {len(res)} checked | {len(bad)} MISMATCH | {unc} uncertain")
