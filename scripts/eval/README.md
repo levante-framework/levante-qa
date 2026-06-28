@@ -93,10 +93,14 @@ for flagging the "Poor" items, and precision/recall@k, written to
 `output/validation-report.json`. With no flags it still validates the legacy
 baselines (no models or network needed), which is handy as a smoke test.
 
-> On the current es-AR seed the legacy back-translation score still wins (it built
-> the seed, so the seed is biased toward it; the "Poor" label also mixes adequacy
-> with child-appropriateness, which the adequacy metrics intentionally ignore). The
-> fix is a better, unbiased, two-axis label set — see below.
+> On the legacy es-AR seed the back-translation score "wins" — but that seed is
+> biased (it built the seed) and its single "Poor" label mixes adequacy with
+> child-appropriateness. On an **independent** two-axis set (180 Prolific
+> crowdsourced ratings, via `dashboard_labels.py`) the new methods are strong:
+> adequacy AUC 0.89 (MQM) / 0.85 (E5) / 0.82 (COMET); appropriateness AUC 0.73
+> (MQM, the only signal that reads it); overall MQM Spearman 0.58 / AUC 0.80. So
+> the earlier pessimism was a measurement artifact. Build a larger unbiased
+> two-axis set (below) to confirm and to set production thresholds.
 
 ## Building an unbiased v2 label set
 
