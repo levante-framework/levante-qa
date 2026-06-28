@@ -14,7 +14,7 @@ on:
           - gemini
   schedule:
     # 07:00 UTC nightly.
-    - cron: '0 7 * * *'
+    #- cron: '0 7 * * *'
 
 jobs:
   vlm:
