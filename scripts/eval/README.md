@@ -200,20 +200,23 @@ python vocab_vision_eval.py --translations-csv output/crowdin-approved.csv \
 python vocab_vision_eval.py --from-crowdin --locales de,nl
 ```
 
-Writes `output/vocab-vision-<locale>.csv` per locale plus `vocab-vision-all.csv`;
-responses cache under `output/vocab_vision_cache/`. On es-AR it collapsed 136
-COMET/E5 text-flags to a handful of real mismatches (`the scoop -> el cucharón`,
-`the claw -> la garra` over a pliers image, `the bulldozer -> la excavadora`) and
-cleared the false positives. Across all five locales it surfaced **57** mismatches.
+Writes `output/vocab-vision-<locale>.csv` per locale, `vocab-vision-all.csv`, and a
+human-readable `vocab-vision-report.md`; responses cache under
+`output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to a
+handful of real mismatches (`the scoop -> el cucharón`, `the claw -> la garra` over
+a pliers image, `the bulldozer -> la excavadora`) and cleared the false positives.
+Across all five locales it surfaced **57** mismatches over **25** items.
 
-Two distinct signals come out of a multi-locale run:
-- **Source/image problems** — the *English* keyword already doesn't match the shared
-  picture (e.g. `stretcher`/`tourniquet` over rubber-band / turnstile images), so it
-  mismatches in *every* locale. Fix the item/image, not the translation.
-- **Real translation issues** — mismatch in some locales but not others (the picture
-  is fine, the chosen word is wrong/too narrow for that language).
-- Abstract/advanced words (`aesthete`, `precarious`, `triad`, `mammalogy`) can't be
-  named by a concrete object and recur across locales; treat those as low-priority.
+Each mismatch is auto-tagged (the `tag` column / report sections) by its cross-locale
+spread, which separates two very different fixes:
+- **`source_image_issue`** — the *English* keyword / shared picture is the problem, so
+  it mismatches in (nearly) every locale (e.g. `claw` over a pliers image,
+  `aesthete`/`mammalogy` are too abstract to name an object). **Fix the item, not the
+  translation.** A row counts as source-wide when it fails in `--source-min-locales`
+  locales (default: all locales the item was checked in).
+- **`translation_issue`** — locale-specific: the picture is fine but that language's
+  word is wrong/too narrow (e.g. `scoop -> el cucharón` es-AR, `cloak -> la capucha`
+  es-CO, `fetch -> bringen` de). **Fix the per-locale word.**
 
 This is the vocab track — it judges by the real task criterion (would a child pick
 this picture hearing the word), so it is high-precision. `review_queue.py` uses it

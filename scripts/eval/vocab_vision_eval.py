@@ -192,6 +192,85 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
     return out
 
 
+def tag_mismatches(all_rows: List[dict], source_min_locales: int) -> None:
+    """Tag each mismatch by its cross-locale spread (mutates rows, adds 'tag').
+
+    A vid that mismatches in (nearly) every locale it was checked in is almost
+    always a SOURCE/ITEM problem — the shared English keyword doesn't match the
+    picture, or the word is too abstract to name an object — so the translation is
+    not the thing to fix. A vid that mismatches in only some locales is a real
+    per-locale TRANSLATION issue (the picture is fine; that language's word is off).
+    """
+    by_vid: Dict[str, List[dict]] = {}
+    for r in all_rows:
+        by_vid.setdefault(r["vid"], []).append(r)
+    for vid, rs in by_vid.items():
+        n_checked = len(rs)
+        bad = [r for r in rs if r["vision_match"] == "no"]
+        n_bad = len(bad)
+        threshold = source_min_locales if source_min_locales > 0 else n_checked
+        source_wide = n_bad >= 2 and n_bad >= threshold
+        for r in rs:
+            r["n_locales_checked"] = n_checked
+            r["n_locales_mismatch"] = n_bad
+            if r["vision_match"] == "no":
+                r["tag"] = "source_image_issue" if source_wide else "translation_issue"
+            else:
+                r["tag"] = ""
+
+
+def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) -> None:
+    """Human-readable report grouped by tag, one block per vocab item."""
+    bad = [r for r in all_rows if r["vision_match"] == "no"]
+    by_vid: Dict[str, List[dict]] = {}
+    for r in bad:
+        by_vid.setdefault(r["vid"], []).append(r)
+
+    def vid_num(vid: str) -> int:
+        try:
+            return int(vid.rsplit("-", 1)[-1])
+        except ValueError:
+            return 0
+
+    n_items = len({r["vid"] for r in all_rows})
+    lines = ["# Vocab word-vs-image vision report", ""]
+    lines.append(f"- Locales checked: {', '.join(locales)}")
+    lines.append(f"- Vocab items: {n_items}  ·  total checks: {len(all_rows)}  ·  mismatches: {len(bad)}")
+    lines.append(f"- Distinct items with a mismatch: {len(by_vid)}")
+    lines.append("")
+    lines.append("**source_image_issue** = the shared picture/English keyword is the problem "
+                 "(fails across locales) — fix the item, not the translation. "
+                 "**translation_issue** = locale-specific; the picture is fine but that "
+                 "language's word is wrong/too narrow.")
+    lines.append("")
+
+    groups = [
+        ("source_image_issue", "Source / item issues (fix the picture or English keyword)"),
+        ("translation_issue", "Translation issues (fix the per-locale word)"),
+    ]
+    for tag, title in groups:
+        vids = sorted({r["vid"] for r in bad if r["tag"] == tag}, key=vid_num)
+        lines.append(f"## {title} — {len(vids)} item(s)")
+        lines.append("")
+        if not vids:
+            lines.append("_None._")
+            lines.append("")
+            continue
+        for vid in vids:
+            rs = sorted(by_vid[vid], key=lambda r: r["locale"])
+            en = rs[0]["en_word"]
+            checked = next((r["n_locales_checked"] for r in all_rows if r["vid"] == vid), len(locales))
+            lines.append(f"### {vid} — “{en}”  ({len(rs)}/{checked} locales)")
+            lines.append("")
+            lines.append("| locale | translation | model sees | why |")
+            lines.append("|---|---|---|---|")
+            for r in rs:
+                why = (r["reason"] or "").replace("|", "\\|")
+                lines.append(f"| {r['locale']} | {r['translation']} | {r['object_in_locale']} | {why} |")
+            lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> int:
     load_env()
     p = argparse.ArgumentParser(description="Vision check: does the translated word name the pictured object?")
@@ -203,6 +282,9 @@ def main() -> int:
     src.add_argument("--from-crowdin", action="store_true")
     p.add_argument("--image-dir", default="../../../core-task-assets/vocab/original")
     p.add_argument("--locales", default="es-AR", help="Comma-separated locales (column names).")
+    p.add_argument("--source-min-locales", type=int, default=0,
+                   help="Mismatches in >= this many locales are tagged source_image_issue "
+                        "(0 = all locales the item was checked in).")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--output-dir", default="output")
     args = p.parse_args()
@@ -223,23 +305,37 @@ def main() -> int:
             print(f"   BAD {r['vid']:16} '{r['en_word']}' -> '{r['translation']}'"
                   f"   model sees: '{r['object_in_locale']}'  ({r['reason']})")
         all_rows.extend(res)
-        out = Path(args.output_dir) / f"vocab-vision-{loc}.csv"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        with out.open("w", encoding="utf-8", newline="") as f:
-            if res:
-                w = csv.DictWriter(f, fieldnames=list(res[0].keys()))
-                w.writeheader()
-                w.writerows(res)
 
-    combined = Path(args.output_dir) / "vocab-vision-all.csv"
-    if all_rows:
-        with combined.open("w", encoding="utf-8", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=list(all_rows[0].keys()))
+    tag_mismatches(all_rows, args.source_min_locales)
+
+    out_dir = Path(args.output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    field_order = ["locale", "item_id", "vid", "en_word", "translation", "vision_match",
+                   "object_in_locale", "confidence", "reason", "tag",
+                   "n_locales_mismatch", "n_locales_checked"]
+
+    def write_csv(path: Path, data: List[dict]) -> None:
+        if not data:
+            return
+        with path.open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=field_order, extrasaction="ignore")
             w.writeheader()
-            w.writerows(all_rows)
+            w.writerows(data)
+
+    for loc in locales:
+        write_csv(out_dir / f"vocab-vision-{loc}.csv", [r for r in all_rows if r["locale"] == loc])
+    write_csv(out_dir / "vocab-vision-all.csv", all_rows)
+
+    report = out_dir / "vocab-vision-report.md"
+    write_markdown_report(all_rows, report, locales)
+
     total_bad = sum(1 for r in all_rows if r["vision_match"] == "no")
+    n_src = len({r["vid"] for r in all_rows if r["tag"] == "source_image_issue"})
+    n_tr = len({r["vid"] for r in all_rows if r["tag"] == "translation_issue"})
     print(f"\n[done] {len(all_rows)} checks across {len(locales)} locale(s), "
-          f"{total_bad} mismatch(es) -> {combined}")
+          f"{total_bad} mismatch(es): {n_src} source/item, {n_tr} translation.")
+    print(f"       CSV -> {out_dir / 'vocab-vision-all.csv'}")
+    print(f"       report -> {report}")
     return 0
 
 
