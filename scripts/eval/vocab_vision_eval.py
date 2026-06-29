@@ -26,6 +26,7 @@ import argparse
 import base64
 import csv
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -363,7 +364,7 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
         out.append({"locale": locale, "item_id": f"vocab.xliff::{it['vid']}", "vid": it["vid"],
                     "en_word": it["en_word"], "translation": it["word"], "vision_match": res["match"],
                     "object_in_locale": res["object_in_locale"], "confidence": res["confidence"],
-                    "reason": res["reason"],
+                    "reason": res["reason"], "image": str(it["image"]),
                     "difficulty": "" if d is None else round(d, 4),
                     "hard": 1 if is_hard else 0})
     return out
@@ -401,6 +402,19 @@ def tag_mismatches(all_rows: List[dict], source_min_locales: int,
                 r["tag"] = "source_image_issue" if source_wide else "translation_issue"
             else:
                 r["tag"] = ""
+
+
+def img_md(image: str, base_dir: Path, alt: str = "", height: int = 90) -> str:
+    """A relative <img> tag for the report. render_pdf inlines it as base64
+    (pandoc --embed-resources), so the PDF is self-contained; in the raw .md the
+    relative path resolves when viewed from the output dir."""
+    if not image:
+        return ""
+    try:
+        rel = os.path.relpath(image, base_dir)
+    except ValueError:
+        rel = image
+    return f'<img src="{rel}" alt="{alt}" style="height:{height}px;">'
 
 
 def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) -> None:
@@ -446,13 +460,16 @@ def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) 
             checked = next((r["n_locales_checked"] for r in all_rows if r["vid"] == vid), len(locales))
             d = rs[0].get("difficulty", "")
             d_str = f", d={d}" if d != "" else ""
-            lines.append(f"### {vid} — “{en}”  ({len(rs)}/{checked} locales{d_str})")
+            lines.append(f"### {vid}  ({len(rs)}/{checked} locales{d_str})")
             lines.append("")
-            lines.append("| locale | translation | model sees | why |")
-            lines.append("|---|---|---|---|")
-            for r in rs:
+            tag = img_md(rs[0].get("image", ""), path.parent, alt=en, height=72)
+            lines.append("| answer image | source (English) | locale | translation | model sees | why |")
+            lines.append("|---|---|---|---|---|---|")
+            for i, r in enumerate(rs):
                 why = (r["reason"] or "").replace("|", "\\|")
-                lines.append(f"| {r['locale']} | {r['translation']} | {r['object_in_locale']} | {why} |")
+                c_img = tag if i == 0 else ""
+                c_src = f"**“{en}”**" if i == 0 else ""
+                lines.append(f"| {c_img} | {c_src} | {r['locale']} | {r['translation']} | {r['object_in_locale']} | {why} |")
             lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -475,21 +492,27 @@ PDF_CSS = """<style>
   th { background: #f0f0f0; font-weight: 600; }
   tr { page-break-inside: avoid; }
   tr:nth-child(even) td { background: #fafafa; }
-  /* pandoc emits equal inline <col style="width:25%">; override (inline needs
-     !important) so short columns stay tight and the `why` column gets the slack. */
-  colgroup col:nth-child(1) { width: 6% !important; }
-  colgroup col:nth-child(2) { width: 12% !important; }
-  colgroup col:nth-child(3) { width: 16% !important; }
-  colgroup col:nth-child(4) { width: 66% !important; }
+  /* Both reports use the same 6-column shape: image | source | locale | translation |
+     middle | why. pandoc emits equal inline <col> widths; override (inline needs
+     !important) so the image/source columns get room taken from the wide `why` column. */
+  colgroup col:nth-child(1) { width: 10% !important; }
+  colgroup col:nth-child(2) { width: 15% !important; }
+  colgroup col:nth-child(3) { width: 6% !important; }
+  colgroup col:nth-child(4) { width: 15% !important; }
+  colgroup col:nth-child(5) { width: 12% !important; }
+  colgroup col:nth-child(6) { width: 42% !important; }
   code { background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
+  img { max-height: 96px; max-width: 100%; width: auto; border: 1px solid #ccc;
+        border-radius: 3px; vertical-align: middle; margin: 2px 6px 2px 0; }
 </style>
 """
 
 
-def render_pdf(md_path: Path, pdf_path: Path) -> bool:
+def render_pdf(md_path: Path, pdf_path: Path, title: str = "Vision Report") -> bool:
     """Render the Markdown report to a styled PDF via pandoc (md->html) + headless
-    Chrome (html->pdf). Best-effort: returns False (with a note) if either tool is
-    missing rather than failing the run."""
+    Chrome (html->pdf). Images referenced by relative path are inlined as base64
+    (pandoc --embed-resources, run from the report's dir) so the PDF is self-contained.
+    Best-effort: returns False (with a note) if either tool is missing."""
     pandoc = shutil.which("pandoc")
     chrome = next((shutil.which(b) for b in
                    ("google-chrome", "chromium", "chromium-browser", "google-chrome-stable")
@@ -502,10 +525,12 @@ def render_pdf(md_path: Path, pdf_path: Path) -> bool:
     html = md_path.with_suffix(".pdf.html")
     try:
         css.write_text(PDF_CSS, encoding="utf-8")
-        subprocess.run([pandoc, str(md_path), "-s",
-                        "--metadata", "title=Vocab Word-vs-Image Vision Report",
-                        f"--include-in-header={css}", "-o", str(html)],
-                       check=True, capture_output=True, text=True)
+        # cwd = report dir so the relative image paths in the Markdown resolve and get
+        # inlined by --embed-resources.
+        subprocess.run([pandoc, md_path.name, "-s", "--embed-resources",
+                        "--metadata", f"title={title}",
+                        f"--include-in-header={css.name}", "-o", html.name],
+                       cwd=str(md_path.parent), check=True, capture_output=True, text=True)
         subprocess.run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox",
                         "--no-pdf-header-footer", f"--print-to-pdf={pdf_path}", str(html)],
                        check=True, capture_output=True, text=True)
@@ -605,7 +630,7 @@ def main() -> int:
     report = out_dir / "vocab-vision-report.md"
     write_markdown_report(all_rows, report, locales)
     pdf = out_dir / "vocab-vision-report.pdf"
-    pdf_ok = render_pdf(report, pdf) if not args.no_pdf else False
+    pdf_ok = render_pdf(report, pdf, title="Vocab Word-vs-Image Vision Report") if not args.no_pdf else False
 
     total_bad = sum(1 for r in all_rows if r["vision_match"] == "no")
     n_src = len({r["vid"] for r in all_rows if r["tag"] == "source_image_issue"})

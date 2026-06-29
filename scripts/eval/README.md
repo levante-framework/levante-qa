@@ -182,6 +182,12 @@ when it fails). This is what clears the COMET/E5 vocab false positives — on es
 170 vocab rows collapse from 136 text-flags to 4 vision flags. Disable with
 `--no-vocab-vision` to fall back to COMET/E5.
 
+**TROG rows are likewise scored by a sentence-vs-pictures vision check**, not COMET/E5.
+For any `sentence-understanding` item that maps to a TROG item-bank row, the queue
+replaces the adequacy verdict with the 4-picture forced-choice check (`vision_match`;
+`reasons=vision_sentence_picture_mismatch` when it fails). Disable with
+`--no-trog-vision`. See the TROG section below for how it stays high-precision.
+
 ## Vocab: word-vs-image vision check
 
 Picture-vocabulary items are single words backed by an answer image, and COMET/E5
@@ -251,7 +257,11 @@ python vocab_vision_eval.py --gcs-bucket levante-assets-prod --locales es-AR
 Writes `output/vocab-vision-<locale>.csv` per locale, `vocab-vision-all.csv`, a
 human-readable `vocab-vision-report.md`, and a styled `vocab-vision-report.pdf`
 (rendered from the Markdown via `pandoc` + headless Chrome; pass `--no-pdf` to skip,
-e.g. on a machine without them); responses cache under `output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to 4 real
+e.g. on a machine without them). Each item block embeds the **answer image** next to
+the English keyword (inlined into the PDF via `pandoc --embed-resources`), so a reviewer
+sees the picture, the source word, and each locale's translation together — e.g. the
+`claw` picture is plainly a pair of pliers. Responses cache under
+`output/vocab_vision_cache/`. On es-AR it collapsed 136 COMET/E5 text-flags to 4 real
 mismatches (e.g. `claw -> la garra` over a pliers image). Across **all nine locales
 with vocab coverage** (es-AR, de, nl, es-CO, fr-CA, pt-PT, eo, en-GB; pt-BR has no
 vocab translations) a 1357-check sweep surfaced **50** mismatches over **24** items
@@ -273,10 +283,77 @@ This is the vocab track — it judges by the real task criterion (would a child 
 this picture hearing the word), so it is high-precision. `review_queue.py` uses it
 automatically for vocab rows (below).
 
+## TROG: sentence-vs-pictures vision check
+
+TROG (`sentence-understanding`) is a 4-alternative forced-choice grammar task: the
+child hears one sentence and taps the one picture (of four) that matches its meaning.
+The four pictures are deliberately **minimal pairs** on the grammatical contrast under
+test (who-does-what-to-whom, in/on/above/below, one/many, negation, active/passive),
+so generic text metrics are useless and the real criterion is simple: hearing the
+translated sentence, would a child still pick the keyed picture? `trog_vision_eval.py`
+runs exactly that with a vision model — it shows Gemini the four shuffled choice images
+and the sentence and has it pick one. Items + the keyed answer + the distractor image
+keys + the grammatical `trial_type` all come from the TROG item bank (`answer` /
+`response_alternatives` columns; image key `45-horse-chase-girl` → `visual/trog/45-horse-chase-girl.webp`).
+
+**Two safeguards keep it high-precision** (the raw 4-AFC alone has poor precision,
+because the model often *understands* a correct translation but mis-grounds it to the
+wrong tile among the lookalike pictures):
+
+1. **English control.** Every item is run for the English sentence first. If the model
+   can't pick the keyed picture even in English, the item/picture set is the problem
+   (not the translation) — it's tagged `item_or_model` and never blamed on a locale.
+2. **Confirmation gate.** A locale miss is only a `translation_issue` if a second,
+   single-image call — shown *only* the keyed picture — agrees the translated sentence
+   does **not** truthfully describe it. This filters out the mis-grounding glitches
+   (where the model's own reason describes the correct meaning yet it tapped a
+   distractor). On es-AR + de this took the flag set from 10 noisy hits down to 1.
+3. **Cross-locale guard.** A lone locale miss is demoted to `likely_noise` (listed in the
+   report for review but not counted as a translation issue) when the English control
+   **and** a strict majority of the *other* locales solved the same keyed picture — a real
+   translation error wouldn't be contradicted by that many correct siblings, so the single
+   miss is almost certainly per-run grounding noise the gate happened to repeat. Across the
+   7 production locales this demoted all 3 remaining flags (e.g. `the fork is longer than
+   the pencil` → de, which 6/6 other locales + English solved correctly).
+
+So a sentence is flagged only when the English control passes, the gate confirms the
+translation doesn't match the keyed picture, **and** the cross-locale guard doesn't find a
+majority of siblings solving it. All three inputs are live by default, so nothing goes
+stale:
+- **Sentences** (translations): live Crowdin (`--translations-csv` for a saved snapshot).
+- **Images**: deployed `-dev` bucket `gs://levante-assets-dev/visual/trog/`
+  (`--gcs-bucket levante-assets-prod` for prod, `--image-source local` for repo assets).
+- **Item bank** (keyed answer + distractors + `trial_type` + `d`): the deployed corpus
+  `gs://<gcs-bucket>/corpus/trog/trog-item-bank.csv` — exactly what the task-launcher
+  pulls at runtime (`core-tasks` `getCorpus.ts`). Override with `--corpus-csv <path|url>`.
+
+Responses cache under `output/trog_vision_cache/`.
+
+```bash
+cd scripts/eval
+# Default: live Crowdin sentences + deployed -dev images.
+python trog_vision_eval.py --locales es-AR,de
+
+# Score a saved snapshot instead of pulling live:
+python trog_vision_eval.py --translations-csv output/crowdin-approved.csv --locales es-AR,de
+```
+
+Writes `output/trog-vision-<locale>.csv` per locale, `trog-vision-all.csv`, a
+`trog-vision-report.md` (translation issues first, then the language-independent
+English-control failures), and a styled `trog-vision-report.pdf` (`--no-pdf` to skip).
+Each flagged item shows the **keyed picture** (what the sentence should match) plus the
+**picked picture** per locale, embedded in the PDF — e.g. for the lone `de` flag the
+keyed fork/pencil image plainly shows the fork longer, confirming the gate misread it
+rather than a translation error.
+`review_queue.py` uses this automatically for `sentence-understanding` rows. (Note:
+image blocks 33–36 have assets + Crowdin strings but no item-bank rows, so those four
+are not in the administered 99 and fall back to text metrics.)
+
 ## Files
 
 - `evaluate_translations.py` — orchestrator (scores a CSV or `--from-crowdin`)
 - `vocab_vision_eval.py` — vocab word-vs-answer-image check (Gemini vision)
+- `trog_vision_eval.py` — TROG sentence-vs-pictures 4-AFC check + confirmation gate + cross-locale guard (Gemini vision)
 - `validate_evaluators.py` — validation harness (seed schema + v2 two-axis, auto-detected)
 - `dashboard_labels.py` — adapt dashboard human-review logs (Prolific / shared) to v2 labels
 - `calibrate_thresholds.py` — pick per-axis flag thresholds from the Prolific ROC

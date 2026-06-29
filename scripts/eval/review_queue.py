@@ -88,6 +88,14 @@ def main() -> int:
                    help="Vocab item-bank with the IRT `d` difficulty column.")
     p.add_argument("--hard-difficulty", type=float, default=1.0,
                    help="Vocab items with IRT d >= this aren't flagged just for being hard.")
+    p.add_argument("--no-trog-vision", action="store_true",
+                   help="Don't use the sentence-vs-pictures vision check for TROG.")
+    p.add_argument("--trog-gcs-prefix", default="visual/trog/")
+    p.add_argument("--trog-image-dir", default="../../../core-task-assets/TROG/original",
+                   help="Comma-separated local image dir(s) for --image-source local (TROG).")
+    p.add_argument("--trog-corpus-csv", default=None,
+                   help="Override the TROG item bank source (local path or URL). Default: pull "
+                        "live from gs://<gcs-bucket>/corpus/trog/trog-item-bank.csv.")
     p.add_argument("--max-mqm", type=int, default=300, help="Cap MQM calls (Tier 2 budget).")
     p.add_argument("--mqm-sample", type=int, default=0,
                    help="Also MQM this many random non-flagged rows (appropriateness coverage).")
@@ -134,6 +142,7 @@ def main() -> int:
         c["adequacy_flag"] = 1 if (a < t_e5 or b < t_comet) else 0
         c["vision_match"] = ""
         c["is_vocab"] = False
+        c["is_trog"] = False
         c["mqm_score"] = ""
         c["mqm_major"] = ""
         c["appropriateness_flag"] = ""
@@ -172,6 +181,53 @@ def main() -> int:
                 # vision REPLACES COMET/E5 for vocab: flag only a true word/image mismatch.
                 c["adequacy_flag"] = 1 if res["match"] == "no" else 0
 
+    # TROG vision: sentence-comprehension items are picture-backed minimal-pair choices,
+    # so adequacy = "does the translated sentence still pick the keyed picture?" (4-AFC +
+    # an English control + a single-image confirmation gate). Like vocab, this REPLACES
+    # COMET/E5 for these items.
+    if not args.no_trog_vision:
+        from trog_vision_eval import (TrogVisionEvaluator, load_trog_items,
+                                      trog_corpus_url, resolve_layout, classify, _tid,
+                                      apply_cross_locale_guard)
+        from vocab_vision_eval import ImageResolver
+        tresolver = ImageResolver(args.image_source, local_dirs=args.trog_image_dir,
+                                  bucket=args.gcs_bucket, prefix=args.trog_gcs_prefix,
+                                  cache_dir="output/gcs_trog_cache")
+        trog_corpus = args.trog_corpus_csv or trog_corpus_url(args.gcs_bucket)
+        titems = {it["item_id"]: it for it in load_trog_items(trog_corpus)}
+        print(f"[queue] trog images: {len(tresolver)} from {tresolver.label}")
+        print(f"[queue] trog item bank: {trog_corpus}")
+        layout_cache: Dict[str, object] = {}
+        trog = []
+        for c in cands:
+            it = titems.get(_tid(c["item_id"]) or "")
+            if not it:
+                continue
+            layout = resolve_layout(tresolver, it, layout_cache)
+            if layout is None:
+                continue
+            c["is_trog"] = True
+            c["_trog_item"] = it
+            c["_trog_layout"] = layout
+            trog.append(c)
+        if trog:
+            print(f"[queue] trog vision: sentence-vs-pictures on {len(trog)} items.")
+            from tqdm import tqdm
+            tev = TrogVisionEvaluator()
+            trows = []
+            for c in tqdm(trog, desc="trog-vision"):
+                r = classify(tev, c["_trog_item"], c["_trog_layout"],
+                             c["source_en"], c["translation"], c["locale"])
+                c["_trog_r"] = r
+                trows.append(r)
+            apply_cross_locale_guard(trows)
+            for c in trog:
+                r = c["_trog_r"]
+                c["vision_match"] = "no" if r["tag"] == "translation_issue" else (
+                    "yes" if r["correct"] else "")
+                c["_trog_gate_reason"] = r["gate_reason"]
+                c["adequacy_flag"] = 1 if r["tag"] == "translation_issue" else 0
+
     # Tier 2: MQM on the flagged tail (+ optional random sample), capped.
     if not args.tier1_only and t_mqm is not None:
         rng = random.Random(args.seed)
@@ -203,6 +259,9 @@ def main() -> int:
         if c.get("is_vocab"):
             if c["vision_match"] == "no":
                 reasons.append("vision_word_image_mismatch")
+        elif c.get("is_trog"):
+            if c["vision_match"] == "no":
+                reasons.append("vision_sentence_picture_mismatch")
         else:
             if c["e5_direct"] < t_e5:
                 reasons.append("low_e5")
