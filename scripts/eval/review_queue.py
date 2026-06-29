@@ -19,9 +19,9 @@ appropriateness-only problem in an otherwise faithful translation can be missed;
 raise --mqm-sample to also MQM a random slice of the un-flagged rows if you want
 broader appropriateness coverage.
 
-    python review_queue.py --from-crowdin --locales es-AR --max-mqm 300
+    python review_queue.py --locales es-AR --max-mqm 300   # live Crowdin (default)
     python review_queue.py --input-csv output/crowdin-approved.csv --locales es-AR,de \
-        --tier1-only           # free pass, adequacy ranking only
+        --tier1-only           # saved snapshot; free pass, adequacy ranking only
 """
 
 from __future__ import annotations
@@ -43,12 +43,16 @@ OUT_COLS = ["tier", "priority", "item_id", "locale", "contentType", "source_en",
 
 
 def load_rows(args) -> tuple[List[dict], List[str]]:
-    if args.from_crowdin:
+    # Default: pull approved translations live from Crowdin. A saved CSV is used only
+    # when --input-csv is given explicitly.
+    if not args.input_csv:
+        print("[queue] pulling approved translations live from Crowdin (--from-crowdin default)")
         from crowdin_source import fetch_approved_rows
         return fetch_approved_rows(approved_only=not args.include_unapproved)
     path = Path(args.input_csv)
     if not path.is_file():
         sys.exit(f"--input-csv not found: {path}")
+    print(f"[queue] reading saved Crowdin export: {path}")
     with path.open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     langs = sorted({h for r in rows for h in r.keys()} - FIXED_COLS) if rows else []
@@ -58,9 +62,14 @@ def load_rows(args) -> tuple[List[dict], List[str]]:
 def main() -> int:
     load_env()
     p = argparse.ArgumentParser(description="Tiered advisory translation review queue.")
-    src = p.add_mutually_exclusive_group(required=True)
-    src.add_argument("--from-crowdin", action="store_true")
-    src.add_argument("--input-csv")
+    # WORDS (translations) source. Default = live Crowdin.
+    src = p.add_mutually_exclusive_group()
+    src.add_argument("--from-crowdin", action="store_true",
+                     help="(Default) Pull approved translations live from Crowdin. The live "
+                          "pull happens unless --input-csv is given.")
+    src.add_argument("--input-csv",
+                     help="Use a saved Crowdin export CSV instead of pulling live, "
+                          "e.g. output/crowdin-approved.csv.")
     p.add_argument("--include-unapproved", action="store_true")
     p.add_argument("--locales", required=True, help="Comma-separated target locales.")
     p.add_argument("--config", default="output/scoring-config.json")

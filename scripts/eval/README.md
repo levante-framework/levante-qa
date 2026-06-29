@@ -161,10 +161,11 @@ python dashboard_labels.py --source prolific
 python calibrate_thresholds.py --labels-csv output/prolific-v2-es-AR.csv --target-recall 0.80
 
 # 2. Rank approved translations worst-first (Tier 1 = E5+COMET on all, Tier 2 = MQM
-#    only on the flagged tail, capped by --max-mqm):
-python review_queue.py --from-crowdin --locales es-AR --max-mqm 300
+#    only on the flagged tail, capped by --max-mqm). Words come live from Crowdin by
+#    default; pass --input-csv output/crowdin-approved.csv to score a saved snapshot:
+python review_queue.py --locales es-AR --max-mqm 300
 #    ...or a free adequacy-only pass:
-python review_queue.py --from-crowdin --locales es-AR --tier1-only
+python review_queue.py --locales es-AR --tier1-only
 ```
 
 `output/review-queue.csv` is sorted worst-first with a `tier`
