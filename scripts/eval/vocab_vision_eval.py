@@ -475,11 +475,12 @@ PDF_CSS = """<style>
   th { background: #f0f0f0; font-weight: 600; }
   tr { page-break-inside: avoid; }
   tr:nth-child(even) td { background: #fafafa; }
-  /* short columns kept tight; all slack goes to the wide `why` column */
-  td:nth-child(1), th:nth-child(1) { width: 6%; }
-  td:nth-child(2), th:nth-child(2) { width: 15%; }
-  td:nth-child(3), th:nth-child(3) { width: 16%; }
-  td:nth-child(4), th:nth-child(4) { width: 63%; }
+  /* pandoc emits equal inline <col style="width:25%">; override (inline needs
+     !important) so short columns stay tight and the `why` column gets the slack. */
+  colgroup col:nth-child(1) { width: 3% !important; }
+  colgroup col:nth-child(2) { width: 8% !important; }
+  colgroup col:nth-child(3) { width: 8% !important; }
+  colgroup col:nth-child(4) { width: 81% !important; }
   code { background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
 </style>
 """
