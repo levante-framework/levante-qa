@@ -477,10 +477,10 @@ PDF_CSS = """<style>
   tr:nth-child(even) td { background: #fafafa; }
   /* pandoc emits equal inline <col style="width:25%">; override (inline needs
      !important) so short columns stay tight and the `why` column gets the slack. */
-  colgroup col:nth-child(1) { width: 3% !important; }
-  colgroup col:nth-child(2) { width: 8% !important; }
-  colgroup col:nth-child(3) { width: 8% !important; }
-  colgroup col:nth-child(4) { width: 81% !important; }
+  colgroup col:nth-child(1) { width: 6% !important; }
+  colgroup col:nth-child(2) { width: 12% !important; }
+  colgroup col:nth-child(3) { width: 16% !important; }
+  colgroup col:nth-child(4) { width: 66% !important; }
   code { background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
 </style>
 """
