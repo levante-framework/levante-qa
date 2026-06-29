@@ -458,23 +458,28 @@ def write_markdown_report(all_rows: List[dict], path: Path, locales: List[str]) 
 
 
 PDF_CSS = """<style>
-  @page { size: A4 landscape; margin: 14mm; }
+  @page { size: A4 landscape; margin: 8mm; }
+  /* pandoc's default template caps body width; force full-page width so the table
+     spans the whole landscape page and the slack goes to the wide `why` column. */
+  html, body { max-width: none !important; margin: 0 !important; padding: 0 !important; }
   body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-         font-size: 10pt; line-height: 1.4; color: #1a1a1a; }
-  h1 { font-size: 18pt; border-bottom: 2px solid #333; padding-bottom: 4px; }
-  h2 { font-size: 13pt; margin-top: 18px; color: #b03000; border-bottom: 1px solid #ccc; }
-  h3 { font-size: 11pt; margin-top: 14px; color: #00408a; page-break-after: avoid; }
-  table { border-collapse: collapse; width: 100%; margin: 6px 0 14px;
+         font-size: 9pt; line-height: 1.25; color: #1a1a1a; }
+  h1 { font-size: 15pt; margin: 0 0 6px; border-bottom: 2px solid #333; padding-bottom: 3px; }
+  h2 { font-size: 12pt; margin: 12px 0 4px; color: #b03000; border-bottom: 1px solid #ccc; }
+  h3 { font-size: 10pt; margin: 8px 0 2px; color: #00408a; page-break-after: avoid; }
+  ul { margin: 4px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 2px 0 8px;
           table-layout: fixed; page-break-inside: auto; }
-  th, td { border: 1px solid #bbb; padding: 4px 6px; text-align: left;
+  th, td { border: 1px solid #bbb; padding: 2px 4px; text-align: left;
            vertical-align: top; word-wrap: break-word; overflow-wrap: anywhere; }
   th { background: #f0f0f0; font-weight: 600; }
   tr { page-break-inside: avoid; }
   tr:nth-child(even) td { background: #fafafa; }
-  td:nth-child(1), th:nth-child(1) { width: 8%; }
-  td:nth-child(2), th:nth-child(2) { width: 20%; }
-  td:nth-child(3), th:nth-child(3) { width: 22%; }
-  td:nth-child(4), th:nth-child(4) { width: 50%; }
+  /* short columns kept tight; all slack goes to the wide `why` column */
+  td:nth-child(1), th:nth-child(1) { width: 6%; }
+  td:nth-child(2), th:nth-child(2) { width: 15%; }
+  td:nth-child(3), th:nth-child(3) { width: 16%; }
+  td:nth-child(4), th:nth-child(4) { width: 63%; }
   code { background: #f3f3f3; padding: 0 3px; border-radius: 3px; }
 </style>
 """
