@@ -96,6 +96,32 @@ def main() -> int:
     p.add_argument("--trog-corpus-csv", default=None,
                    help="Override the TROG item bank source (local path or URL). Default: pull "
                         "live from gs://<gcs-bucket>/corpus/trog/trog-item-bank.csv.")
+    p.add_argument("--no-tom-vision", action="store_true",
+                   help="Don't use the story-vs-pictures vision check for Theory-of-Mind (Stories).")
+    p.add_argument("--tom-gcs-prefix", default="visual/theory-of-mind/")
+    p.add_argument("--tom-image-dir", default="../../../core-task-assets/theory-of-mind/original",
+                   help="Comma-separated local image dir(s) for --image-source local (ToM).")
+    p.add_argument("--tom-corpus-csv", default=None,
+                   help="Override the ToM item bank source (local path or URL). Default: pull "
+                        "live from gs://<gcs-bucket>/corpus/theory-of-mind/theory-of-mind-item-bank.csv.")
+    p.add_argument("--no-samediff-vision", action="store_true",
+                   help="Don't use the instruction-vs-cards vision check for Same-Different.")
+    p.add_argument("--samediff-gcs-prefix", default="visual/same-different-selection/")
+    p.add_argument("--samediff-image-dir", default="../../../core-task-assets/same-different-selection/original",
+                   help="Comma-separated local image dir(s) for --image-source local (SDS).")
+    p.add_argument("--samediff-corpus-csv", default=None,
+                   help="Override the SDS item bank source (local path or URL). Default: pull live "
+                        "from gs://<gcs-bucket>/corpus/same-different-selection/same-different-selection-item-bank.csv.")
+    p.add_argument("--no-survey-likert", action="store_true",
+                   help="Don't run the survey answer-scale (Likert order/polarity/integrity) check.")
+    p.add_argument("--survey-likert-no-llm", action="store_true",
+                   help="Survey check: deterministic only (duplicate/partial); skip the ordinal LLM judge.")
+    p.add_argument("--no-hostile-attribution", action="store_true",
+                   help="Don't run the hostile-attribution intent/valence construct check.")
+    p.add_argument("--hostile-no-llm", action="store_true",
+                   help="Hostile-attribution: deterministic only; skip the intent/valence LLM judge.")
+    p.add_argument("--hostile-corpus-csv", default=None,
+                   help="Override the hostile-attribution item bank source (default: live GCS).")
     p.add_argument("--max-mqm", type=int, default=300, help="Cap MQM calls (Tier 2 budget).")
     p.add_argument("--mqm-sample", type=int, default=0,
                    help="Also MQM this many random non-flagged rows (appropriateness coverage).")
@@ -143,6 +169,10 @@ def main() -> int:
         c["vision_match"] = ""
         c["is_vocab"] = False
         c["is_trog"] = False
+        c["is_tom"] = False
+        c["is_samediff"] = False
+        c["is_survey"] = False
+        c["is_hostile"] = False
         c["mqm_score"] = ""
         c["mqm_major"] = ""
         c["appropriateness_flag"] = ""
@@ -228,6 +258,168 @@ def main() -> int:
                 c["_trog_gate_reason"] = r["gate_reason"]
                 c["adequacy_flag"] = 1 if r["tag"] == "translation_issue" else 0
 
+    # ToM (Stories) vision: question items are picture-backed; adequacy = "given the
+    # translated story + question, does it still pick the keyed answer picture?" (AFC +
+    # English control + cross-locale guard). Replaces COMET/E5 for the question segments.
+    if not args.no_tom_vision:
+        from tom_vision_eval import (load_tom_items, tom_corpus_url, classify as tom_classify,
+                                     apply_reliability_gate)
+        from trog_vision_eval import TrogVisionEvaluator, resolve_layout, apply_cross_locale_guard
+        from tom_vision_eval import PROMPT_TOM, PROMPT_VERSION_TOM
+        from vocab_vision_eval import ImageResolver
+        moresolver = ImageResolver(args.image_source, local_dirs=args.tom_image_dir,
+                                   bucket=args.gcs_bucket, prefix=args.tom_gcs_prefix,
+                                   cache_dir="output/gcs_tom_cache")
+        tom_corpus = args.tom_corpus_csv or tom_corpus_url(args.gcs_bucket)
+        toitems = {it["item_id"]: it for it in load_tom_items(tom_corpus)}
+        tom_tmap = {}
+        for row in rows:
+            ident = row.get("identifier", "") or row.get("item_id", "")
+            if "stories.xliff" in (ident + row.get("_path", "")):
+                tom_tmap[ident.split("::")[-1]] = row
+        print(f"[queue] tom images: {len(moresolver)} from {moresolver.label}")
+        print(f"[queue] tom item bank: {tom_corpus}")
+        tlayout_cache: Dict[str, object] = {}
+        tom = []
+        for c in cands:
+            it = toitems.get(c["item_id"].split("::")[-1])
+            if not it:
+                continue
+            layout = resolve_layout(moresolver, it, tlayout_cache)
+            if layout is None:
+                continue
+            c["is_tom"] = True
+            c["_tom_item"] = it
+            c["_tom_layout"] = layout
+            tom.append(c)
+        if tom:
+            print(f"[queue] tom vision: story-vs-pictures on {len(tom)} questions.")
+            from tqdm import tqdm
+            moev = TrogVisionEvaluator(cache_dir="output/tom_vision_cache",
+                                       prompt_template=PROMPT_TOM, prompt_version=PROMPT_VERSION_TOM)
+            mrows = []
+            for c in tom:
+                r = tom_classify(moev, c["_tom_item"], c["_tom_layout"], tom_tmap, c["locale"])
+                c["_tom_r"] = r
+                if r is not None:
+                    mrows.append(r)
+            apply_reliability_gate(mrows)
+            apply_cross_locale_guard(mrows)
+            for c in tom:
+                r = c["_tom_r"]
+                if r is None:
+                    c["is_tom"] = False
+                    continue
+                c["vision_match"] = "no" if r["tag"] == "translation_issue" else (
+                    "yes" if r["correct"] else "")
+                c["adequacy_flag"] = 1 if r["tag"] == "translation_issue" else 0
+
+    # Same-Different vision: single-select trials are picture-backed minimal-pair cards, so
+    # adequacy = "does the translated instruction still pick the keyed card?" (4-AFC +
+    # English control + confirmation gate). The SDS corpus ids don't match Crowdin, so
+    # items are matched to candidates by English instruction text. Replaces COMET/E5.
+    if not args.no_samediff_vision:
+        from samediff_vision_eval import (load_sd_items, sd_corpus_url, make_evaluator,
+                                          resolve_layout as sd_resolve_layout)
+        from trog_vision_eval import classify as trog_classify, apply_cross_locale_guard
+        from vocab_vision_eval import ImageResolver, _norm_key
+        sdresolver = ImageResolver(args.image_source, local_dirs=args.samediff_image_dir,
+                                   bucket=args.gcs_bucket, prefix=args.samediff_gcs_prefix,
+                                   cache_dir="output/gcs_samediff_cache")
+        sd_corpus = args.samediff_corpus_csv or sd_corpus_url(args.gcs_bucket)
+        sd_by_en = {_norm_key(it["en_item"]): it for it in load_sd_items(sd_corpus)}
+        print(f"[queue] samediff images: {len(sdresolver)} from {sdresolver.label}")
+        print(f"[queue] samediff item bank: {sd_corpus}")
+        sdlayout_cache: Dict[str, object] = {}
+        sd = []
+        for c in cands:
+            it = sd_by_en.get(_norm_key(c["source_en"]))
+            if not it:
+                continue
+            layout = sd_resolve_layout(sdresolver, it, sdlayout_cache)
+            if layout is None:
+                continue
+            c["is_samediff"] = True
+            c["_sd_item"] = it
+            c["_sd_layout"] = layout
+            sd.append(c)
+        if sd:
+            print(f"[queue] samediff vision: instruction-vs-cards on {len(sd)} items.")
+            from tqdm import tqdm
+            sdev = make_evaluator()
+            srows = []
+            for c in tqdm(sd, desc="samediff-vision"):
+                r = trog_classify(sdev, c["_sd_item"], c["_sd_layout"],
+                                  c["_sd_item"]["en_item"], c["translation"], c["locale"])
+                c["_sd_r"] = r
+                srows.append(r)
+            apply_cross_locale_guard(srows)
+            for c in sd:
+                r = c["_sd_r"]
+                c["vision_match"] = "no" if r["tag"] == "translation_issue" else (
+                    "yes" if r["correct"] else "")
+                c["adequacy_flag"] = 1 if r["tag"] == "translation_issue" else 0
+
+    # Survey answer-scale (Likert) check: COMET/E5 score each option in isolation and miss
+    # broken option SETS, so this flags scales whose translations collapse (two options ->
+    # one string), are half-translated, or are reordered/polarity-flipped (LLM judge +
+    # confirmation gate). Group-level; matched to candidate options by English text + locale.
+    if not args.no_survey_likert:
+        from survey_likert_eval import extract_groups, check_group, SurveyLikertJudge
+        from tqdm import tqdm
+        groups = extract_groups(rows)
+        judge = None if args.survey_likert_no_llm else SurveyLikertJudge()
+        flagged_ids: Dict[tuple, str] = {}
+        n_iss = 0
+        for g in tqdm(groups, desc="survey-likert"):
+            for loc in locales:
+                for iss in check_group(g, loc, judge):
+                    n_iss += 1
+                    # Flag the exact option rows of THIS broken group instance (by identifier),
+                    # so a scale shared across sibling questions flags only the broken one.
+                    for ch in g["choices"]:
+                        flagged_ids[(ch["ident"], loc)] = iss["issue"]
+        for c in cands:
+            if flagged_ids.get((c["item_id"], c["locale"])):
+                c["is_survey"] = True
+                c["adequacy_flag"] = 1
+                c["vision_match"] = "no"
+        print(f"[queue] survey-likert: {n_iss} scale issue(s); flagged "
+              f"{sum(1 for c in cands if c.get('is_survey'))} option segment(s).")
+
+    # Hostile-attribution: a social-reasoning task whose score depends on the answer SET —
+    # intent anchors (on purpose vs by accident) and the keyed aggressive action must survive
+    # translation. COMET/E5 can't see that; this flags the exact option rows of any scene
+    # whose intent/valence structure broke (LLM judge + confirmation gate). Crowdin ids match
+    # the item-bank ids, so flagging is by identifier.
+    if not args.no_hostile_attribution:
+        from hostile_attribution_eval import (load_scenes, ha_corpus_url, check_scene,
+                                              HostileAttributionJudge)
+        from tqdm import tqdm
+        ha_tmap = {r["identifier"].split("::")[-1]: r for r in rows
+                   if "hostile-attribution.xliff" in r.get("identifier", "")}
+        if ha_tmap:
+            ha_corpus = args.hostile_corpus_csv or ha_corpus_url(args.gcs_bucket)
+            scenes = load_scenes(ha_corpus)
+            hjudge = None if args.hostile_no_llm else HostileAttributionJudge()
+            flagged_ha: Dict[tuple, str] = {}
+            n_ha = 0
+            for s in tqdm(scenes, desc="hostile-attr"):
+                for loc in locales:
+                    for iss in check_scene(s, ha_tmap, loc, hjudge):
+                        n_ha += 1
+                        for oid in iss["ids"].split(","):
+                            flagged_ha[(oid, loc)] = iss["issue"]
+            for c in cands:
+                # item-bank ids are bare (hostile-attribution-scene1-q2-ans3); candidate
+                # item_id is the full xliff identifier, so match on its suffix.
+                if flagged_ha.get((c["item_id"].split("::")[-1], c["locale"])):
+                    c["is_hostile"] = True
+                    c["adequacy_flag"] = 1
+                    c["vision_match"] = "no"
+            print(f"[queue] hostile-attribution: {n_ha} issue(s); flagged "
+                  f"{sum(1 for c in cands if c.get('is_hostile'))} option segment(s).")
+
     # Tier 2: MQM on the flagged tail (+ optional random sample), capped.
     if not args.tier1_only and t_mqm is not None:
         rng = random.Random(args.seed)
@@ -262,11 +454,21 @@ def main() -> int:
         elif c.get("is_trog"):
             if c["vision_match"] == "no":
                 reasons.append("vision_sentence_picture_mismatch")
+        elif c.get("is_tom"):
+            if c["vision_match"] == "no":
+                reasons.append("vision_story_picture_mismatch")
+        elif c.get("is_samediff"):
+            if c["vision_match"] == "no":
+                reasons.append("vision_instruction_card_mismatch")
         else:
             if c["e5_direct"] < t_e5:
                 reasons.append("low_e5")
             if c["comet"] < t_comet:
                 reasons.append("low_comet")
+        if c.get("is_survey"):
+            reasons.append("survey_scale_issue")
+        if c.get("is_hostile"):
+            reasons.append("hostile_attribution_issue")
         if app:
             reasons.append("mqm_appropriateness")
         c["reasons"] = ";".join(reasons)

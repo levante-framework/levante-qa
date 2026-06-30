@@ -349,11 +349,170 @@ rather than a translation error.
 image blocks 33–36 have assets + Crowdin strings but no item-bank rows, so those four
 are not in the administered 99 and fall back to text metrics.)
 
+## Theory-of-Mind (Stories): story-vs-pictures vision check
+
+The Stories task (`theory-of-mind`) tells an illustrated story over several narration
+turns, then asks a question ("Where will Madison look for her book first?", "How does
+Hannah feel?"). The child taps the keyed **answer picture** (of 2–4): a location
+(`chair`/`rug`), an emotion face (`angry`/`happy`), or `yes`/`no`. `tom_vision_eval.py`
+reassembles each question's story (all preceding narration turns in its block, in the
+target locale) + the question, shows the model the shuffled answer pictures, and has it
+pick one — first for English (a control), then per locale. Items + keyed answer +
+distractor image keys + question type come from the ToM item bank; narration + questions
+come from Crowdin (`stories.xliff::<item_id>`); answer images are `visual/theory-of-mind/`.
+
+**Important caveat — ToM is a weak fit for this method, by design kept high-precision.**
+Unlike vocab/TROG, the VLM solves theory-of-mind *unreliably* (false-belief reasoning is
+genuinely hard for it), so a raw 4-AFC produces almost all false positives: in a 7-locale
+run the only "translation issues" were 4 items the model failed in most locales — it even
+flagged the **en-GB** control text ("Is Mother *cross* with Isabel?"), proving the signal
+was model variance, not translation. Two precision rules suppress this:
+
+1. **English control** — an item the model can't solve in English is `item_or_model`, never
+   blamed on a locale (the confirmation gate is *omitted* here: ToM answer pictures are
+   semantically distinct, not lookalike minimal pairs, so there's no grounding glitch to gate).
+2. **Reliability gate** — a locale failure can only be a `translation_issue` if a strict
+   majority of locales *also* solved the item (i.e. it's reliably solvable and this locale
+   is the outlier); otherwise the failure is model-unreliability → `item_or_model`. A lone
+   outlier is then further demoted to `likely_noise` by the **cross-locale guard**.
+
+On the 7 production locales this yields **0 translation issues** (18 model-noise flags
+reclassified, 8 demoted, 9 English-control failures) — i.e. the corpus's ToM translations
+look clean and the check correctly stays silent. Treat ToM vision as a conservative
+safety net; the primary adequacy signal for ToM narration/questions (full sentences) is
+the text MTeval (COMET-QE / MQM) the queue already runs. Data sources and `--corpus-csv` /
+`--gcs-bucket` / `--translations-csv` flags mirror TROG; responses cache under
+`output/tom_vision_cache/`.
+
+```bash
+cd scripts/eval
+python tom_vision_eval.py --locales es-AR,de            # live Crowdin + deployed -dev images
+python tom_vision_eval.py --translations-csv output/crowdin-approved.csv --locales es-AR,de
+```
+
+Writes `output/tom-vision-<locale>.csv`, `tom-vision-all.csv`, a `tom-vision-report.md`
+(translation issues, then likely-noise, then English-control failures) and a styled
+`tom-vision-report.pdf` (`--no-pdf` to skip). `review_queue.py` uses it automatically for
+`theory-of-mind` question rows (disable with `--no-tom-vision`).
+
+## Same-Different-Selection: instruction-vs-cards vision check
+
+The matching game's single-select trials (`required_selections == 1`: `test-dimensions`,
+`something-same-*`) show 4 cards and an instruction like "*Choose the card with a circle*"
+/ "*Choose the card with a green shape*". The 4 cards are deliberate **minimal pairs**
+(identical except on one dimension — shape, colour, size, fill, number), so this is the
+same setup as TROG and `samediff_vision_eval.py` reuses the TROG evaluator/classifier
+(4-AFC + **English control** + single-image **confirmation gate** + **cross-locale guard**).
+Unlike ToM, the VLM solves these reliably in English (0 control failures in testing), so
+precision is high.
+
+One wrinkle: the SDS corpus ids (`sds-dim-test-circle`) **don't match** the Crowdin ids
+(`same-different-selection-touch-circle`), but the English instruction text matches exactly,
+so translations are joined by **normalised English text** rather than by id. Card images
+come from `gs://<gcs-bucket>/visual/same-different-selection/`; the item bank (keyed answer
++ distractor card keys + `trial_type`) is the live deployed corpus (`--corpus-csv` to
+override). Responses cache under `output/samediff_vision_cache/`.
+
+```bash
+cd scripts/eval
+python samediff_vision_eval.py --locales es-AR,de
+python samediff_vision_eval.py --translations-csv output/crowdin-approved.csv --locales es-AR,de
+```
+
+Writes `output/samediff-vision-<locale>.csv`, `samediff-vision-all.csv`, a
+`samediff-vision-report.md` / `.pdf` (translation issues, then likely-noise, then
+English-control failures, with keyed + picked card images embedded). `review_queue.py`
+uses it automatically for the single-select rows (disable with `--no-samediff-vision`).
+
+## Surveys: answer-scale (Likert) order, polarity & integrity check
+
+COMET/E5 score each answer option in isolation, so they miss broken option **sets** — the
+most damaging survey-translation bug, since a flipped or collapsed scale silently corrupts
+every response to that question. `survey_likert_eval.py` checks the option set of each
+survey question (the four caregiver/teacher instruments plus the child self-report scale),
+per locale:
+
+- **duplicate_options** *(deterministic)* — two English-distinct options collapse to the
+  same translation (e.g. nl `homechaos`: both "Somewhat untrue" and "Definitely true" →
+  `Enigszins onwaar`), merging choices / breaking a rating scale.
+- **partial_translation** *(deterministic)* — some options translated and others blank, so
+  the respondent sees a half-English scale. `en-*` blanks are ignored (they inherit the
+  English source at runtime).
+- **scale_order_issue** *(LLM)* — for an *ordinal* scale, the steps are reordered or an
+  option's polarity is flipped (e.g. nl child scale: "Yes, some of the time" / "Yes, all of
+  the time" rendered as `Ja, altijd` / `Ja, soms` = always / sometimes). An LLM judge first
+  decides whether the set is ordinal (unordered category lists like mother/father, gender,
+  and **region-adapted education/grade systems** are excluded), then whether order/polarity
+  is preserved. A strict **confirmation gate** then drops the judge's nuisance flags
+  (grammar, singular/plural, intensity/synonyms), so only genuine wrong-step errors survive
+  — in testing this cut 7 raw flags to the 2 real ones with no false positives.
+
+Scales come live from Crowdin (default) or `--translations-csv`; no images or item bank
+needed. Responses cache under `output/survey_likert_cache/`.
+
+```bash
+cd scripts/eval
+python survey_likert_eval.py --locales de,en-GB,es-AR,es-CO,fr-CA,nl,pt-PT
+python survey_likert_eval.py --translations-csv output/crowdin-approved.csv --locales nl --no-llm
+```
+
+Writes `output/survey-likert-all.csv` and a `survey-likert-report.md` / `.pdf` (order/
+polarity issues, then collapsed-choice duplicates, then partial scales, each showing the
+English vs translated scale side by side). `review_queue.py` runs it automatically and flags
+the exact option rows of any broken scale (disable with `--no-survey-likert`; deterministic
+only with `--survey-likert-no-llm`).
+
+## Hostile-attribution: intent & action-valence construct check
+
+The hostile-attribution task only measures what it should if the translated **answer set**
+keeps its scoring structure, which COMET/E5 (scoring each option alone) can't see. Each of
+the 3 scenes presents an ambiguous provocation, then asks two scored questions:
+
+- an **attribution question** — "*on purpose or by accident?*" (keyed answer: *on purpose*);
+- an **action question** — pick one of three responses, one of which is the keyed
+  **aggressive/retaliatory** choice (e.g. "*push the boy in the mud*"), the others
+  prosocial/constructive or passive/avoidant.
+
+`hostile_attribution_eval.py` checks, per locale:
+
+- **intent_anchor_issue** — the two intent options no longer distinctly/correctly mean *on
+  purpose* (deliberate) vs *by accident* (unintentional), or are swapped.
+- **action_valence_issue** — a response option's social valence changed (especially: the
+  keyed aggressive option is no longer clearly aggressive, or another option became
+  aggressive), which would corrupt the hostile-attribution score.
+- **duplicate_options / partial_translation** — collapsed or half-translated option sets
+  (deterministic).
+
+An LLM judge does the intent/valence reasoning; a strict **confirmation gate** drops
+wording/grammar/intensity nuisance flags (same pattern as the TROG/survey checks). The
+scoring structure (which option is keyed, option order, scene grouping) comes from the live
+item bank (`--corpus-csv` to override); option text comes from Crowdin — both share ids.
+There are no images (the task is audio/text). Responses cache under
+`output/hostile_attribution_cache/`.
+
+```bash
+cd scripts/eval
+python hostile_attribution_eval.py --locales de,en-GB,es-AR,es-CO,fr-CA,nl,pt-PT
+python hostile_attribution_eval.py --translations-csv output/crowdin-approved.csv --locales nl --no-llm
+```
+
+Writes `output/hostile-attribution-all.csv` and a `hostile-attribution-report.md` / `.pdf`
+(action-valence issues, then intent-anchor issues, then duplicates/partials, showing the
+English vs translated option sets). In testing all 7 locales were clean (0 issues), and a
+negative control — swapping the intent anchors / softening the keyed aggressive action — was
+correctly caught, so the all-clean result is a true negative. `review_queue.py` runs it
+automatically and flags the exact option rows of any broken scene (disable with
+`--no-hostile-attribution`; deterministic only with `--hostile-no-llm`).
+
 ## Files
 
 - `evaluate_translations.py` — orchestrator (scores a CSV or `--from-crowdin`)
 - `vocab_vision_eval.py` — vocab word-vs-answer-image check (Gemini vision)
 - `trog_vision_eval.py` — TROG sentence-vs-pictures 4-AFC check + confirmation gate + cross-locale guard (Gemini vision)
+- `tom_vision_eval.py` — Theory-of-Mind story-vs-pictures AFC check + reliability gate + cross-locale guard (Gemini vision)
+- `samediff_vision_eval.py` — Same-Different instruction-vs-cards 4-AFC check + confirmation gate + cross-locale guard (Gemini vision)
+- `survey_likert_eval.py` — survey answer-scale order/polarity/integrity check (deterministic dup+partial + LLM ordinal judge + confirmation gate)
+- `hostile_attribution_eval.py` — hostile-attribution intent-anchor + action-valence construct check (LLM judge + confirmation gate)
 - `validate_evaluators.py` — validation harness (seed schema + v2 two-axis, auto-detected)
 - `dashboard_labels.py` — adapt dashboard human-review logs (Prolific / shared) to v2 labels
 - `calibrate_thresholds.py` — pick per-axis flag thresholds from the Prolific ROC

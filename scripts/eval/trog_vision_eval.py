@@ -94,7 +94,9 @@ Respond with ONLY a JSON object:
 
 class TrogVisionEvaluator:
     def __init__(self, model_name: str = "gemini-2.5-flash", fallback_model: str = "gemini-flash-latest",
-                 cache_dir: str = "output/trog_vision_cache", timeout: int = 120):
+                 cache_dir: str = "output/trog_vision_cache", timeout: int = 120,
+                 prompt_template: str = PROMPT, prompt_version: str = PROMPT_VERSION,
+                 confirm_template: str = CONFIRM_PROMPT):
         load_env()
         import os
         key = os.environ.get("GEMINI_API_KEY")
@@ -104,6 +106,9 @@ class TrogVisionEvaluator:
         self.model_name = model_name
         self.fallback_model = fallback_model
         self.timeout = timeout
+        self.prompt_template = prompt_template
+        self.prompt_version = prompt_version
+        self.confirm_template = confirm_template
         self.cache = JsonDirCache(cache_dir)
 
     def _endpoint(self, model: str) -> str:
@@ -134,7 +139,7 @@ class TrogVisionEvaluator:
                  keys: List[str], max_retries: int = 3) -> Dict:
         n = len(images)
         labels = LETTERS[:n]
-        key = JsonDirCache.make_key(PROMPT_VERSION, self.model_name, locale, item_id,
+        key = JsonDirCache.make_key(self.prompt_version, self.model_name, locale, item_id,
                                     sentence, ",".join(keys))
         cached = self.cache.get(key)
         if cached is not None:
@@ -145,7 +150,7 @@ class TrogVisionEvaluator:
             parts.append({"text": f"Picture {letter}:"})
             parts.append({"inline_data": {"mime_type": mime,
                                           "data": base64.b64encode(img.read_bytes()).decode("ascii")}})
-        prompt = PROMPT.format(n=n, labels="/".join(labels), locale=locale, sentence=sentence)
+        prompt = self.prompt_template.format(n=n, labels="/".join(labels), locale=locale, sentence=sentence)
         parts.append({"text": prompt})
         last = ""
         for attempt in range(max_retries):
@@ -169,7 +174,7 @@ class TrogVisionEvaluator:
                 max_retries: int = 3) -> Dict:
         """Single-image gate: does `sentence` truthfully describe the keyed picture?
         Used to confirm a 4-AFC miss is a real translation error, not a grounding glitch."""
-        key = JsonDirCache.make_key(PROMPT_VERSION, "confirm", self.model_name, locale,
+        key = JsonDirCache.make_key(self.prompt_version, "confirm", self.model_name, locale,
                                     item_id, sentence, image.name)
         cached = self.cache.get(key)
         if cached is not None:
@@ -177,7 +182,7 @@ class TrogVisionEvaluator:
         mime = next((m for ext, m in IMAGE_EXTS if image.suffix.lower() == ext), "image/webp")
         parts = [{"inline_data": {"mime_type": mime,
                                   "data": base64.b64encode(image.read_bytes()).decode("ascii")}},
-                 {"text": CONFIRM_PROMPT.format(locale=locale, sentence=sentence)}]
+                 {"text": self.confirm_template.format(locale=locale, sentence=sentence)}]
         last = ""
         for attempt in range(max_retries):
             try:
