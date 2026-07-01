@@ -21,10 +21,18 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isSimMode,
   isWrongAgentMode,
   pickWrongIndex,
+  simAccuracyTolerance,
+  simConfigInfo,
+  simDecideIndex,
+  simDecisionLog,
+  simInit,
+  simPredictedAccuracy,
   trialRecordOracleFlag,
 } from '../../support/agentMode';
+import type { SimChildConfig } from '../../plugins/simChildConfig';
 import { parseVocabTrialRecord, type VocabTrialRecord } from '../../support/tasks/types';
 
 // The default corpus is ~171 word items + 3 instruction screens; this cap is
@@ -69,7 +77,13 @@ const AUDIO_CONTENT_LOG = 'cypress/logs/_vocab_audio_content.jsonl';
 // answer key (the `.correct` marker). Each is a real bug to investigate.
 const MISMATCH_LOG = 'cypress/logs/_vocab_key_mismatch.jsonl';
 
-describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`, () => {
+const AGENT_LABEL = isWrongAgentMode()
+  ? 'wrong agent'
+  : isSimMode()
+    ? 'simulated child (IRT-calibrated)'
+    : 'oracle (deterministic)';
+
+describe(`Vocab — ${AGENT_LABEL}`, () => {
   const records: VocabTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -100,6 +114,13 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_vocab_${ts}.jsonl`, records });
+    if (isSimMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/sim_vocab_${ts}_decisions.jsonl`,
+        records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
+          ...simDecisionLog()],
+      });
+    }
 
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
@@ -133,9 +154,19 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
         }
       }
 
-      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy on vocab items`).to.equal(
-        expectedAccuracy(),
-      );
+      if (isSimMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
+          predicted,
+          tol,
+        );
+      } else {
+        expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy on vocab items`).to.equal(
+          expectedAccuracy(),
+        );
+      }
 
       // Audio is a hard prerequisite: the target word is only in the narration.
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
@@ -176,20 +207,27 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
       // Act on our independently-computed choice when available; otherwise the
       // app key (cross-check off, or solver miss) purely to advance.
       const rightIndex = independentlySolved ? computed : hasKey ? keyedIndex : 0;
+      // Sim decisions are keyed by the item's answer value (bank `answer` ==
+      // the keyed choice's alt), so the same seed always replays the same run.
       const actIndex = isWrongAgentMode()
         ? pickWrongIndex(hasKey ? keyedIndex : rightIndex, choices.length)
-        : rightIndex;
+        : isSimMode() && hasKey
+          ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
+              .index
+          : rightIndex;
       // Correctness: cross-check locales score the independent solve against the
-      // key; key-driven locales score the (keyed) action against the key.
-      const correct = !CROSS_CHECK
-        ? hasKey
-          ? actIndex === keyedIndex
-          : null
-        : hasKey
-          ? independentlySolved
+      // key; key-driven locales (and the sim agent) score the action against the
+      // key.
+      const correct =
+        !CROSS_CHECK || isSimMode()
+          ? hasKey
             ? actIndex === keyedIndex
-            : false
-          : independentlySolved && actIndex === rightIndex;
+            : null
+          : hasKey
+            ? independentlySolved
+              ? actIndex === keyedIndex
+              : false
+            : independentlySolved && actIndex === rightIndex;
 
       // Transcript-match diagnostics are only meaningful when cross-checking.
       if (CROSS_CHECK && computed < 0) {
@@ -333,7 +371,12 @@ describe(`Vocab — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministi
     });
   }
 
-  it('completes the task at 100% accuracy', () => {
+  it(`completes the task as the ${AGENT_LABEL}`, () => {
+    if (isSimMode()) {
+      cy.task('getSimConfig', { taskSlug: 'vocab' }).then((cfg) =>
+        simInit(cfg as SimChildConfig),
+      );
+    }
     resetAudioCapture();
     launchTask({ taskId: 'vocab', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.contains('OK', { timeout: BOOT_TIMEOUT_MS }).should('be.visible').click({ force: true });

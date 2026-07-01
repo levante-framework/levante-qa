@@ -23,10 +23,18 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isSimMode,
   isWrongAgentMode,
   pickWrongIndex,
+  simAccuracyTolerance,
+  simConfigInfo,
+  simDecideIndex,
+  simDecisionLog,
+  simInit,
+  simPredictedAccuracy,
   trialRecordOracleFlag,
 } from '../../support/agentMode';
+import type { SimChildConfig } from '../../plugins/simChildConfig';
 import { parseTrogTrialRecord, type TrogTrialRecord } from '../../support/tasks/types';
 
 // ~99 test items + instructions; this cap is generous.
@@ -37,7 +45,13 @@ const LIVE_LOG = `cypress/logs/_trog_${agentLogStem()}_live.jsonl`;
 // Items that shipped no answer key (a real content/regression bug).
 const NO_KEY_LOG = 'cypress/logs/_trog_no_key.jsonl';
 
-describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}`, () => {
+const AGENT_LABEL = isWrongAgentMode()
+  ? 'wrong agent'
+  : isSimMode()
+    ? 'simulated child (IRT-calibrated)'
+    : 'oracle (key-driven)';
+
+describe(`TROG — ${AGENT_LABEL}`, () => {
   const records: TrogTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -95,6 +109,13 @@ describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_trog_${ts}.jsonl`, records });
+    if (isSimMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/sim_trog_${ts}_decisions.jsonl`,
+        records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
+          ...simDecisionLog()],
+      });
+    }
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     cy.wrap(null).then(() => {
@@ -102,7 +123,17 @@ describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}
       expect(stats.nItems, 'recorded item trials').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
-      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
+      if (isSimMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
+          predicted,
+          tol,
+        );
+      } else {
+        expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
+      }
       expect(withAudio.length, 'captured narration (sentence) transcripts').to.be.greaterThan(0);
     });
   }
@@ -113,10 +144,16 @@ describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}
     const sig = screenSig(win);
     const keyedIndex = appKeyedCorrectIndex(win);
     const hasKey = keyedIndex >= 0;
+    // Sim decisions are keyed by the item's answer value (bank `answer` ==
+    // trial keyedValue), so the same seed always replays the same choices.
+    // Recomputing on a gated re-presentation is safe: the hash is stable.
     const actIndex = hasKey
       ? isWrongAgentMode()
         ? pickWrongIndex(keyedIndex, choices.length)
-        : keyedIndex
+        : isSimMode()
+          ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
+              .index
+          : keyedIndex
       : 0;
 
     // Re-presented with no intervening gap ⇒ our prior click didn't advance a
@@ -237,7 +274,12 @@ describe(`TROG — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}
     });
   }
 
-  it('completes the task by clicking the app answer key', () => {
+  it(`completes the task as the ${AGENT_LABEL}`, () => {
+    if (isSimMode()) {
+      cy.task('getSimConfig', { taskSlug: 'trog' }).then((cfg) =>
+        simInit(cfg as SimChildConfig),
+      );
+    }
     resetAudioCapture();
     launchTask({ taskId: 'trog', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     // TROG preloads a sizeable image bank; allow extra time for the loading

@@ -263,6 +263,54 @@ Logs use the `wrong_<task>_*.jsonl` prefix; finalize
 asserts **0%** accuracy while still requiring task completion. Dashboard: **Wrong** on the
 Launch tab. CLI: `pnpm cy:run:wrong`.
 
+## Simulated child (IRT-calibrated, deterministic)
+
+A fifth agent, **Sim**, plays a task the way a *typical child of a target age*
+would — without a VLM in the loop. Per scored item it answers correctly with
+probability
+
+```
+P(correct) = c + (1 − c) · sigmoid(θ + b − d)
+```
+
+where `θ` is the mean child IRT ability for the target age
+(`age_task_ability.json`), `d` is the item's IRT difficulty from the task's
+deployed item bank (joined on the app's keyed answer value; fetched from GCS
+and disk-cached under `cypress/cache/`), `c = 1/choices` is the guessing floor,
+and `b` is a calibration offset solved at run start so the mean predicted
+accuracy over the bank matches the **empirical** accuracy-by-age table
+(`age_task_accuracy.json`) — the raw Rasch prediction from the shipped thetas
+underpredicts observed accuracy by ~5–12 points. Items with no `d` (practice /
+uncalibrated) fall back to the empirical age accuracy directly.
+
+All randomness is **hash-seeded** from `(QA_SIM_SEED, task, itemKey)` — same
+seed, same decisions, run after run — and the wrong-choice pick is hashed over
+the sorted choice *values*, so the same wrong picture is chosen even when the
+app shuffles choice positions between runs. Finalize asserts accuracy lands in
+a 3-sigma binomial band around the model's predicted mean, and writes a per-item
+decisions log (`sim_<task>_<ts>_decisions.jsonl`: item, `d`, `P(correct)`, roll,
+chosen index) alongside the usual trial log (`sim_<task>_<ts>.jsonl`).
+
+Currently wired for **TROG** and **Vocab** (`cypress/e2e/<task>/sim_child.cy.ts`,
+a one-line import of `oracle.cy.ts`, same pattern as the wrong agent). Config is
+built node-side by `cypress/plugins/simChildConfig.ts` via the `getSimConfig`
+task; browser-side decisions live in `cypress/support/agentMode.ts`.
+
+```bash
+QA_SIM_AGE_YEARS=6 pnpm cy:run:trog:sim          # a 6-year-old plays TROG
+QA_SIM_AGE_YEARS=8 QA_SIM_SEED=7 pnpm cy:run:vocab:sim
+pnpm cy:run:sim                                   # all sim_child specs
+```
+
+Env: `QA_SIM_AGE_YEARS` (required), `QA_SIM_AGE_MONTHS`, `QA_SIM_SEED`
+(default `1`), `QA_SIM_REFRESH=1` to re-fetch the cached item banks,
+`QA_SIM_BANK_BUCKET` (default `levante-assets-dev`).
+
+Use it to sanity-check task/item design against age norms (e.g. "does the score
+pipeline produce a plausible theta for a typical 6-year-old?") and as a
+reproducible mid-ability agent between the oracle (ceiling) and wrong (floor).
+Design rationale, development log, and verification results: [README_SIM.md](README_SIM.md).
+
 ## Architecture
 
 Oracle and VLM agent paths share the same task model (selectors, stimulus parser, response rule, scoring) and the same trial-logging pipeline:
@@ -762,12 +810,12 @@ need multi-frame/video capture.
 cypress/
   e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts, rule_equivalence.cy.ts
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
-  e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts
+  e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
   e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts
   e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
   e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
   e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts
-  e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts
+  e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
   e2e/memory_game/          oracle.cy.ts (oracle-only; temporal-animation stimulus)
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/

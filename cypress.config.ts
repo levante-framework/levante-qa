@@ -28,6 +28,7 @@ import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { makeChildPersonaPrompt } from './cypress/support/persona/childPersona';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
 import { solveMentalRotation } from './cypress/plugins/mentalRotationSolver';
+import { buildSimChildConfig, type SimChildConfig } from './cypress/plugins/simChildConfig';
 import {
   loadCrowdinApprovedTranslations as loadCrowdinApprovedTranslationsFromCrowdin,
   translationForAudioUrl,
@@ -153,6 +154,17 @@ export default defineConfig({
         },
 
         /**
+         * Builds the calibrated simulated-child config for a task: age theta,
+         * per-item IRT difficulty from the deployed item bank (disk-cached),
+         * and a calibration offset matching the empirical accuracy-by-age
+         * table. Called once per sim_child spec; env: QA_SIM_AGE_YEARS
+         * (required), QA_SIM_AGE_MONTHS, QA_SIM_SEED, QA_SIM_REFRESH.
+         */
+        async getSimConfig({ taskSlug }: { taskSlug: string }): Promise<SimChildConfig> {
+          return buildSimChildConfig(taskSlug);
+        },
+
+        /**
          * Fetches an mp3 and returns its parsed ID3 tags, including the canonical
          * narration transcript. Results are cached by URL inside the reader.
          */
@@ -266,6 +278,10 @@ export default defineConfig({
         'QA_AUDIO_PLACEHOLDER',
         'QA_VIEWPORT_WIDTH',
         'QA_VIEWPORT_HEIGHT',
+        'QA_AGENT_MODE',
+        'QA_SIM_AGE_YEARS',
+        'QA_SIM_AGE_MONTHS',
+        'QA_SIM_SEED',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];
