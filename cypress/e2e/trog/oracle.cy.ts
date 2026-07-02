@@ -157,10 +157,14 @@ describe(`TROG — ${AGENT_LABEL}`, () => {
       : 0;
 
     // Re-presented with no intervening gap ⇒ our prior click didn't advance a
-    // gated practice item. Re-click the key; do not re-count.
+    // gated practice item. Re-click; do not re-count. The sim escalates to the
+    // keyed answer here (its recorded first answer stands) — gated practice
+    // re-presents until correct, so replaying the same wrong pick would loop
+    // forever, and a real child is corrected during practice anyway.
     if (sig === lastActedSig) {
+      const escIndex = isSimMode() && hasKey ? keyedIndex : actIndex;
       cy.get('body', { log: false }).then(($b) => {
-        if ($b.find(CHOICE_BUTTON).length > actIndex) cy.chooseTrogOption(actIndex);
+        if ($b.find(CHOICE_BUTTON).length > escIndex) cy.chooseTrogOption(escIndex);
       });
       waitChangedThenStep(i, sig);
       return;

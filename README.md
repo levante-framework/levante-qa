@@ -291,14 +291,36 @@ a 3-sigma binomial band around the model's predicted mean, and writes a per-item
 decisions log (`sim_<task>_<ts>_decisions.jsonl`: item, `d`, `P(correct)`, roll,
 chosen index) alongside the usual trial log (`sim_<task>_<ts>.jsonl`).
 
-Currently wired for **TROG** and **Vocab** (`cypress/e2e/<task>/sim_child.cy.ts`,
-a one-line import of `oracle.cy.ts`, same pattern as the wrong agent). Config is
-built node-side by `cypress/plugins/simChildConfig.ts` via the `getSimConfig`
-task; browser-side decisions live in `cypress/support/agentMode.ts`.
+Currently wired for **TROG**, **Vocab**, **Matrix Reasoning**, and **Stories
+(Theory of Mind)** (`cypress/e2e/<task>/sim_child.cy.ts`, a one-line import of
+`oracle.cy.ts`, same pattern as the wrong agent). Config is built node-side by
+`cypress/plugins/simChildConfig.ts` via the `getSimConfig` task; browser-side
+decisions live in `cypress/support/agentMode.ts`. Notes per task:
+
+- **Matrix Reasoning / SDS** banks name the IRT column `difficulty` (not `d`);
+  the config loader accepts either. ToM's bank has an empty `difficulty`
+  column, so Stories currently runs on the empirical age-accuracy fallback for
+  every item (still calibrated in the mean, just not item-differentiated).
+- **Stories** answer values repeat across questions ("no", "happy", …), so its
+  sim hash key is a composite (prompt + sorted choices + answer) while the
+  difficulty lookup still uses the answer value.
+- **Gated practice/demo screens**: when a wrong sim answer doesn't advance a
+  gated practice item, the sim re-clicks the keyed answer (its recorded first
+  answer stands — a real child is corrected during practice). Matrix's intro
+  demo screens ship no answer key by design and gate until the right choice, so
+  the runner rotates through choices there and excludes those screens from the
+  no-key content check.
+- **Mental Rotation** is not wired yet: its runtime choice alts (`rn000Silh`)
+  don't join to the bank's `answer` column (`ap2-000`, `P2p-000-silh`) — needs
+  a key mapping first. Same-Different single-select joins cleanly (29/29 with
+  difficulty) and is a straightforward next candidate; EGMA / H&F / Memory have
+  non-AFC response models and need their own error models.
 
 ```bash
 QA_SIM_AGE_YEARS=6 pnpm cy:run:trog:sim          # a 6-year-old plays TROG
 QA_SIM_AGE_YEARS=8 QA_SIM_SEED=7 pnpm cy:run:vocab:sim
+QA_SIM_AGE_YEARS=7 pnpm cy:run:matrix:sim
+QA_SIM_AGE_YEARS=7 pnpm cy:run:stories:sim
 pnpm cy:run:sim                                   # all sim_child specs
 ```
 
@@ -811,10 +833,10 @@ cypress/
   e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts, rule_equivalence.cy.ts
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
   e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
-  e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts
+  e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
   e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
   e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
-  e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts
+  e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
   e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
   e2e/memory_game/          oracle.cy.ts (oracle-only; temporal-animation stimulus)
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)

@@ -169,9 +169,11 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
   const calItems: { d: number; c: number }[] = [];
   for (const r of rows) {
     const answer = (r.answer ?? '').trim();
-    const dStr = (r.d ?? '').trim();
-    // Blank d must NOT coerce to 0 (Number('') === 0): those items are
+    // Banks are inconsistent about the difficulty column: trog/vocab use `d`,
+    // matrix-reasoning/SDS use `difficulty` (trog's `difficulty` is empty).
+    // Blank must NOT coerce to 0 (Number('') === 0): those items are
     // uncalibrated and should use the empirical-accuracy fallback instead.
+    const dStr = (r.d ?? '').trim() || (r.difficulty ?? '').trim();
     const d = dStr ? Number(dStr) : NaN;
     if (!answer || !Number.isFinite(d)) continue;
     dByAnswer[answer] = d;

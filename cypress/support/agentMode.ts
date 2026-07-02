@@ -106,12 +106,18 @@ function sigmoid(x: number): number {
  * the same decisions. When `choiceValues` is given, the wrong pick is hashed
  * over the sorted values (not positions), so the same wrong picture is chosen
  * even when the app shuffles choice order between runs.
+ *
+ * `itemKey` must be unique per item (it seeds the hash and memoizes the
+ * decision). When the keyed answer value is NOT unique across items (e.g.
+ * Stories, where several questions key "no"), pass a unique composite as
+ * `itemKey` and the bank answer value as `dKey` for the difficulty lookup.
  */
 export function simDecideIndex(
   keyedIndex: number,
   choiceCount: number,
   itemKey: string,
   choiceValues?: string[],
+  dKey?: string,
 ): SimDecision {
   if (!simConfig) {
     throw new Error('sim: simDecideIndex called before simInit (getSimConfig task)');
@@ -119,7 +125,7 @@ export function simDecideIndex(
   const prior = simDecisions.get(itemKey);
   if (prior) return prior;
   const c = choiceCount > 0 ? 1 / choiceCount : 0.25;
-  const d = simConfig.dByAnswer[itemKey] ?? null;
+  const d = simConfig.dByAnswer[dKey ?? itemKey] ?? null;
   const p =
     d != null && simConfig.theta != null
       ? Math.min(0.995, c + (1 - c) * sigmoid(simConfig.theta + simConfig.offset - d))

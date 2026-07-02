@@ -17,6 +17,8 @@
     "cy:run:sim": "cypress run --spec 'cypress/e2e/**/sim_child.cy.ts'",
     "cy:run:trog:sim": "cypress run --spec 'cypress/e2e/trog/sim_child.cy.ts'",
     "cy:run:vocab:sim": "cypress run --spec 'cypress/e2e/vocab/sim_child.cy.ts'",
+    "cy:run:matrix:sim": "cypress run --spec 'cypress/e2e/matrix_reasoning/sim_child.cy.ts'",
+    "cy:run:stories:sim": "cypress run --spec 'cypress/e2e/stories/sim_child.cy.ts'",
     "cy:run:vlm": "cypress run --spec 'cypress/e2e/**/vlm_agent.cy.ts'",
     "cy:run:audio": "cypress run --spec 'cypress/e2e/**/audio_assets.cy.ts'",
     "cy:run:egma:oracle": "cypress run --spec 'cypress/e2e/egma_math/oracle.cy.ts'",

@@ -97,16 +97,54 @@ seen (with a 0.08 floor). For ~100 items at p≈0.8 that's roughly ±0.10–0.14
 tight enough to catch a broken pipeline, loose enough to never flake on an
 unlucky seed.
 
-### 6. What we deliberately did not build (YAGNI)
+### 6. Extending to more tasks (second session)
+
+Asked "can we extend this to other tasks?", we audited every task against the
+three requirements — an AFC keyed-answer decision point, an ability/accuracy
+table, and a bank↔runtime key join — and wired the two that verified cleanly:
+
+- **Matrix Reasoning** — 22/22 keyedValues join the bank; the IRT column is
+  named `difficulty` there (not `d`), so the loader now accepts either.
+- **Stories (ToM)** — 31/31 join, but answer values repeat across questions
+  ("no" ×9, "happy", …), which would collide the hash memo. Fix: the sim hash
+  key is a composite (prompt + sorted choices + answer) with a separate `dKey`
+  for the difficulty lookup. The ToM bank's `difficulty` column is entirely
+  empty, so every item uses the empirical-accuracy fallback — calibrated in
+  the mean, not item-differentiated, until the bank ships difficulties.
+
+Two live failures taught us about **gated screens**:
+
+1. TROG/Matrix practice items re-present until the *correct* answer. An agent
+   that deterministically replays its wrong pick loops forever (the first
+   Matrix run climbed to a Cypress stack overflow after 24 minutes). Fix: on a
+   gated re-presentation the sim escalates to the keyed answer — its recorded
+   first answer stands, and a real child is corrected during practice anyway.
+2. Matrix's **intro demo screens** (orange-square/blue-circle example) render
+   like items but ship **no answer key by design**, and also gate until
+   correct. With no key to escalate to, the runner now rotates through the
+   choices until the gate opens, and retroactively excludes screens identified
+   as gated-no-key from the "items with no answer key" content assertion
+   (ungated no-key items remain a real bug signal).
+
+Audited but not wired:
+
+- **Mental Rotation** — join FAILS: runtime alts are `rn000Silh`-style while
+  bank answers are `ap2-000` / `P2p-000-silh`-style. Needs a key mapping.
+- **Same-Different single-select** — joins cleanly (29/29, with difficulty);
+  straightforward next candidate, only the single trials would be simulated
+  (match trials expose no key).
+- **EGMA / H&F / Memory** — non-AFC response models (typed numbers,
+  LEFT/RIGHT actions, sequences); each needs its own error model, and their
+  banks 404 on GCS anyway.
+
+### 7. What we deliberately did not build (YAGNI)
 
 - **Dashboard wiring** — needs catalog + UI changes; CLI env vars suffice for
   now.
-- **Other tasks** — the mechanism is generic, but only TROG and Vocab have
-  *verified* keyedValue↔bank joins. Stories/matrix/etc. can be wired the same
-  way once their joins are checked.
 - **A response-time model** — decisions are instant; RT realism is a separate
   roadmap item.
-- **Per-item discrimination (2PL a-parameter)** — the banks only ship `d`.
+- **Per-item discrimination (2PL a-parameter)** — the banks only ship
+  difficulty.
 
 ## Verification results
 
@@ -128,6 +166,12 @@ Live end-to-end (real task in Cypress, real narration/audio pipeline):
   easy ones (3 items with d < −2).
 - **Vocab, age 8, seed 1** — 170 items, realized 0.776 vs predicted 0.773;
   44 items used the no-`d` fallback.
+- **Matrix Reasoning, age 7, seed 1** — 80 items, realized 0.350 vs predicted
+  0.383 (matrix reasoning genuinely is that hard for 7-year-olds — the
+  empirical table says 38%); 75/80 items item-differentiated from bank
+  difficulty.
+- **Stories (ToM), age 7, seed 1** — 30 questions, realized 0.600 vs predicted
+  0.626 (all fallback; the ToM bank ships no difficulties).
 - **Reproducibility** — two consecutive live TROG runs: identical
   (chosen picture, correct) on all 99 items despite the app shuffling choice
   positions.
@@ -139,8 +183,8 @@ Live end-to-end (real task in Cypress, real narration/audio pipeline):
 | `cypress/plugins/simChildConfig.ts` | node-side: fetch/cache item bank, θ lookup, offset calibration (`getSimConfig` task) |
 | `cypress/support/agentMode.ts` | browser-side: mode detection, `simDecideIndex`, predicted-accuracy band, decisions log |
 | `cypress/support/simChildEntry.ts` | sets `QA_AGENT_MODE=sim` before `oracle.cy` loads |
-| `cypress/e2e/{trog,vocab}/sim_child.cy.ts` | two-line entry specs |
-| `cypress/e2e/{trog,vocab}/oracle.cy.ts` | sim branch in the act-index decision + band assertion at finalize |
+| `cypress/e2e/{trog,vocab,matrix_reasoning,stories}/sim_child.cy.ts` | two-line entry specs |
+| `cypress/e2e/{trog,vocab,matrix_reasoning,stories}/oracle.cy.ts` | sim branch in the act-index decision + band assertion at finalize |
 | `cypress/logs/sim_<task>_<ts>_decisions.jsonl` | per-item `d`, P(correct), roll, chosen index — plus the run's config header |
 
 Env: `QA_SIM_AGE_YEARS` (required), `QA_SIM_AGE_MONTHS`, `QA_SIM_SEED`

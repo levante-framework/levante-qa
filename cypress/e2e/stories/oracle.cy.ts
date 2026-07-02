@@ -22,10 +22,18 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isSimMode,
   isWrongAgentMode,
   pickWrongIndex,
+  simAccuracyTolerance,
+  simConfigInfo,
+  simDecideIndex,
+  simDecisionLog,
+  simInit,
+  simPredictedAccuracy,
   trialRecordOracleFlag,
 } from '../../support/agentMode';
+import type { SimChildConfig } from '../../plugins/simChildConfig';
 import { parseStoriesTrialRecord, type StoriesTrialRecord } from '../../support/tasks/types';
 
 // ~60 screens (story beats + ~31 questions) across 6 stories; staggered reveal
@@ -49,7 +57,13 @@ const LIVE_LOG = `cypress/logs/_stories_${agentLogStem()}_live.jsonl`;
 // bug — every scored item must mark its correct choice under Cypress).
 const NO_KEY_LOG = 'cypress/logs/_stories_no_key.jsonl';
 
-describe(`Stories (Theory of Mind) — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (key-driven)'}`, () => {
+const AGENT_LABEL = isWrongAgentMode()
+  ? 'wrong agent'
+  : isSimMode()
+    ? 'simulated child (IRT-calibrated)'
+    : 'oracle (key-driven)';
+
+describe(`Stories (Theory of Mind) — ${AGENT_LABEL}`, () => {
   const records: StoriesTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -85,6 +99,13 @@ describe(`Stories (Theory of Mind) — ${isWrongAgentMode() ? 'wrong agent' : 'o
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_stories_${ts}.jsonl`, records });
+    if (isSimMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/sim_stories_${ts}_decisions.jsonl`,
+        records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
+          ...simDecisionLog()],
+      });
+    }
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
 
@@ -97,9 +118,19 @@ describe(`Stories (Theory of Mind) — ${isWrongAgentMode() ? 'wrong agent' : 'o
       cy.log(`questions: ${nQuestions}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `question items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
 
-      // The oracle clicks the keyed answer, so accuracy is 1.0 iff every item
-      // had a key; this asserts the task is completable end to end.
-      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
+      if (isSimMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
+          predicted,
+          tol,
+        );
+      } else {
+        // The oracle clicks the keyed answer, so accuracy is 1.0 iff every item
+        // had a key; this asserts the task is completable end to end.
+        expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
+      }
 
       // Audio is exercised: story beats and questions are narrated.
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
@@ -131,10 +162,16 @@ describe(`Stories (Theory of Mind) — ${isWrongAgentMode() ? 'wrong agent' : 'o
 
     const keyedIndex = appKeyedCorrectIndex(win);
     const hasKey = keyedIndex >= 0;
+    // Stories answer values repeat across questions ("no", "happy", ...), so the
+    // sim hash/memo key is a composite of the prompt + sorted choices + answer;
+    // the bank difficulty lookup still uses the answer value alone.
+    const simKey = `${promptText}::${[...choices].sort().join('|')}::${choices[keyedIndex] ?? ''}`;
     const actIndex = hasKey
       ? isWrongAgentMode()
         ? pickWrongIndex(keyedIndex, choices.length)
-        : keyedIndex
+        : isSimMode()
+          ? simDecideIndex(keyedIndex, choices.length, simKey, choices, choices[keyedIndex]).index
+          : keyedIndex
       : 0;
     const audio = questionAudio.get(key) ?? NO_AUDIO;
 
@@ -283,7 +320,12 @@ describe(`Stories (Theory of Mind) — ${isWrongAgentMode() ? 'wrong agent' : 'o
     });
   }
 
-  it('completes the task by clicking the app answer key', () => {
+  it(`completes the task as the ${AGENT_LABEL}`, () => {
+    if (isSimMode()) {
+      cy.task('getSimConfig', { taskSlug: 'stories' }).then((cfg) =>
+        simInit(cfg as SimChildConfig),
+      );
+    }
     resetAudioCapture();
     launchTask({ taskId: 'theory-of-mind', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     // Fail fast when intro narration never unlocks the first continue button.
