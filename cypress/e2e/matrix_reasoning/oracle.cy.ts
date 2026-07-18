@@ -23,9 +23,12 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isRandomMode,
   isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  randomDecideIndex,
   simAccuracyTolerance,
   simConfigInfo,
   simDecideIndex,
@@ -52,7 +55,9 @@ const AGENT_LABEL = isWrongAgentMode()
   ? 'wrong agent'
   : isSimMode()
     ? 'simulated child (IRT-calibrated)'
-    : 'oracle (key-driven)';
+    : isRandomMode()
+      ? 'random agent (seeded uniform)'
+      : 'oracle (key-driven)';
 
 describe(`Matrix Reasoning — ${AGENT_LABEL}`, () => {
   const records: MatrixReasoningTrialRecord[] = [];
@@ -122,9 +127,9 @@ describe(`Matrix Reasoning — ${AGENT_LABEL}`, () => {
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_matrix_${ts}.jsonl`, records });
-    if (isSimMode()) {
+    if (isStochasticMode()) {
       cy.task('writeJsonl', {
-        path: `cypress/logs/sim_matrix_${ts}_decisions.jsonl`,
+        path: `cypress/logs/${agentLogStem()}_matrix_${ts}_decisions.jsonl`,
         records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
           ...simDecisionLog()],
       });
@@ -136,14 +141,14 @@ describe(`Matrix Reasoning — ${AGENT_LABEL}`, () => {
       expect(stats.nItems, 'recorded item trials').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
-      if (isSimMode()) {
+      if (isStochasticMode()) {
         const predicted = simPredictedAccuracy() ?? 0;
         const tol = simAccuracyTolerance();
-        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
-        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
-          predicted,
-          tol,
-        );
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracy ?? 0,
+          `${agentLogStem()} accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
       } else {
         expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
       }
@@ -167,7 +172,14 @@ describe(`Matrix Reasoning — ${AGENT_LABEL}`, () => {
         : isSimMode()
           ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
               .index
-          : keyedIndex
+          : isRandomMode()
+            ? randomDecideIndex(
+                keyedIndex,
+                choices.length,
+                choices[keyedIndex] ?? `step-${i}`,
+                choices,
+              ).index
+            : keyedIndex
       : 0;
 
     // Re-presented with no intervening gap ⇒ our prior click didn't advance a
@@ -185,7 +197,7 @@ describe(`Matrix Reasoning — ${AGENT_LABEL}`, () => {
         nNoKey -= 1;
       }
       const escIndex = hasKey
-        ? isSimMode()
+        ? isStochasticMode()
           ? keyedIndex
           : actIndex
         : (actIndex + gateEscapes) % Math.max(choices.length, 1);

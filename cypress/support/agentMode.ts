@@ -9,18 +9,22 @@
  *            per-item probability (see cypress/plugins/simChildConfig.ts),
  *            hash-seeded so runs are fully reproducible. Asserts accuracy lands
  *            within a binomial band of the model's predicted mean.
+ *   random — uniform seeded guesser: picks any choice with equal probability.
+ *            Accuracy should land at chance level (mean 1/choices); asserted
+ *            with the same binomial band as sim. Needs no node-side config.
  */
 import type { SimChildConfig } from '../plugins/simChildConfig';
 
-export type QaAgentMode = 'oracle' | 'wrong' | 'sim';
+export type QaAgentMode = 'oracle' | 'wrong' | 'sim' | 'random';
 
 /** Detect mode from QA_AGENT_MODE (entry files, dashboard) or the spec filename. */
 export function qaAgentMode(): QaAgentMode {
   const explicit = String(Cypress.expose('QA_AGENT_MODE') ?? '').toLowerCase();
-  if (explicit === 'wrong' || explicit === 'sim') return explicit;
+  if (explicit === 'wrong' || explicit === 'sim' || explicit === 'random') return explicit;
   const rel = `${Cypress.spec.relative ?? ''}#${Cypress.spec.name ?? ''}`;
   if (rel.includes('wrong_agent')) return 'wrong';
   if (rel.includes('sim_child')) return 'sim';
+  if (rel.includes('random_agent')) return 'random';
   return 'oracle';
 }
 
@@ -30,6 +34,15 @@ export function isWrongAgentMode(): boolean {
 
 export function isSimMode(): boolean {
   return qaAgentMode() === 'sim';
+}
+
+export function isRandomMode(): boolean {
+  return qaAgentMode() === 'random';
+}
+
+/** Modes whose accuracy is probabilistic (band assertion + decisions log). */
+export function isStochasticMode(): boolean {
+  return isSimMode() || isRandomMode();
 }
 
 /** Log/archive filename stem (`oracle`, `wrong`, or `sim`). */
@@ -146,6 +159,43 @@ export function simDecideIndex(
     }
   }
   const decision: SimDecision = { index, correct, p, roll, d };
+  simDecisions.set(itemKey, decision);
+  return decision;
+}
+
+/**
+ * The random agent's per-item choice: uniform over all choices, hash-seeded
+ * from (QA_SIM_SEED, spec, itemKey) so runs replay exactly. Hashes over sorted
+ * choice values when given, so the same picture is picked even if the app
+ * shuffles positions. Records p = 1/choices into the same tally as sim, so the
+ * predicted-accuracy band helpers work unchanged. No node-side config needed.
+ */
+export function randomDecideIndex(
+  keyedIndex: number,
+  choiceCount: number,
+  itemKey: string,
+  choiceValues?: string[],
+): SimDecision {
+  const prior = simDecisions.get(itemKey);
+  if (prior) return prior;
+  const seed = String(Cypress.expose('QA_SIM_SEED') ?? '1');
+  const stem = `${seed}#random#${Cypress.spec.relative ?? ''}#${itemKey}`;
+  const roll = hashToUnit(stem);
+  const n = Math.max(choiceCount, 1);
+  let index: number;
+  if (choiceValues && choiceValues.length === choiceCount) {
+    const sorted = [...choiceValues].sort();
+    index = choiceValues.indexOf(sorted[Math.floor(roll * n)]);
+  } else {
+    index = Math.floor(roll * n);
+  }
+  const decision: SimDecision = {
+    index,
+    correct: index === keyedIndex,
+    p: 1 / n,
+    roll,
+    d: null,
+  };
   simDecisions.set(itemKey, decision);
   return decision;
 }

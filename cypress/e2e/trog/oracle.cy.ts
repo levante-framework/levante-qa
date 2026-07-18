@@ -23,9 +23,12 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isRandomMode,
   isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  randomDecideIndex,
   simAccuracyTolerance,
   simConfigInfo,
   simDecideIndex,
@@ -49,7 +52,9 @@ const AGENT_LABEL = isWrongAgentMode()
   ? 'wrong agent'
   : isSimMode()
     ? 'simulated child (IRT-calibrated)'
-    : 'oracle (key-driven)';
+    : isRandomMode()
+      ? 'random agent (seeded uniform)'
+      : 'oracle (key-driven)';
 
 describe(`TROG — ${AGENT_LABEL}`, () => {
   const records: TrogTrialRecord[] = [];
@@ -109,9 +114,9 @@ describe(`TROG — ${AGENT_LABEL}`, () => {
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_trog_${ts}.jsonl`, records });
-    if (isSimMode()) {
+    if (isStochasticMode()) {
       cy.task('writeJsonl', {
-        path: `cypress/logs/sim_trog_${ts}_decisions.jsonl`,
+        path: `cypress/logs/${agentLogStem()}_trog_${ts}_decisions.jsonl`,
         records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
           ...simDecisionLog()],
       });
@@ -123,14 +128,14 @@ describe(`TROG — ${AGENT_LABEL}`, () => {
       expect(stats.nItems, 'recorded item trials').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
-      if (isSimMode()) {
+      if (isStochasticMode()) {
         const predicted = simPredictedAccuracy() ?? 0;
         const tol = simAccuracyTolerance();
-        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
-        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
-          predicted,
-          tol,
-        );
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracy ?? 0,
+          `${agentLogStem()} accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
       } else {
         expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
       }
@@ -153,7 +158,14 @@ describe(`TROG — ${AGENT_LABEL}`, () => {
         : isSimMode()
           ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
               .index
-          : keyedIndex
+          : isRandomMode()
+            ? randomDecideIndex(
+                keyedIndex,
+                choices.length,
+                choices[keyedIndex] ?? `step-${i}`,
+                choices,
+              ).index
+            : keyedIndex
       : 0;
 
     // Re-presented with no intervening gap ⇒ our prior click didn't advance a
@@ -162,7 +174,7 @@ describe(`TROG — ${AGENT_LABEL}`, () => {
     // re-presents until correct, so replaying the same wrong pick would loop
     // forever, and a real child is corrected during practice anyway.
     if (sig === lastActedSig) {
-      const escIndex = isSimMode() && hasKey ? keyedIndex : actIndex;
+      const escIndex = isStochasticMode() && hasKey ? keyedIndex : actIndex;
       cy.get('body', { log: false }).then(($b) => {
         if ($b.find(CHOICE_BUTTON).length > escIndex) cy.chooseTrogOption(escIndex);
       });

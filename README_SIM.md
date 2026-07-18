@@ -137,7 +137,21 @@ Audited but not wired:
   LEFT/RIGHT actions, sequences); each needs its own error model, and their
   banks 404 on GCS anyway.
 
-### 7. What we deliberately did not build (YAGNI)
+### 7. The random agent (third session)
+
+A follow-up request added a **random** mode: a seeded uniform guesser. It is
+deliberately a thin reuse of the sim machinery — same `QA_SIM_SEED` hashing,
+same sorted-choice-value trick for shuffle-proof replays, same gated-practice
+escalation, same band assertion and decisions log — with `P(correct) = 1/n`
+per item and no node-side config (no age, no theta, no item bank). It fills
+the gap between wrong (exact 0%) and sim (age-calibrated): a **chance-level
+null reference**. If a task's random-agent accuracy sits meaningfully above
+chance, something is leaking the answer (keying or position bias); below
+chance would suggest a scoring inversion. Verified offline (400 hashed items:
+26.0% correct, index distribution 94/107/104/95 across 4 positions) and live
+(TROG: 99 items, realized 0.263 vs 0.250 predicted, passing).
+
+### 8. What we deliberately did not build (YAGNI)
 
 - **Dashboard wiring** — needs catalog + UI changes; CLI env vars suffice for
   now.
@@ -183,7 +197,8 @@ Live end-to-end (real task in Cypress, real narration/audio pipeline):
 | `cypress/plugins/simChildConfig.ts` | node-side: fetch/cache item bank, θ lookup, offset calibration (`getSimConfig` task) |
 | `cypress/support/agentMode.ts` | browser-side: mode detection, `simDecideIndex`, predicted-accuracy band, decisions log |
 | `cypress/support/simChildEntry.ts` | sets `QA_AGENT_MODE=sim` before `oracle.cy` loads |
-| `cypress/e2e/{trog,vocab,matrix_reasoning,stories}/sim_child.cy.ts` | two-line entry specs |
+| `cypress/support/randomAgentEntry.ts` | same pattern for the random agent |
+| `cypress/e2e/{trog,vocab,matrix_reasoning,stories}/{sim_child,random_agent}.cy.ts` | two-line entry specs |
 | `cypress/e2e/{trog,vocab,matrix_reasoning,stories}/oracle.cy.ts` | sim branch in the act-index decision + band assertion at finalize |
 | `cypress/logs/sim_<task>_<ts>_decisions.jsonl` | per-item `d`, P(correct), roll, chosen index — plus the run's config header |
 

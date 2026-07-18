@@ -21,9 +21,12 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isRandomMode,
   isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  randomDecideIndex,
   simAccuracyTolerance,
   simConfigInfo,
   simDecideIndex,
@@ -81,7 +84,9 @@ const AGENT_LABEL = isWrongAgentMode()
   ? 'wrong agent'
   : isSimMode()
     ? 'simulated child (IRT-calibrated)'
-    : 'oracle (deterministic)';
+    : isRandomMode()
+      ? 'random agent (seeded uniform)'
+      : 'oracle (deterministic)';
 
 describe(`Vocab — ${AGENT_LABEL}`, () => {
   const records: VocabTrialRecord[] = [];
@@ -114,9 +119,9 @@ describe(`Vocab — ${AGENT_LABEL}`, () => {
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_vocab_${ts}.jsonl`, records });
-    if (isSimMode()) {
+    if (isStochasticMode()) {
       cy.task('writeJsonl', {
-        path: `cypress/logs/sim_vocab_${ts}_decisions.jsonl`,
+        path: `cypress/logs/${agentLogStem()}_vocab_${ts}_decisions.jsonl`,
         records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
           ...simDecisionLog()],
       });
@@ -154,14 +159,14 @@ describe(`Vocab — ${AGENT_LABEL}`, () => {
         }
       }
 
-      if (isSimMode()) {
+      if (isStochasticMode()) {
         const predicted = simPredictedAccuracy() ?? 0;
         const tol = simAccuracyTolerance();
-        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
-        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
-          predicted,
-          tol,
-        );
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracy ?? 0,
+          `${agentLogStem()} accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
       } else {
         expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy on vocab items`).to.equal(
           expectedAccuracy(),
@@ -214,12 +219,19 @@ describe(`Vocab — ${AGENT_LABEL}`, () => {
         : isSimMode() && hasKey
           ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
               .index
-          : rightIndex;
+          : isRandomMode() && hasKey
+            ? randomDecideIndex(
+                keyedIndex,
+                choices.length,
+                choices[keyedIndex] ?? `step-${i}`,
+                choices,
+              ).index
+            : rightIndex;
       // Correctness: cross-check locales score the independent solve against the
-      // key; key-driven locales (and the sim agent) score the action against the
-      // key.
+      // key; key-driven locales (and the sim/random agents) score the action
+      // against the key.
       const correct =
-        !CROSS_CHECK || isSimMode()
+        !CROSS_CHECK || isStochasticMode()
           ? hasKey
             ? actIndex === keyedIndex
             : null

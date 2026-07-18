@@ -28,10 +28,21 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isRandomMode,
+  isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  randomDecideIndex,
+  simAccuracyTolerance,
+  simConfigInfo,
+  simDecideIndex,
+  simDecisionLog,
+  simInit,
+  simPredictedAccuracy,
   trialRecordOracleFlag,
 } from '../../support/agentMode';
+import type { SimChildConfig } from '../../plugins/simChildConfig';
 
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 import {
@@ -70,7 +81,15 @@ const UNSOLVED_LOG = 'cypress/logs/_egma_unsolved_dom.jsonl';
 // entry is a real bug to investigate — in the task's key or in our solver.
 const MISMATCH_LOG = 'cypress/logs/_egma_key_mismatch.jsonl';
 
-describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`, () => {
+const AGENT_LABEL = isWrongAgentMode()
+  ? 'wrong agent'
+  : isSimMode()
+    ? 'simulated child (IRT-calibrated)'
+    : isRandomMode()
+      ? 'random agent (seeded uniform)'
+      : 'oracle (deterministic)';
+
+describe(`EGMA math — ${AGENT_LABEL}`, () => {
   const records: EgmaTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -109,7 +128,38 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
 
   function finalize(): void {
     const ts = Date.now();
+    // Diagnose HOW the task ended: EGMA's only completion signal is sustained
+    // empty jspsych content, so record what the final screen actually shows
+    // (any visible text? an exit button?) plus a screenshot. A run that ends
+    // with no text and no exit affordance ended on a genuinely blank screen.
+    cy.window({ log: false }).then((w) => {
+      const doc = (w as unknown as TaskWindow).document;
+      const bodyText = (doc.body?.innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+      const content = doc.querySelector('.jspsych-content');
+      cy.task('writeJsonl', {
+        path: 'cypress/logs/_egma_final_screen.jsonl',
+        records: [
+          {
+            timestamp: new Date().toISOString(),
+            agent: agentLogStem(),
+            bodyText,
+            jspsychChildren: content ? content.children.length : -1,
+            hasExitButton: Array.from(doc.querySelectorAll('button')).some((b) =>
+              /exit/i.test(b.textContent ?? ''),
+            ),
+          },
+        ],
+      });
+    });
+    cy.screenshot(`egma-final-${agentLogStem()}`, { capture: 'viewport' });
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_egma_${ts}.jsonl`, records });
+    if (isStochasticMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/${agentLogStem()}_egma_${ts}_decisions.jsonl`,
+        records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
+          ...simDecisionLog()],
+      });
+    }
 
     const stats = scoreTrials(records);
     const typesObserved = new Set<EgmaItemType>(records.map((r) => r.itemType));
@@ -131,9 +181,19 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
         }
       }
 
-      expect(stats.accChoice, `${agentLogStem()} accuracy on multiple-choice items`).to.equal(
-        expectedAccuracy(),
-      );
+      if (isStochasticMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accChoice ?? 0,
+          `${agentLogStem()} choice accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
+      } else {
+        expect(stats.accChoice, `${agentLogStem()} accuracy on multiple-choice items`).to.equal(
+          expectedAccuracy(),
+        );
+      }
 
       // Audio is a hard prerequisite: number identification has no on-screen text.
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
@@ -208,11 +268,24 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
       const solution = fraction
         ? solveFractionItem(win)
         : solveItem(itemType, audio.transcript, choices, stim);
-      let index = solution ? solution.index : 0;
+      // The solver's own answer, kept separate from the acted index so the
+      // key cross-check below stays valid when a stochastic agent deliberately
+      // answers wrong.
+      const computedIndex = solution ? solution.index : 0;
+      let index = computedIndex;
       const keyedIndexEarly = appKeyedCorrectIndex(win);
       if (isWrongAgentMode() && choices.length > 0) {
         const ref = keyedIndexEarly >= 0 ? keyedIndexEarly : index;
         index = pickWrongIndex(ref, choices.length);
+      } else if (isStochasticMode() && choices.length > 0) {
+        // Reference = the app key when exposed, else the solver's answer. The
+        // hash key is stim + sorted choices (EGMA's bank isn't deployed, so
+        // there's no difficulty join — the sim uses the age-accuracy fallback).
+        const ref = keyedIndexEarly >= 0 ? keyedIndexEarly : index;
+        const simKey = `${stim}::${[...choices].sort().join('|')}`;
+        index = isSimMode()
+          ? simDecideIndex(ref, choices.length, simKey, choices).index
+          : randomDecideIndex(ref, choices.length, simKey, choices).index;
       }
       const recordType: EgmaItemType =
         itemType === 'instructions' ? 'unknown' : itemType;
@@ -252,10 +325,18 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
       // types) we fall back to "did the solver produce an answer".
       const keyedIndex = appKeyedCorrectIndex(win);
       const hasKey = keyedIndex >= 0;
-      const correct = hasKey ? solution !== null && index === keyedIndex : solution !== null;
+      // Stochastic agents score their acted click against the best reference
+      // (key, else solver); the oracle scores its solver as before.
+      const correct = isStochasticMode()
+        ? index === (hasKey ? keyedIndex : computedIndex)
+        : hasKey
+          ? solution !== null && index === keyedIndex
+          : solution !== null;
+      // The solver-vs-key differential cross-check stays on the SOLVER's answer,
+      // so it keeps running (and stays meaningful) under sim/random agents.
       if (hasKey && !isWrongAgentMode()) {
         keyedChecks += 1;
-        if (index !== keyedIndex) {
+        if (computedIndex !== keyedIndex) {
           keyMismatches += 1;
           const stimEl = win.document.querySelector('.lev-stimulus-container');
           const rowEl = win.document.querySelector('.lev-response-row');
@@ -270,8 +351,8 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
                   stim,
                   transcript: audio.transcript,
                   choices,
-                  computedIndex: index,
-                  computedValue: choices[index] ?? null,
+                  computedIndex,
+                  computedValue: choices[computedIndex] ?? null,
                   keyedIndex,
                   keyedValue: choices[keyedIndex] ?? null,
                   // Raw DOM so the operands/answer key can be confirmed offline.
@@ -481,7 +562,12 @@ describe(`EGMA math — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (determin
     });
   }
 
-  it('completes the task at 100% accuracy', () => {
+  it(`completes the task as the ${AGENT_LABEL}`, () => {
+    if (isSimMode()) {
+      cy.task('getSimConfig', { taskSlug: 'egma_math' }).then((cfg) =>
+        simInit(cfg as SimChildConfig),
+      );
+    }
     resetAudioCapture();
     launchTask({ taskId: 'egma-math', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });

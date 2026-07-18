@@ -164,7 +164,15 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
     throw new Error(`sim: no accuracy-by-age profile for '${taskId}' in age_task_accuracy.json`);
   }
 
-  const rows = parseCsv(await fetchBankCsv(taskId));
+  // Some banks are not deployed (e.g. egma-math 404s on GCS). The sim still
+  // works there — every item just uses the empirical age-accuracy fallback
+  // (calibrated in the mean, not item-differentiated).
+  let rows: Record<string, string>[] = [];
+  try {
+    rows = parseCsv(await fetchBankCsv(taskId));
+  } catch (e) {
+    console.warn(`sim: no item bank for ${taskId} (${String(e)}); using accuracy fallback only.`);
+  }
   const dByAnswer: Record<string, number> = {};
   const calItems: { d: number; c: number }[] = [];
   for (const r of rows) {

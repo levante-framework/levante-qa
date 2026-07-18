@@ -328,6 +328,24 @@ Env: `QA_SIM_AGE_YEARS` (required), `QA_SIM_AGE_MONTHS`, `QA_SIM_SEED`
 (default `1`), `QA_SIM_REFRESH=1` to re-fetch the cached item banks,
 `QA_SIM_BANK_BUCKET` (default `levante-assets-dev`).
 
+### Random agent (chance-level check)
+
+A sixth agent, **Random**, picks every choice with equal probability — a
+seeded uniform guesser. It shares the sim machinery (same hash seeding on
+`QA_SIM_SEED`, same choice-value hashing for shuffle-proof replays, same
+gated-practice escalation, same 3-sigma band assertion and decisions log) but
+needs no age or node-side config: expected accuracy is simply the mean chance
+level (1/choices ≈ 0.25 on the 4-AFC tasks). Use it to verify a task's scoring
+floor sits at chance (a floor above chance suggests a keying/position bug) and
+as the null reference for sim/VLM runs. Same four tasks:
+`cypress/e2e/<task>/random_agent.cy.ts`.
+
+```bash
+pnpm cy:run:trog:random                           # lands at ~25% ± band
+QA_SIM_SEED=7 pnpm cy:run:matrix:random
+pnpm cy:run:random                                # all random_agent specs
+```
+
 Use it to sanity-check task/item design against age norms (e.g. "does the score
 pipeline produce a plausible theta for a typical 6-year-old?") and as a
 reproducible mid-ability agent between the oracle (ceiling) and wrong (floor).
@@ -832,12 +850,12 @@ need multi-frame/video capture.
 cypress/
   e2e/hearts_and_flowers/   oracle.cy.ts, vlm_agent.cy.ts, audio_assets.cy.ts, rule_equivalence.cy.ts
   e2e/egma_math/            oracle.cy.ts, vlm_agent.cy.ts
-  e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
-  e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
+  e2e/vocab/                oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts, random_agent.cy.ts
+  e2e/stories/              oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts, random_agent.cy.ts
   e2e/same_different/       oracle.cy.ts, vlm_agent.cy.ts
   e2e/mental_rotation/      oracle.cy.ts, vlm_agent.cy.ts
-  e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
-  e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts
+  e2e/matrix_reasoning/     oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts, random_agent.cy.ts
+  e2e/trog/                 oracle.cy.ts, vlm_agent.cy.ts, sim_child.cy.ts, random_agent.cy.ts
   e2e/memory_game/          oracle.cy.ts (oracle-only; temporal-animation stimulus)
   e2e/                      dashboard_launch.cy.ts (participant → dashboard launch smoke test)
   support/

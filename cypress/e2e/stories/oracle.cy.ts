@@ -22,9 +22,12 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isRandomMode,
   isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  randomDecideIndex,
   simAccuracyTolerance,
   simConfigInfo,
   simDecideIndex,
@@ -61,7 +64,9 @@ const AGENT_LABEL = isWrongAgentMode()
   ? 'wrong agent'
   : isSimMode()
     ? 'simulated child (IRT-calibrated)'
-    : 'oracle (key-driven)';
+    : isRandomMode()
+      ? 'random agent (seeded uniform)'
+      : 'oracle (key-driven)';
 
 describe(`Stories (Theory of Mind) — ${AGENT_LABEL}`, () => {
   const records: StoriesTrialRecord[] = [];
@@ -99,9 +104,9 @@ describe(`Stories (Theory of Mind) — ${AGENT_LABEL}`, () => {
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_stories_${ts}.jsonl`, records });
-    if (isSimMode()) {
+    if (isStochasticMode()) {
       cy.task('writeJsonl', {
-        path: `cypress/logs/sim_stories_${ts}_decisions.jsonl`,
+        path: `cypress/logs/${agentLogStem()}_stories_${ts}_decisions.jsonl`,
         records: [{ config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
           ...simDecisionLog()],
       });
@@ -118,14 +123,14 @@ describe(`Stories (Theory of Mind) — ${AGENT_LABEL}`, () => {
       cy.log(`questions: ${nQuestions}, missing answer key: ${nNoKey}`);
       expect(nNoKey, `question items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
 
-      if (isSimMode()) {
+      if (isStochasticMode()) {
         const predicted = simPredictedAccuracy() ?? 0;
         const tol = simAccuracyTolerance();
-        cy.log(`sim: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
-        expect(stats.accuracy ?? 0, 'sim accuracy within the calibrated band').to.be.closeTo(
-          predicted,
-          tol,
-        );
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracy ?? 0,
+          `${agentLogStem()} accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
       } else {
         // The oracle clicks the keyed answer, so accuracy is 1.0 iff every item
         // had a key; this asserts the task is completable end to end.
@@ -171,7 +176,9 @@ describe(`Stories (Theory of Mind) — ${AGENT_LABEL}`, () => {
         ? pickWrongIndex(keyedIndex, choices.length)
         : isSimMode()
           ? simDecideIndex(keyedIndex, choices.length, simKey, choices, choices[keyedIndex]).index
-          : keyedIndex
+          : isRandomMode()
+            ? randomDecideIndex(keyedIndex, choices.length, simKey, choices).index
+            : keyedIndex
       : 0;
     const audio = questionAudio.get(key) ?? NO_AUDIO;
 
