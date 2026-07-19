@@ -228,6 +228,12 @@ export function installAudioCapture(win: Window): void {
   // synchronously stop the old one" reorder used to swap narration: by the time
   // the check runs, a genuinely-swapped clip has already been removed, while a
   // real overlap (the old clip left playing) is still active.
+  //
+  // Also resume a suspended AudioContext before start(). Under Cypress/Chrome
+  // headless the context often stays "suspended" (core-tasks only unlocks it on
+  // touchscreen fullscreen Continue). A suspended context accepts start() but
+  // never fires onended — so instruction OK buttons that wait on narration stay
+  // disabled forever.
   const activeSpeech = new Map<AudioBufferSourceNode, string>();
   const OVERLAP_GRACE_MS = 60;
   const srcProto = g.AudioBufferSourceNode?.prototype;
@@ -239,6 +245,11 @@ export function installAudioCapture(win: Window): void {
       offset?: number,
       duration?: number,
     ): void {
+      const ctx = this.context;
+      if (ctx && ctx.state === 'suspended') {
+        void ctx.resume();
+      }
+
       const url = this.buffer ? bufToUrl.get(this.buffer) : undefined;
       if (url) {
         g.__currentAudioUrl = url;

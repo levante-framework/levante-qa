@@ -139,6 +139,16 @@ export default defineConfig({
       // spec label use this same value so logs never disagree with what ran.
       const provider = String(config.env.provider ?? process.env.VLM_PROVIDER ?? 'openai');
 
+      // Headless Chrome leaves AudioContext suspended without a real user
+      // gesture; SDS instruction OK only enables on narration `onended`. Allow
+      // autoplay so resume()/start() actually audibly run under Cypress.
+      on('before:browser:launch', (browser, launchOptions) => {
+        if (browser.family === 'chromium' && Array.isArray(launchOptions.args)) {
+          launchOptions.args.push('--autoplay-policy=no-user-gesture-required');
+        }
+        return launchOptions;
+      });
+
       on('task', {
         /**
          * Dispatches a screenshot to the resolved VLM provider and returns the
@@ -264,6 +274,8 @@ export default defineConfig({
         'DASHBOARD_URL',
         'PARTICIPANT_USER',
         'PARTICIPANT_PASS',
+        'BASE_URL',
+        'QA_CAT',
         'QA_LANGUAGE',
         'QA_TRANSLATIONS_SOURCE',
         'QA_CROWDIN_PROJECT_ID',
@@ -291,6 +303,7 @@ export default defineConfig({
       // Allow overriding the task target with BASE_URL (e.g. a local dev server).
       if (process.env.BASE_URL) {
         config.baseUrl = process.env.BASE_URL;
+        config.env.BASE_URL = process.env.BASE_URL;
       }
 
       // Mirror all resolved env (static block + CLI --env + dynamic overrides) into

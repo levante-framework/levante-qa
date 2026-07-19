@@ -1,3 +1,4 @@
+import { applyQaTaskParams, resolveDemoBase } from '../demoUrl';
 import type { SdsSummaryStats, SdsTrialRecord } from './types';
 
 /**
@@ -85,8 +86,8 @@ export function buildUrl(
   base: string = URL_BASE,
   params: Record<string, string | number> = DEFAULT_PARAMS,
 ): string {
-  const url = new URL(base);
-  for (const [key, value] of Object.entries(params)) {
+  const url = new URL(resolveDemoBase(base));
+  for (const [key, value] of Object.entries(applyQaTaskParams(params))) {
     url.searchParams.set(key, String(value));
   }
   return url.toString();
@@ -270,7 +271,9 @@ export function clickSdsInstructionOk(): void {
       return;
     }
     if (($target[0] as unknown as HTMLButtonElement).disabled) {
-      cy.wrap($target).should('not.be.disabled', { timeout: 120000 });
+      // Timeout must be on wrap — Cypress 15 ignores should(..., { timeout })
+      // after wrap of a jQuery snapshot (falls back to defaultCommandTimeout 10s).
+      cy.wrap($target, { timeout: 120000 }).should('not.be.disabled');
     }
     cy.wrap($target).click({ force: true });
   });

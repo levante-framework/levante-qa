@@ -1,3 +1,4 @@
+import { applyQaTaskParams, resolveDemoBase } from '../demoUrl';
 import type { VocabSummaryStats, VocabTrialRecord } from './types';
 
 /**
@@ -72,8 +73,8 @@ export function buildUrl(
   base: string = URL_BASE,
   params: Record<string, string | number> = DEFAULT_PARAMS,
 ): string {
-  const url = new URL(base);
-  for (const [key, value] of Object.entries(params)) {
+  const url = new URL(resolveDemoBase(base));
+  for (const [key, value] of Object.entries(applyQaTaskParams(params))) {
     url.searchParams.set(key, String(value));
   }
   if (!url.searchParams.has('lng') && !url.searchParams.has('language')) {
