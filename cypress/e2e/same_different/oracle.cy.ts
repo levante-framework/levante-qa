@@ -158,7 +158,13 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   function handleSingle(i: number, win: TaskWindow): void {
     const choices = readSingleChoices(win);
     const promptText = readPromptText(win);
-    const key = `${promptText}::${choices.join('|')}`;
+    const keyedIndex = appKeyedCorrectIndex(win);
+    const hasKey = keyedIndex >= 0;
+    // Include the keyed answer: test-dimensions items share the same card set
+    // and often render prompt text as the literal "undefined" when a translation
+    // key is missing, so prompt+choices alone collides across distinct items and
+    // the oracle skips clicking — permanently stalling the trial.
+    const key = `${promptText}::${hasKey ? choices[keyedIndex] : ''}::${choices.join('|')}`;
     // Lingering frame of an already-answered single: wait for it to clear.
     if (answeredSingles.has(key)) {
       cy.wait(150, { log: false });
@@ -167,9 +173,6 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
     }
     answeredSingles.add(key);
     const sig = screenSig(win);
-
-    const keyedIndex = appKeyedCorrectIndex(win);
-    const hasKey = keyedIndex >= 0;
     const actIndex = hasKey
       ? isWrongAgentMode()
         ? pickWrongIndex(keyedIndex, choices.length)
