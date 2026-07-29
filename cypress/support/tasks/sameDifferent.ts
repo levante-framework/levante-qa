@@ -10,14 +10,15 @@ import type { SdsSummaryStats, SdsTrialRecord } from './types';
  * SDS does NOT use the shared `afcStimulus` trial; it has custom trials, and the
  * run is two very different kinds of item:
  *
- *   1. SINGLE-SELECT (31 items): one card is correct — "Choose the card with a
+ *   1. SINGLE-SELECT (~49 items in the version-2 `-spark` bank): one card is
+ *      correct — "Choose the card with a
  *      circle", "Which of these is similar to this one?". Rendered in
  *      `#jspsych-html-multi-response-btngroup` as `button.image-medium`. Under
  *      Cypress core-tasks adds a `.correct` class to the correct BUTTON (note:
  *      the button, not the inner <img>, unlike vocab/ToM). Auto-advances on
  *      click — no OK. This is cleanly scoreable against the key (oracle + VLM).
  *
- *   2. MULTI-SELECT match (90 items): "Choose two cards that are the same in
+ *   2. MULTI-SELECT match (~94 items): "Choose two cards that are the same in
  *      some way", repeated with 3/4/5 cards. Rendered in
  *      `#jspsych-audio-multi-response-btngroup`. There is **no answer key** in
  *      the DOM — many pairs are valid, and the task scores a pair *relationally*
@@ -35,8 +36,17 @@ export const URL_BASE = 'https://levante-tasks-demo.web.app/';
 
 // cat=false pins the fixed-order timeline; maxIncorrect is raised so a stray
 // miss never triggers the early-abort and truncates the run.
+//
+// version + corpus must match the live variants. Omitting them makes core-tasks
+// fall back to version 1 and the `same-different-selection-item-bank` corpus,
+// whose prompt keys are discontinued outside es-CO/de-DE and so are absent from
+// the published translation JSON — the task then renders prompts as the literal
+// string "undefined" (core-tasks#506). The version-2 `-spark` bank is what
+// participants actually run.
 export const DEFAULT_PARAMS = {
   task: 'same-different-selection',
+  version: 2,
+  corpus: 'same-different-selection-item-bank-spark',
   cat: 'false',
   maxIncorrect: 999,
 } as const;
