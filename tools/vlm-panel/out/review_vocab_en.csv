@@ -1,5 +1,5 @@
 priority,item_uid,flag,p_vlm,p_human,transcript
-1,vocab_word_claw,BROKEN,0.000,0.174,"the claw"
+1,,BROKEN,0.000,,"the claw"
 2,vocab_word_aesthete,HARD,0.500,0.333,"the aesthete"
 3,vocab_word_degression,HARD,0.563,0.381,"degression"
 4,vocab_word_couturier,HARD,0.588,0.444,"the couturier"

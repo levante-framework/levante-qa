@@ -179,24 +179,39 @@ The chain that bridges a VLM trial to human psychometrics, per language:
 
 ```
 normalized item text (run language)
-  → item_id          via translation_text/item_bank_translations.csv (lang column)
+  → item_id          via the approved itembank strings (task + country)
   → item_uid         via the task's item-bank.csv (audio_file/item_id → item_uid)
   → human p_correct, point_biserial
                      via levante-pilots/.../diag_items_allstats_selected.csv
                          (task, subset=lang, item)
 ```
 
-External data sources (paths are relative to the `levante/` workspace root):
+Translation strings (the `text → item_id` step) always come from a live source
+keyed by task + country — never a checked-in CSV or XLIFF. Select it with
+`QA_TRANSLATIONS_SOURCE`:
 
-- `levante_translations/translation_text/item_bank_translations.csv` — approved
-  text per locale → `item_id`. Columns: `en-US`, `de-DE`, `es-CO`, `es-AR`, …
+- **`draft`** (default) — the per-task/per-locale JSON published to
+  `levante-assets-draft/translations/itembank/<task>/<locale>/item-bank-translations.json`
+  (a flat `{ item_id: string }` map). Override the base with `QA_ITEMBANK_BASE_URL`.
+- **`crowdin`** — the non-hidden, **approved** strings read directly from the
+  Crowdin API (no export/build, no XLIFF). The string `identifier` is the
+  `item_id`. Needs `CROWDIN_API_TOKEN` (or `~/.crowdin_api_token`) and optionally
+  `CROWDIN_PROJECT_ID`.
+
+There is deliberately **no** fallback to a CSV/XLIFF: if the chosen source has no
+strings for a language the cross-language alignment is left empty and the run
+warns loudly.
+
+Other external data sources (paths relative to the `levante/` workspace root) —
+these are structural/research data, not translation strings:
+
 - `crowdin-projects/corpora/<task>/shared/corpora/<task>-item-bank.csv` —
   `item_id`/`audio_file` → `item_uid`, plus per-item `chance_level`.
 - `levante-pilots/04_papers/display/diag_items_allstats_selected.csv` — human
   item stats by `task` + `subset` (language).
 
-`analyze.mjs` uses a full RFC-4180 CSV parser (quoted commas/newlines/`""`),
-required because ToM prose cells embed all three.
+`analyze.mjs` uses a full RFC-4180 CSV parser (quoted commas/newlines/`""`) for
+those CSVs, required because ToM prose cells embed all three.
 
 ### Adding a new task
 

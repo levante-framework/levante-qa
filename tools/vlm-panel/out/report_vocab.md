@@ -1,6 +1,6 @@
 # Picture Vocabulary (4-AFC) VLM difficulty screen
 
-Generated: 2026-06-27T04:56:32.572Z
+Generated: 2026-07-25T00:34:47.726Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
 
@@ -12,7 +12,7 @@ Failures by cause: TOOL/Google **10** · `-dev`/app **0** · unknown **0**
 - ⚠️ TOOL-failure rate **18.5%** > 10% — **INCONCLUSIVE for content**; Google overload ate too much of this panel, re-run before trusting difficulty/translation numbers.
 
 ## EN
-- Respondents: **18** | common items (coverage >= 11): **170** | matched to human: **146**
+- Respondents: **18** | common items (coverage >= 11): **170** | matched to human: **145**
 - Non-response: **1.4%** of scored encounters had no parseable VLM choice (excluded, not scored wrong)
 - Spread: min 0.68, median 0.98, max 0.99, SD 0.10 -> OK
 
@@ -21,10 +21,10 @@ Failures by cause: TOOL/Google **10** · `-dev`/app **0** · unknown **0**
 - Review list: `out/review_vocab_en.csv` | full screen: `out/screen_vocab_en.csv`
 
 ### Validation vs human labels (matched items)
-- Spearman rho difficulty (p_vlm vs human p_correct), n=146: **0.623**
+- Spearman rho difficulty (p_vlm vs human p_correct), n=145: **0.615**
 - Spearman rho discrimination (rpb_vlm vs human point_biserial), n=62: **-0.284**
-- BROKEN catch: of 5 human below-chance item(s), VLM flagged **3** as BROKEN/HARD
-- BROKEN/HARD precision: of 26 VLM-flagged item(s), **13** are human-hard (p_correct < 0.5)
+- BROKEN catch: of 4 human below-chance item(s), VLM flagged **2** as BROKEN/HARD
+- BROKEN/HARD precision: of 25 VLM-flagged item(s), **12** are human-hard (p_correct < 0.5)
 - CEILING catch: of 3 human-ceiling item(s) (p>0.95), VLM flagged **3**
 
 ## NL

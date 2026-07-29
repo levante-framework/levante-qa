@@ -23,9 +23,9 @@
  * Usage: node tools/vlm-panel/analyze.mjs
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import JSZip from 'jszip';
 import { summarizeFailures, renderSummaryMarkdown } from './classify_failures.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -33,15 +33,6 @@ const REPO = join(HERE, '..', '..');
 const RUNS_DIR = join(REPO, 'cypress', 'logs', 'runs');
 const OUT_DIR = join(HERE, 'out');
 const CORPORA = join(REPO, '..', 'crowdin-projects', 'corpora');
-// Canonical map of approved sentence text -> item_id, the bridge from the VLM's
-// spoken text to the item bank (whose `prompt` is a generic template).
-const TRANSLATIONS_CSV = join(
-  REPO,
-  '..',
-  'levante_translations',
-  'translation_text',
-  'item_bank_translations.csv',
-);
 const DIAG_CSV = join(
   REPO,
   '..',
@@ -50,16 +41,61 @@ const DIAG_CSV = join(
   'display',
   'diag_items_allstats_selected.csv',
 );
-// Approved-only Crowdin export (built by the crowdin-approved QA path). Used to
-// align languages that have NO column in item_bank_translations.csv (e.g. nl):
-// the XLIFF unit id IS the item_id (same namespace as the CSV), so the existing
-// item_id -> item_uid -> human chain works unchanged. See loadCrowdinAlignment.
-const CROWDIN_CACHE =
-  process.env.QA_CROWDIN_CACHE_PATH ||
-  join(REPO, 'cypress', 'cache', 'crowdin-approved-translations.zip');
-// Per-language Crowdin alignment (normText(approved target) -> item_id),
-// prebuilt in main() for languages not carried by the CSV. Empty otherwise.
-const CROWDIN_ALIGN = {};
+
+// ---------- translation-string source ----------
+// The bridge from the VLM's spoken text to the item bank is
+// normText(approved string) -> item_id. Those strings ALWAYS come from a live
+// source keyed by task + country, never a checked-in CSV or XLIFF file:
+//
+//   - default ('draft'): the per-task/per-locale JSON published to
+//     levante-assets-draft/translations/itembank/<task>/<locale>/item-bank-translations.json,
+//     a flat { item_id: string } map.
+//   - 'crowdin': the non-hidden, APPROVED strings read directly from the Crowdin
+//     API (no export/build, no XLIFF). String identifier === item_id.
+//
+// Set QA_TRANSLATIONS_SOURCE=crowdin to use the second. There is deliberately no
+// fallback to a CSV/XLIFF: if the chosen source has no strings for a language the
+// cross-language alignment is left empty and the run says so loudly.
+const TRANSLATION_SOURCE = (process.env.QA_TRANSLATIONS_SOURCE || 'draft').toLowerCase();
+const DRAFT_ITEMBANK_BASE =
+  process.env.QA_ITEMBANK_BASE_URL ||
+  'https://storage.googleapis.com/levante-assets-draft/translations/itembank';
+const CROWDIN_API_BASE = 'https://api.crowdin.com/api/v2';
+
+// Run-id language token (or bare subtag) -> canonical bucket locale folder.
+const TOKEN_TO_LOCALE = {
+  en: 'en-US',
+  de: 'de-DE',
+  es: 'es-CO',
+  nl: 'nl-NL',
+  he: 'he-IL',
+  ar: 'ar-IL',
+  eo: 'eo-UY',
+};
+// Bucket locale -> Crowdin language id (Crowdin uses bare subtags for some).
+const LOCALE_TO_CROWDIN = {
+  'en-US': 'en-US',
+  'en-GB': 'en-GB',
+  'de-DE': 'de',
+  'nl-NL': 'nl',
+  'es-CO': 'es-CO',
+  'es-AR': 'es-AR',
+  'he-IL': 'he-IL',
+  'ar-IL': 'ar-IL',
+  'eo-UY': 'eo',
+};
+
+/** A run-language token/locale -> full bucket locale (e.g. "nl" -> "nl-NL"). */
+function resolveLocale(language) {
+  if (!language) return null;
+  if (language.includes('-')) return language;
+  return TOKEN_TO_LOCALE[language] || language;
+}
+
+// Per-language approved-string map (item_id -> string), prebuilt in main() so the
+// otherwise-synchronous join/cross-language pipeline can read it without async
+// plumbing. Empty for a language whose source has no strings.
+const ITEMBANK_STRINGS = {};
 
 // Per-task wiring. The pipeline is identical across tasks; only the scored row
 // type, the item-identity field, the item bank, the human diag task name, and
@@ -76,6 +112,7 @@ const TASKS = {
     defaultChance: 0.25,
     humanJoin: true,
     crowdinFile: 'sentence-understanding',
+    draftTask: 'trog',
   },
   stories: {
     title: 'Stories (Theory of Mind)',
@@ -90,6 +127,7 @@ const TASKS = {
     defaultChance: 0.5,
     humanJoin: true,
     crowdinFile: 'stories',
+    draftTask: 'theory-of-mind',
   },
   vocab: {
     title: 'Picture Vocabulary (4-AFC)',
@@ -97,14 +135,15 @@ const TASKS = {
     scoredType: 'word',
     itemBank: join(CORPORA, 'vocab-test', 'shared', 'corpora', 'vocab-item-bank.csv'),
     // The spoken word is the item identity. In placeholder-audio (nl) runs the
-    // transcript is the Crowdin-approved target word the mp3 will be generated
-    // from, so it aligns to the same item_id via the vocab.xliff unit id (which
+    // transcript is the approved target word the mp3 will be generated from, so
+    // it aligns to the same item_id via the itembank strings map (whose key
     // equals the bank `audio_file`). `targetWord` is the same value as a fallback.
     identity: (rec) => rec.audioTranscript || rec.targetWord,
     hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
     defaultChance: 0.25,
     humanJoin: true,
     crowdinFile: 'vocab',
+    draftTask: 'vocab',
   },
   swr: {
     title: 'ROAR SWR (Single Word Recognition) VLM difficulty screen',
@@ -400,91 +439,130 @@ function itemStats(respondents, items) {
   return { commonKeys, totals, stats, minCoverage };
 }
 
-// Per-language: which translation column carries the spoken text, and which
-// diag subset holds the human stats. es tries the regional columns in order.
-const LANG_MAP = {
-  en: { cols: ['en-US'], diag: 'en' },
-  de: { cols: ['de-DE'], diag: 'de' },
-  es: { cols: ['es-CO', 'es-AR'], diag: 'es' },
-  // nl has no column in item_bank_translations.csv (yet) and no human IRT data
-  // (pre-launch). Its text->item_id alignment comes from the Crowdin approved
-  // export (CROWDIN_ALIGN); p_human stays null, which is fine — the
-  // cross-language difficulty shift only needs p_vlm aligned by item_uid.
-  nl: { cols: [], diag: 'nl' },
-};
+// Per-language human-IRT diag subset (levante-pilots research data — NOT a
+// translation-string source). Keyed by primary subtag. Languages absent here
+// (or pre-launch, like nl) have no human data; p_human stays null, which is fine
+// — the cross-language difficulty shift only needs p_vlm aligned by item_uid.
+const LANG_DIAG = { en: 'en', de: 'de', es: 'es', nl: 'nl' };
 
-// Languages carried by item_bank_translations.csv columns; others (e.g. nl) are
-// aligned from the Crowdin approved export instead, leaving CSV langs untouched.
-const CSV_LANGS = new Set(['en', 'de', 'es']);
-
-function decodeXml(value) {
-  return value
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/gi, "'")
-    .replace(/&amp;/g, '&');
+/** Primary subtag, lowercased: "en-US" -> "en", "nl" -> "nl". */
+function primarySubtag(language) {
+  return String(language ?? '')
+    .trim()
+    .toLowerCase()
+    .split(/[-_]/)[0];
 }
 
 /**
- * Build normText(approved target) -> item_id for one language+task from the
- * cached Crowdin approved-only export. The XLIFF unit id is the item_id (same
- * namespace as item_bank_translations.csv and the corpus item bank), so the
- * downstream item_id -> item_uid -> human/cross-language chain is unchanged.
- * Returns an empty Map if the cache or task file is absent (the per-language
- * BROKEN screen still works; only nl<->en alignment is lost).
+ * Load the approved item-bank strings ({ item_id: string }) for one task+locale
+ * from the draft bucket JSON published by the localization pipeline. Throws on a
+ * missing/!200 object — we do NOT fall back to a CSV/XLIFF.
  */
-async function loadCrowdinAlignment(language, crowdinFile) {
+async function loadDraftItembankStrings(draftTask, locale) {
   const map = new Map();
-  if (!crowdinFile || !existsSync(CROWDIN_CACHE)) return map;
-  let zip;
-  try {
-    zip = await JSZip.loadAsync(readFileSync(CROWDIN_CACHE));
-  } catch {
-    return map;
-  }
-  const file = zip.file(`${language}/main/itembank_by_task/${crowdinFile}.xliff`);
-  if (!file) return map;
-  const xml = await file.async('string');
-  const unitRe =
-    /<(?:[^:\s>]+:)?trans-unit\b([^>]*)>([\s\S]*?)<\/(?:[^:\s>]+:)?trans-unit>|<(?:[^:\s>]+:)?unit\b([^>]*)>([\s\S]*?)<\/(?:[^:\s>]+:)?unit>/g;
-  for (const m of xml.matchAll(unitRe)) {
-    const attrs = m[1] || m[3] || '';
-    const body = m[2] || m[4] || '';
-    const id = /(?:\sid|resname)="([^"]+)"/.exec(attrs)?.[1];
-    const target = /<(?:[^:\s>]+:)?target\b[^>]*>([\s\S]*?)<\/(?:[^:\s>]+:)?target>/.exec(body)?.[1];
-    if (!id || !target) continue;
-    const t = normText(decodeXml(target.replace(/<[^>]+>/g, '')));
-    if (t && !map.has(t)) map.set(t, decodeXml(id));
+  if (!draftTask || !locale) return map;
+  const url = `${DRAFT_ITEMBANK_BASE}/${draftTask}/${locale}/item-bank-translations.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`draft itembank HTTP ${res.status} for ${draftTask}/${locale} (${url})`);
+  const json = await res.json();
+  for (const [itemId, text] of Object.entries(json ?? {})) {
+    if (typeof text === 'string' && text.trim()) map.set(itemId, text);
   }
   return map;
 }
 
+// --- Crowdin direct (non-hidden, approved) ---------------------------------
+function crowdinToken() {
+  const fromEnv = process.env.CROWDIN_API_TOKEN || process.env.CROWDIN_TOKEN;
+  if (fromEnv?.trim()) return fromEnv.trim();
+  const tokenPath = join(homedir(), '.crowdin_api_token');
+  if (existsSync(tokenPath)) return readFileSync(tokenPath, 'utf-8').trim();
+  throw new Error('Crowdin token not found. Set CROWDIN_API_TOKEN or create ~/.crowdin_api_token.');
+}
+
+function crowdinProjectId() {
+  return process.env.CROWDIN_PROJECT_ID || '756721';
+}
+
+/** Page through a Crowdin list endpoint (500/page), yielding each row's `data`. */
+async function* crowdinPages(path, token) {
+  const sep = path.includes('?') ? '&' : '?';
+  for (let offset = 0; ; offset += 500) {
+    const res = await fetch(`${CROWDIN_API_BASE}${path}${sep}limit=500&offset=${offset}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Crowdin ${res.status} for ${path}: ${await res.text()}`);
+    const body = await res.json();
+    const rows = body.data ?? [];
+    for (const row of rows) yield row.data;
+    if (rows.length < 500) return;
+  }
+}
+
+// Project strings are language-independent; cache the non-hidden id map across
+// the per-language prefetch loop.
+let CROWDIN_STRINGS_CACHE = null;
+async function crowdinNonHiddenStringIds(token) {
+  if (CROWDIN_STRINGS_CACHE) return CROWDIN_STRINGS_CACHE;
+  const proj = crowdinProjectId();
+  const byStringId = new Map(); // stringId -> identifier (item_id)
+  for await (const s of crowdinPages(`/projects/${proj}/strings`, token)) {
+    if (s && !s.isHidden && s.identifier) byStringId.set(s.id, s.identifier);
+  }
+  CROWDIN_STRINGS_CACHE = byStringId;
+  return byStringId;
+}
+
+/**
+ * Build item_id -> approved string for one Crowdin language id by reading the
+ * project's non-hidden strings and the language's APPROVED translations directly
+ * from the Crowdin API (no export/build, no XLIFF). The string identifier is the
+ * item_id, the same namespace as the corpus item bank.
+ */
+async function loadCrowdinApprovedStrings(crowdinLangId) {
+  const map = new Map();
+  if (!crowdinLangId) return map;
+  const token = crowdinToken();
+  const proj = crowdinProjectId();
+  const idByStringId = await crowdinNonHiddenStringIds(token);
+  // /languages/{id}/translations returns the approved translation per string.
+  for await (const t of crowdinPages(`/projects/${proj}/languages/${crowdinLangId}/translations`, token)) {
+    const itemId = idByStringId.get(t?.stringId);
+    if (itemId && typeof t.text === 'string' && t.text.trim() && !map.has(itemId)) {
+      map.set(itemId, t.text);
+    }
+  }
+  return map;
+}
+
+/**
+ * Dispatch to the configured translation-string source and return the
+ * item_id -> approved string map for one run language. Throws on source failure
+ * (no CSV/XLIFF fallback by design).
+ */
+async function loadItembankStrings(language) {
+  const locale = resolveLocale(language);
+  if (TRANSLATION_SOURCE === 'crowdin' || TRANSLATION_SOURCE === 'crowdin-approved') {
+    return loadCrowdinApprovedStrings(LOCALE_TO_CROWDIN[locale] || locale);
+  }
+  return loadDraftItembankStrings(TASK.draftTask, locale);
+}
+
 // ---------- 5: human join ----------
-// Chain: normalized transcript (in the run language) -> item_id (translations)
-// -> item_uid (item bank) -> human stats (diag, trog/<lang>).
+// Chain: normalized transcript (in the run language) -> item_id (approved
+// itembank strings) -> item_uid (corpus item bank) -> human stats (diag).
 function buildHumanJoin(language) {
   if (!TASK.humanJoin || !ITEM_BANK) {
     return { transcriptToUid: new Map(), transcriptToChance: new Map(), uidToHuman: new Map() };
   }
-  const lang = LANG_MAP[language] ?? LANG_MAP.en;
+  const diagSubset = LANG_DIAG[primarySubtag(language)] ?? LANG_DIAG.en;
 
-  // translations: normalized spoken text -> item_id (e.g. "trog-item-1")
-  const tr = readCsv(TRANSLATIONS_CSV);
+  // translations: normalized spoken text -> item_id, by inverting the approved
+  // itembank strings prefetched in main() (draft bucket JSON, or Crowdin API).
   const textToId = new Map();
-  for (const r of tr) {
-    for (const col of lang.cols) {
-      const t = normText(r[col]);
-      if (t && r.item_id && !textToId.has(t)) textToId.set(t, r.item_id);
-    }
-  }
-  // Languages with no CSV column (e.g. nl) are aligned from the Crowdin approved
-  // export prebuilt in main(); merge it in (CSV wins when both exist).
-  const align = CROWDIN_ALIGN[language];
-  if (align) {
-    for (const [t, id] of align) if (!textToId.has(t)) textToId.set(t, id);
+  for (const [itemId, text] of ITEMBANK_STRINGS[language] ?? new Map()) {
+    const t = normText(text);
+    if (t && !textToId.has(t)) textToId.set(t, itemId);
   }
   // item bank: item_id / audio_file -> item_uid (+ per-item chance level)
   const bank = readCsv(ITEM_BANK);
@@ -501,7 +579,7 @@ function buildHumanJoin(language) {
   const diag = readCsv(DIAG_CSV);
   const uidToHuman = new Map();
   for (const r of diag) {
-    if (r.task !== TASK.diagTask || r.subset !== lang.diag) continue;
+    if (r.task !== TASK.diagTask || r.subset !== diagSubset) continue;
     const uid = String(r.item).replace(/-\d+$/, '');
     if (!uidToHuman.has(uid)) {
       uidToHuman.set(uid, {
@@ -747,16 +825,27 @@ async function main() {
     process.exit(1);
   }
 
-  // Prebuild Crowdin alignment for non-CSV languages (e.g. nl) so the otherwise
-  // synchronous join/cross-language pipeline can read it without async plumbing.
+  // Prefetch the approved itembank strings (item_id -> string) for each language
+  // from the configured source (draft bucket JSON by default, or the Crowdin API
+  // when QA_TRANSLATIONS_SOURCE=crowdin), so the otherwise-synchronous
+  // join/cross-language pipeline can read them without async plumbing.
   if (TASK.humanJoin) {
+    console.error(`[strings] source=${TRANSLATION_SOURCE} task=${TASK.draftTask}`);
     for (const lang of langs) {
-      if (CSV_LANGS.has(lang)) continue;
-      CROWDIN_ALIGN[lang] = await loadCrowdinAlignment(lang, TASK.crowdinFile);
-      if (CROWDIN_ALIGN[lang].size === 0) {
+      try {
+        ITEMBANK_STRINGS[lang] = await loadItembankStrings(lang);
+      } catch (err) {
+        ITEMBANK_STRINGS[lang] = new Map();
         console.error(
-          `WARN: no Crowdin alignment for "${lang}" (cache ${existsSync(CROWDIN_CACHE) ? 'present' : 'MISSING'}; ` +
-            `task file ${TASK.crowdinFile}.xliff). Per-language screen still works; ${lang}<->en item alignment will be empty.`,
+          `WARN: no ${TRANSLATION_SOURCE} translation strings for "${lang}" (${resolveLocale(lang)}): ` +
+            `${err.message}. Per-language screen still works; ${lang}<->en item alignment will be empty.`,
+        );
+        continue;
+      }
+      if (ITEMBANK_STRINGS[lang].size === 0) {
+        console.error(
+          `WARN: empty ${TRANSLATION_SOURCE} translation-string map for "${lang}" (${resolveLocale(lang)}); ` +
+            `${lang}<->en item alignment will be empty.`,
         );
       }
     }

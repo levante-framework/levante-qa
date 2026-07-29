@@ -1,5 +1,5 @@
 priority,item_uid,flag,p_vlm,p_human,transcript
-1,vocab_word_claw,BROKEN,0.077,,"de klauw"
+1,,BROKEN,0.077,,"de klauw"
 2,vocab_word_slope,HARD,0.360,,"de helling"
 3,vocab_word_aesthete,HARD,0.400,,"de estheet"
 4,vocab_word_puddle,HARD,0.435,,"de plas"

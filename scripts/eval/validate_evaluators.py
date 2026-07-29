@@ -73,16 +73,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--target-col", default="translation_current")
     p.add_argument("--notes-col", default="notes")
     p.add_argument("--id-col", default="item_id")
-    p.add_argument(
-        "--translations-csv",
-        default="",
-        help="Optional multi-locale CSV (e.g. crowdin-xliff-dashboard.csv) to enable the centroid signal, joined by item_id.",
-    )
+    # Centroid signal reads multi-locale strings from the live source (draft bucket
+    # JSON by default, or the Crowdin API directly with --from-crowdin), joined by item_id.
     p.add_argument(
         "--from-crowdin",
         action="store_true",
-        help="Pull APPROVED multi-locale translations directly from Crowdin for the centroid signal (joined by item_id).",
+        help="Use the Crowdin API directly (non-hidden, approved) for the centroid signal instead of the default draft bucket.",
     )
+    p.add_argument("--source", default=None,
+                   help="Translation source for the centroid signal: draft (default) | crowdin. Overrides QA_TRANSLATIONS_SOURCE.")
     p.add_argument("--run-comet", action="store_true")
     p.add_argument("--run-embedding", action="store_true")
     p.add_argument("--run-llm", action="store_true")
@@ -187,38 +186,19 @@ def load_gold_v2(args: argparse.Namespace) -> List[dict]:
     return rows
 
 
-def load_centroid_langs(
-    translations_csv: str, item_ids: Sequence[str], target_col: str
+def load_centroid_rows(
+    source: str | None, item_ids: Sequence[str], target_locale: str
 ) -> Tuple[Dict[str, Dict[str, str]], List[str]]:
-    """Join item_id -> {lang: text} from a multi-locale export, for centroid use."""
-    path = Path(translations_csv)
-    if not path.exists():
-        print(f"[warn] translations CSV not found: {path}; skipping centroid.")
-        return {}, []
-    wanted = set(item_ids)
-    by_id: Dict[str, Dict[str, str]] = {}
-    langs: List[str] = []
-    with path.open("r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        meta = {"identifier", "item_id", "labels", "contentType", "_path", "en"}
-        langs = [c for c in (reader.fieldnames or []) if c not in meta]
-        for r in reader:
-            iid = (r.get("item_id") or r.get("identifier") or "").strip()
-            if iid in wanted:
-                by_id[iid] = {l: (r.get(l) or "").strip() for l in langs}
-    other_langs = [l for l in langs if l != target_col]
-    return by_id, other_langs
+    """Fetch multi-locale rows from the live source (draft or Crowdin) for centroid use.
 
-
-def load_centroid_from_crowdin(
-    item_ids: Sequence[str], target_locale: str
-) -> Tuple[Dict[str, Dict[str, str]], List[str]]:
-    """Fetch approved multi-locale rows from Crowdin and index them by item_id."""
+    Indexes item_id -> {lang: text}. The English source is the `en` column; every
+    other locale becomes a full-locale-code column.
+    """
     try:
-        from crowdin_source import fetch_approved_rows
-        rows, lang_columns = fetch_approved_rows(approved_only=True)
+        from translation_source import fetch_rows
+        rows, lang_columns = fetch_rows(source=source)
     except Exception as exc:  # noqa: BLE001
-        print(f"[warn] Crowdin fetch failed; skipping centroid: {exc}")
+        print(f"[warn] centroid source fetch failed; skipping centroid: {exc}")
         return {}, []
     wanted = set(item_ids)
     all_langs = ["en", *lang_columns]
@@ -292,26 +272,26 @@ def compute_method_scores_v2(args: argparse.Namespace, gold: List[dict]) -> Dict
             from embedding_eval import EmbeddingEvaluator
             ev = EmbeddingEvaluator()
             scores["e5_direct_sim"] = [float(x) for x in ev.evaluate_batch(sources, targets)]
-            if args.from_crowdin:
-                by_id, _ = load_centroid_from_crowdin([g["item_id"] for g in gold], "__none__")
-                if by_id:
-                    all_langs = sorted({l for m in by_id.values() for l in m})
-                    centroid: List[Optional[float]] = [None] * len(gold)
-                    groups: Dict[str, List[int]] = {}
-                    for i, loc in enumerate(locales):
-                        groups.setdefault(loc, []).append(i)
-                    for loc, idxs in groups.items():
-                        rows = []
-                        for i in idxs:
-                            m = dict(by_id.get(gold[i]["item_id"], {}))
-                            m[loc] = gold[i]["target"]
-                            rows.append(m)
-                        other = [l for l in all_langs if l != loc]
-                        for j, val in enumerate(ev.centroid_scores(rows, loc, other)):
-                            centroid[idxs[j]] = val
-                    scores["e5_centroid_sim"] = centroid
-                else:
-                    print("[warn] no Crowdin rows joined; skipping centroid.")
+            centroid_source = args.source or ("crowdin" if args.from_crowdin else None)
+            by_id, _ = load_centroid_rows(centroid_source, [g["item_id"] for g in gold], "__none__")
+            if by_id:
+                all_langs = sorted({l for m in by_id.values() for l in m})
+                centroid: List[Optional[float]] = [None] * len(gold)
+                groups: Dict[str, List[int]] = {}
+                for i, loc in enumerate(locales):
+                    groups.setdefault(loc, []).append(i)
+                for loc, idxs in groups.items():
+                    rows = []
+                    for i in idxs:
+                        m = dict(by_id.get(gold[i]["item_id"], {}))
+                        m[loc] = gold[i]["target"]
+                        rows.append(m)
+                    other = [l for l in all_langs if l != loc]
+                    for j, val in enumerate(ev.centroid_scores(rows, loc, other)):
+                        centroid[idxs[j]] = val
+                scores["e5_centroid_sim"] = centroid
+            else:
+                print("[warn] no centroid rows joined; skipping centroid.")
         except Exception as exc:  # noqa: BLE001
             print(f"[warn] embedding method unavailable: {exc}")
 
@@ -396,15 +376,10 @@ def main() -> int:
             from embedding_eval import EmbeddingEvaluator
             ev = EmbeddingEvaluator()
             method_scores["e5_direct_sim"] = [float(x) for x in ev.evaluate_batch(sources, targets)]
-            by_id, other_langs = ({}, [])
-            if args.from_crowdin:
-                by_id, other_langs = load_centroid_from_crowdin(
-                    [g["item_id"] for g in gold], args.target_locale
-                )
-            elif args.translations_csv:
-                by_id, other_langs = load_centroid_langs(
-                    args.translations_csv, [g["item_id"] for g in gold], args.target_locale
-                )
+            centroid_source = args.source or ("crowdin" if args.from_crowdin else None)
+            by_id, other_langs = load_centroid_rows(
+                centroid_source, [g["item_id"] for g in gold], args.target_locale
+            )
             if by_id and other_langs:
                 rows = [by_id.get(g["item_id"], {args.target_locale: g["target"]}) for g in gold]
                 # Ensure the target text is present under the locale key.

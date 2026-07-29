@@ -1,5 +1,5 @@
 item_uid,flag,reason,n_resp,p_vlm,rpb_vlm,p_human,pb_human,transcript
-vocab_word_claw,BROKEN,"p_vlm 0.08 < chance 0.25",26,0.077,-0.092,,,"de klauw"
+,BROKEN,"p_vlm 0.08 < chance 0.25",26,0.077,-0.092,,,"de klauw"
 vocab_word_slope,HARD,"bottom of panel (p_vlm 0.36)",25,0.360,-0.247,,,"de helling"
 vocab_word_aesthete,HARD,"bottom of panel (p_vlm 0.40)",25,0.400,0.714,,,"de estheet"
 vocab_word_puddle,HARD,"bottom of panel (p_vlm 0.43)",23,0.435,0.635,,,"de plas"

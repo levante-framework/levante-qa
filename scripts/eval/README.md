@@ -33,39 +33,53 @@ huggingface-cli login        # or: export HUGGING_FACE_HUB_TOKEN=hf_xxx
 Credentials are read from `levante-qa/.env` automatically (no need to export):
 
 - `GEMINI_API_KEY` — Gemini MQM judge (already present in `.env`).
-- `CROWDIN_API_TOKEN` — read approved translations directly from Crowdin.
+- `CROWDIN_API_TOKEN` — only needed for `--from-crowdin` (read strings directly from Crowdin).
 - `LEVANTE_TRANSLATIONS_PROJECT_ID` — optional, defaults to `756721`.
 
-## Reading approved translations from Crowdin
+## Where translation strings come from
 
-Mirrors `levante-web-dashboard` (`export-crowdin-xliff-merged.js` /
-`api/crowdin-approved-translations.js`): an approved-only build is created,
-polled, downloaded, and the XLIFF/CSV parsed into the merged
-`identifier,item_id,...,en,<locale>` table. The `item_id`s match the dashboard
-export and the human-review seed, so everything joins cleanly.
+Strings always come from a **live source keyed by task + country** — never a
+checked-in CSV or XLIFF file. The seam is `translation_source.py`, selected with
+`QA_TRANSLATIONS_SOURCE` (or `--source` / `--from-crowdin`):
+
+- **`draft` (default):** the per-task/per-locale JSON published to
+  `levante-assets-draft/translations`:
+  `itembank/<task>/<locale>/item-bank-translations.json` (plus `child-survey`,
+  `general`) and `dashboard-consolidated-flat/live/<locale>/dashboard_translations.json`.
+  Each file is a flat `{ id: string }` map (the dashboard nests one namespace
+  level, flattened to `namespace.key`).
+- **`crowdin`:** the non-hidden, **approved** strings read directly from the
+  Crowdin REST API (no export/build, no XLIFF). Needs `CROWDIN_API_TOKEN`.
+
+Both yield the same row schema (`identifier,item_id,labels,contentType,_path,en,<locale...>`).
+`item_id` is the bare flat-JSON key (e.g. `vocab-item-001`, `ClassFriends`); the
+English source is the `en` column and every other locale is a full-locale-code
+column (`de-DE`, `nl-NL`, `es-CO`, ...).
 
 ```bash
 cd scripts/eval
-# Dump approved translations to a CSV:
+# Dump the default (draft bucket) strings to a CSV, for inspection:
+python translation_source.py --output output/translations.csv
+# ...or the Crowdin-direct approved strings:
 python crowdin_source.py --output output/crowdin-approved.csv
-# ...or score them in one step (no intermediate file):
-python evaluate_translations.py --from-crowdin --target-col es-AR --all \
-  --output-csv output/eval-es-AR.csv
 ```
 
 ## Scoring a translation set
 
-Input CSV needs an id column, an English source column, a target column, and
-(optionally) extra locale columns used for the centroid signal.
+No input file: rows come from the draft bucket by default (or Crowdin with
+`--from-crowdin`). Extra locale columns are used for the centroid signal.
 
 ```bash
 cd scripts/eval
+# Draft bucket (default):
 python evaluate_translations.py \
-  --input-csv ../../../levante-web-dashboard/data/validation/crowdin-xliff-dashboard.csv \
   --target-col es-AR \
   --auto-centroid \
   --all \
   --output-csv output/eval-es-AR.csv
+# Crowdin-direct approved strings:
+python evaluate_translations.py --from-crowdin --target-col nl-NL --all \
+  --output-csv output/eval-nl-NL.csv
 ```
 
 Run a single signal with `--run-embedding`, `--run-comet`, or `--run-llm`. The
@@ -81,11 +95,10 @@ the human verdicts in the review seed (`notes` column).
 
 ```bash
 cd scripts/eval
-# centroid languages pulled straight from Crowdin:
+# centroid languages from the draft bucket (default):
+python validate_evaluators.py --all
+# ...or straight from Crowdin (non-hidden, approved):
 python validate_evaluators.py --all --from-crowdin
-# ...or from a local multi-locale CSV:
-python validate_evaluators.py --all \
-  --translations-csv ../../../levante-web-dashboard/data/validation/crowdin-xliff-dashboard.csv
 ```
 
 Output is a table of Spearman/Kendall correlation with the human ordinal, ROC-AUC
@@ -112,8 +125,8 @@ method conflict rather than any single score's tail.
 
 ```bash
 cd scripts/eval
-python build_validation_pool.py --from-crowdin \
-  --locales es-AR,es-CO,de,nl,fr-CA --backbone 560 --enrich 240 --enrich-with-comet
+python build_validation_pool.py \
+  --locales es-AR,es-CO,de-DE,nl-NL,fr-CA --backbone 560 --enrich 240 --enrich-with-comet
 ```
 
 Outputs to `output/validation-pool-v2/`: `blind/<locale>.csv` + `blind/combined.csv`
@@ -161,8 +174,8 @@ python dashboard_labels.py --source prolific
 python calibrate_thresholds.py --labels-csv output/prolific-v2-es-AR.csv --target-recall 0.80
 
 # 2. Rank approved translations worst-first (Tier 1 = E5+COMET on all, Tier 2 = MQM
-#    only on the flagged tail, capped by --max-mqm). Words come live from Crowdin by
-#    default; pass --input-csv output/crowdin-approved.csv to score a saved snapshot:
+#    only on the flagged tail, capped by --max-mqm). Strings come from the draft
+#    bucket by default; pass --from-crowdin to read them directly from Crowdin:
 python review_queue.py --locales es-AR --max-mqm 300
 #    ...or a free adequacy-only pass:
 python review_queue.py --locales es-AR --tier1-only
@@ -214,15 +227,15 @@ The check compares a **word** against a **picture**, and each side has its own s
 
 | Side | Default | Flag(s) to change it | Other locations |
 | --- | --- | --- | --- |
-| **Words** (translations) | **Live Crowdin** approved translations | `--translations-csv <file>` to use a saved export instead | `output/crowdin-approved.csv` (snapshot from `crowdin_source.py`) |
+| **Words** (translations) | **Draft bucket** task/country JSON (`levante-assets-draft/translations/itembank/vocab`) | `--from-crowdin` to read non-hidden approved strings from the Crowdin API | `QA_TRANSLATIONS_SOURCE=crowdin` (env equivalent) |
 | **Images** (answer pictures) | **Deployed `-dev` GCS bucket** `gs://levante-assets-dev/visual/vocab/` | `--gcs-bucket levante-assets-prod` (prod) · `--image-source local` (repo assets) | local: `core-task-assets/vocab/{original,images}` |
 
-- **Words — live by default.** Running with no `--translations-csv` pulls approved
-  translations straight from Crowdin at run time (needs `CROWDIN_API_TOKEN` in `.env`),
-  so you always score the current approved words. Pass `--from-crowdin` to be explicit,
-  or `--translations-csv output/crowdin-approved.csv` to score a frozen snapshot
-  (faster, offline, reproducible). Both the English keyword and the per-locale word
-  come from the same source row (`en` / locale columns).
+- **Words — draft bucket by default.** Running with no source flag reads the
+  per-task/per-locale JSON from the draft bucket, so you always score the current
+  published words. Pass `--from-crowdin` (needs `CROWDIN_API_TOKEN` in `.env`) to
+  read non-hidden approved strings directly from the Crowdin API instead. Both the
+  English keyword and the per-locale word come from the same source row (`en` /
+  locale columns); there is no CSV/XLIFF fallback.
 - **Images — deployed `-dev` bucket by default**, downloaded + cached under
   `output/gcs_vocab_cache/`, so it validates exactly what children see. Switch to
   `--gcs-bucket levante-assets-prod` for prod, or `--image-source local` to read the
@@ -243,12 +256,12 @@ items (e.g. `triad`, `posterior`, `sedentary`) while keeping true errors like `c
 
 ```bash
 cd scripts/eval
-# Default: live Crowdin words + deployed -dev images. One or many locales
+# Default: draft-bucket words + deployed -dev images. One or many locales
 # (the image is shared; only the word changes per locale).
-python vocab_vision_eval.py --locales es-AR,de,nl,es-CO,fr-CA,pt-PT,en-GB
+python vocab_vision_eval.py --locales es-AR,de-DE,nl-NL,es-CO,fr-CA,pt-PT,en-GB
 
-# Score a saved snapshot instead of pulling live (offline / reproducible):
-python vocab_vision_eval.py --translations-csv output/crowdin-approved.csv --locales de,nl
+# Read approved words directly from Crowdin instead of the draft bucket:
+python vocab_vision_eval.py --from-crowdin --locales de-DE,nl-NL
 
 # Validate prod images instead of -dev:
 python vocab_vision_eval.py --gcs-bucket levante-assets-prod --locales es-AR
@@ -506,7 +519,7 @@ automatically and flags the exact option rows of any broken scene (disable with
 
 ## Files
 
-- `evaluate_translations.py` — orchestrator (scores a CSV or `--from-crowdin`)
+- `evaluate_translations.py` — orchestrator (scores the draft bucket by default, or `--from-crowdin`)
 - `vocab_vision_eval.py` — vocab word-vs-answer-image check (Gemini vision)
 - `trog_vision_eval.py` — TROG sentence-vs-pictures 4-AFC check + confirmation gate + cross-locale guard (Gemini vision)
 - `tom_vision_eval.py` — Theory-of-Mind story-vs-pictures AFC check + reliability gate + cross-locale guard (Gemini vision)
@@ -519,7 +532,8 @@ automatically and flags the exact option rows of any broken scene (disable with
 - `review_queue.py` — tiered advisory review queue over approved translations
 - `build_validation_pool.py` — blind, unbiased v2 label pool builder
 - `ensemble_eval.py` — legacy + COMET + MQM-major-count blend, leave-one-out CV
-- `crowdin_source.py` — fetch approved translations from Crowdin (stdlib only)
+- `translation_source.py` — the string source seam: draft bucket JSON (default) or Crowdin-direct approved (stdlib only)
+- `crowdin_source.py` — thin wrapper: approved translations read directly from the Crowdin API (`--from-crowdin`)
 - `embedding_eval.py` / `comet_eval.py` / `llm_mqm_eval.py` — the three signals
 - `stats.py` — Spearman / Kendall / ROC-AUC / P@k (numpy only)
 - `cache.py` — resume-safe disk cache for the LLM pass

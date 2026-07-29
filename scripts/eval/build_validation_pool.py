@@ -16,11 +16,12 @@ Outputs (to --output-dir):
   * provenance.csv                           -> stratum + raw signals per row, kept
         SEPARATE so analysis can use them without anchoring the annotators.
 
-Source pool comes from Crowdin (approved) or a cached merged CSV from
-crowdin_source.py. Examples:
+Source pool comes from the live translation source (see translation_source.py):
+the draft bucket JSON by default, or the Crowdin API directly with --from-crowdin.
+Examples:
+  .venv/bin/python build_validation_pool.py \
+      --locales es-AR,es-CO,de-DE,nl-NL,fr-CA --backbone 560 --enrich 240
   .venv/bin/python build_validation_pool.py --from-crowdin \
-      --locales es-AR,es-CO,de,nl,fr-CA --backbone 560 --enrich 240
-  .venv/bin/python build_validation_pool.py --input-csv output/crowdin-approved.csv \
       --locales es-AR --backbone 70 --enrich 30 --no-enrich-signals
 """
 
@@ -51,16 +52,10 @@ def length_bucket(text: str) -> str:
 
 
 def load_rows(args) -> tuple[List[dict], List[str]]:
-    if args.from_crowdin:
-        from crowdin_source import fetch_approved_rows
-        return fetch_approved_rows(approved_only=not args.include_unapproved)
-    path = Path(args.input_csv)
-    if not path.is_file():
-        sys.exit(f"--input-csv not found: {path}")
-    with path.open(encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    langs = sorted({h for r in rows for h in r.keys()} - FIXED_COLS) if rows else []
-    return rows, [l for l in langs if l]
+    from translation_source import fetch_rows
+
+    source = getattr(args, "source", None) or ("crowdin" if getattr(args, "from_crowdin", False) else None)
+    return fetch_rows(source=source)
 
 
 def build_candidates(rows: Sequence[dict], locales: Sequence[str]) -> List[dict]:
@@ -205,11 +200,13 @@ def write_provenance(cands: List[dict], out_dir: Path) -> None:
 def main() -> int:
     load_env()
     p = argparse.ArgumentParser(description="Build a blind v2 validation pool for labeling.")
-    src = p.add_mutually_exclusive_group(required=True)
-    src.add_argument("--from-crowdin", action="store_true", help="Pull approved translations from Crowdin.")
-    src.add_argument("--input-csv", help="Merged CSV from crowdin_source.py instead.")
-    p.add_argument("--include-unapproved", action="store_true")
-    p.add_argument("--locales", required=True, help="Comma-separated target locales, e.g. es-AR,de,nl.")
+    # Strings come from a live source keyed by task + country: the draft bucket
+    # JSON by default, or the Crowdin API directly with --from-crowdin. No CSV fallback.
+    p.add_argument("--from-crowdin", action="store_true",
+                   help="Pull APPROVED strings directly from the Crowdin API instead of the default draft bucket.")
+    p.add_argument("--source", default=None,
+                   help="Translation source: draft (default) | crowdin. Overrides QA_TRANSLATIONS_SOURCE.")
+    p.add_argument("--locales", required=True, help="Comma-separated target locales, e.g. es-AR,de-DE,nl-NL.")
     p.add_argument("--backbone", type=int, default=560, help="Uniform-random segments (~70%%).")
     p.add_argument("--enrich", type=int, default=240, help="Disagreement segments (~30%%).")
     p.add_argument("--max-enrich-candidates", type=int, default=4000,
