@@ -245,8 +245,8 @@ export function installAudioCapture(win: Window): void {
       offset?: number,
       duration?: number,
     ): void {
-      const ctx = this.context;
-      if (ctx && ctx.state === 'suspended') {
+      const ctx = this.context as AudioContext;
+      if (ctx.state === 'suspended') {
         void ctx.resume();
       }
 
