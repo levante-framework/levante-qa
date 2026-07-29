@@ -12,7 +12,7 @@
   "scripts": {
     "cy:open": "cypress open",
     "cy:run": "cypress run",
-    "cy:run:oracle": "cypress run --spec 'cypress/e2e/**/oracle.cy.ts'",
+    "cy:run:oracle": "cypress run --spec 'cypress/e2e/{egma_math,hearts_and_flowers,matrix_reasoning,memory_game,mental_rotation,same_different,stories,trog,vocab}/oracle.cy.ts'",
     "cy:run:wrong": "cypress run --spec 'cypress/e2e/**/wrong_agent.cy.ts'",
     "cy:run:sim": "cypress run --spec 'cypress/e2e/**/sim_child.cy.ts'",
     "cy:run:trog:sim": "cypress run --spec 'cypress/e2e/trog/sim_child.cy.ts'",

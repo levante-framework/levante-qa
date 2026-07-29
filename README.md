@@ -967,9 +967,14 @@ All three ROAR literacy tasks (PA, SRE, SWR) are now in the dashboard catalog as
 2. Reuse `cypress/support/tasks/types.ts` (extend the schemas if the task needs extra fields).
 3. Add sibling specs `cypress/e2e/<task>/oracle.cy.ts` and `cypress/e2e/<task>/vlm_agent.cy.ts` modeled on the Hearts & Flowers pair.
 4. Ground "correct" in real truth (see [How correctness is validated](#how-correctness-is-validated)): if the task marks its answer in the DOM under Cypress, have the oracle assert its computed answer matches that key and score the VLM against it; if not, pin the rule to core-tasks with a pure-logic equivalence spec like `rule_equivalence.cy.ts`.
-5. The `cy:run:oracle` / `cy:run:vlm` globs and both workflows pick up the new specs automatically.
+5. Add the new task's folder to the `cy:run:oracle` / `cy:run:vlm` `--spec` brace lists in `package.json` (and both workflows pick it up). ROAR/dashboard-only tasks stay off those lists — see [CI](#ci).
 
 ## CI
 
 - **`qa.yml`** — on push/PR: install, typecheck, run the oracle specs and the audio content-QA headless, upload `cypress/logs` (and screenshots on failure).
+  `cy:run:oracle` lists the demo-hosted core-task oracles only (not `pa`/`sre`/`swr`):
+  the ROAR oracles need `LAUNCH=dashboard` plus `-dev` participant credentials, which
+  CI has no secrets for. Run them locally via `pnpm cy:run:pa:oracle` / `:sre:` /
+  `:swr:`. When adding a new demo-hosted task, add its folder to that `--spec` brace
+  list in `package.json`.
 - **`vlm-nightly.yml`** — `workflow_dispatch` + nightly cron. Matrix over `[openai, anthropic, gemini]`, reading `*_API_KEY` from repo secrets. Runs the VLM specs, then `pnpm score`, and uploads logs + `results/`.
