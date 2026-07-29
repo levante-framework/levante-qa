@@ -56,8 +56,10 @@ const MP3_RE = /\.mp3(\?|$)/i;
 /**
  * Non-speech audio cues (button clicks, coin/fail jingles, silent spacers).
  * These intentionally carry no transcript, so they are treated as "no narration"
- * by the capture helpers and excluded from the transcript content-QA. Verified
- * against the live dev bucket on 2026-05-29.
+ * by the capture helpers and excluded from the transcript content-QA. This is
+ * the full contents of the locale-independent `audio/shared/` bucket folder —
+ * nothing served from there is speech, so a new cue landing in that folder
+ * belongs here. Verified against the live dev bucket on 2026-07-29.
  */
 const NON_SPEECH_AUDIO: ReadonlySet<string> = new Set([
   'coin',
@@ -65,6 +67,7 @@ const NON_SPEECH_AUDIO: ReadonlySet<string> = new Set([
   'select',
   'nullAudio',
   'inputAudioCue',
+  'pop',
 ]);
 
 /** Filename (without extension) of an audio URL, e.g. ".../heart-instruct1.mp3" -> "heart-instruct1". */
