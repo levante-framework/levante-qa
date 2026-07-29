@@ -88,9 +88,8 @@ jobs:
       - name: Checkout levante-qa
         uses: actions/checkout@v4
 
+      # version comes from package.json "packageManager" (do not also set version:)
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
