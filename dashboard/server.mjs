@@ -523,6 +523,15 @@ function spawnCypress(run) {
     if (run.meta.personaAbility === 'irt') {
       env.QA_PERSONA_ABILITY = 'irt';
     }
+    if (run.meta.country) {
+      env.QA_PERSONA_COUNTRY = String(run.meta.country);
+    }
+  }
+  if (run.meta.agent === 'sim' || run.meta.agent === 'sim_child') {
+    env.QA_AGENT_MODE = 'sim';
+    if (run.meta.ageYears != null) env.QA_SIM_AGE_YEARS = String(run.meta.ageYears);
+    if (run.meta.ageMonths != null) env.QA_SIM_AGE_MONTHS = String(run.meta.ageMonths);
+    if (run.meta.country) env.QA_SIM_COUNTRY = String(run.meta.country);
   }
 
   const args = [

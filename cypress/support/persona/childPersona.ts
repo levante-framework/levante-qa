@@ -20,6 +20,10 @@ export type AgeAccuracyProfile = Record<string, Record<string, number>>;
 export type AgeAbilityCell = { theta: number; n?: number };
 export type AgeAbilityProfile = Record<string, Record<string, AgeAbilityCell>>;
 
+/** Country-stratified tables: country -> task -> age -> value (_meta reserved). */
+export type CountryAccuracyProfiles = Record<string, AgeAccuracyProfile>;
+export type CountryAbilityProfiles = Record<string, AgeAbilityProfile>;
+
 /** Maps a levante-qa task folder slug to the canonical LEVANTE task_id used in
  * the trial data / profile JSON. Slugs with no matching profile (none today)
  * simply fall back to age-only persona wording. */
@@ -35,6 +39,24 @@ const SLUG_TO_TASK_ID: Record<string, string> = {
   memory_game: 'memory-game',
 };
 
+/** Normalize QA_SIM_COUNTRY / QA_PERSONA_COUNTRY (e.g. DE, Colombia, co). */
+const COUNTRY_ALIASES: Record<string, string> = {
+  de: 'de',
+  germany: 'de',
+  deutschland: 'de',
+  co: 'co',
+  colombia: 'co',
+  ca: 'ca',
+  canada: 'ca',
+};
+
+export function normalizeCountry(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const key = String(raw).trim().toLowerCase();
+  if (!key) return null;
+  return COUNTRY_ALIASES[key] ?? (key.length === 2 ? key : null);
+}
+
 const FALLBACK_TEMPLATE = [
   'You are simulating the cognitive abilities of a typical {age_phrase} child taking a developmental assessment, one item at a time.',
   '',
@@ -45,34 +67,86 @@ const FALLBACK_TEMPLATE = [
 
 let cachedProfile: AgeAccuracyProfile | null = null;
 let cachedAbilityProfile: AgeAbilityProfile | null = null;
+let cachedCountryAccuracy: CountryAccuracyProfiles | null = null;
+let cachedCountryAbility: CountryAbilityProfiles | null = null;
 let cachedTemplate: string | null = null;
 
 function personaDir(): string {
   return join(process.cwd(), 'cypress', 'support', 'persona');
 }
 
+function readJson<T>(name: string, fallback: T): T {
+  try {
+    return JSON.parse(readFileSync(join(personaDir(), name), 'utf-8')) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Strip `_meta` and return country -> task profiles. */
+function stripMeta<T extends Record<string, unknown>>(raw: T): Omit<T, '_meta'> {
+  const { _meta: _ignored, ...rest } = raw as T & { _meta?: unknown };
+  return rest as Omit<T, '_meta'>;
+}
+
 export function loadProfile(): AgeAccuracyProfile {
   if (cachedProfile === null) {
-    try {
-      cachedProfile = JSON.parse(readFileSync(join(personaDir(), 'age_task_accuracy.json'), 'utf-8'));
-    } catch {
-      cachedProfile = {};
-    }
+    cachedProfile = readJson('age_task_accuracy.json', {});
   }
   return cachedProfile as AgeAccuracyProfile;
 }
 
 export function loadAbilityProfile(): AgeAbilityProfile {
   if (cachedAbilityProfile === null) {
-    try {
-      cachedAbilityProfile = JSON.parse(
-        readFileSync(join(personaDir(), 'age_task_ability.json'), 'utf-8'),
-      );
-    } catch {
-      cachedAbilityProfile = {};
-    }
+    cachedAbilityProfile = readJson('age_task_ability.json', {});
   }
   return cachedAbilityProfile as AgeAbilityProfile;
+}
+
+export function loadCountryAccuracyProfiles(): CountryAccuracyProfiles {
+  if (cachedCountryAccuracy === null) {
+    cachedCountryAccuracy = stripMeta(readJson('age_task_accuracy_by_country.json', {}));
+  }
+  return cachedCountryAccuracy as CountryAccuracyProfiles;
+}
+
+export function loadCountryAbilityProfiles(): CountryAbilityProfiles {
+  if (cachedCountryAbility === null) {
+    cachedCountryAbility = stripMeta(readJson('age_task_ability_by_country.json', {}));
+  }
+  return cachedCountryAbility as CountryAbilityProfiles;
+}
+
+/**
+ * Resolve accuracy/ability tables for an optional country.
+ * Falls back to the global (pooled) profile when the country is unset or missing a task.
+ */
+export function resolveProfiles(countryRaw?: string | null): {
+  country: string | null;
+  accuracy: AgeAccuracyProfile;
+  ability: AgeAbilityProfile;
+} {
+  const country = normalizeCountry(countryRaw);
+  const globalAcc = loadProfile();
+  const globalAb = loadAbilityProfile();
+  if (!country) return { country: null, accuracy: globalAcc, ability: globalAb };
+
+  const byAcc = loadCountryAccuracyProfiles()[country];
+  const byAb = loadCountryAbilityProfiles()[country];
+  if (!byAcc && !byAb) {
+    console.warn(
+      `persona: no country profile for '${country}'; using global age tables ` +
+        `(known: ${Object.keys(loadCountryAccuracyProfiles()).join(', ') || 'none'})`,
+    );
+    return { country, accuracy: globalAcc, ability: globalAb };
+  }
+  // Merge: country cells win; missing tasks fall back to global so sparse
+  // country corners still get a calibrated twin.
+  return {
+    country,
+    accuracy: { ...globalAcc, ...(byAcc ?? {}) },
+    ability: { ...globalAb, ...(byAb ?? {}) },
+  };
 }
 
 function loadTemplate(): string {
@@ -128,6 +202,8 @@ function agePhrase(ageYears: number, ageMonths: number): string {
 export type ChildPersonaOptions = {
   /** When true, append mean IRT θ for this age/task (if available in age_task_ability.json). */
   includeIrtAbility?: boolean;
+  /** ISO-ish country key (de/co/ca) or alias; uses country-stratified tables when present. */
+  country?: string | null;
   profile?: AgeAccuracyProfile;
   abilityProfile?: AgeAbilityProfile;
 };
@@ -141,17 +217,28 @@ export function makeChildPersonaPrompt(
   const template = loadTemplate();
   const phrase = agePhrase(ageYears, ageMonths);
   const ageDecimal = ageYears + ageMonths / 12;
-  const profile = options.profile ?? loadProfile();
-  const abilityProfile = options.abilityProfile ?? loadAbilityProfile();
+  const resolved =
+    options.profile || options.abilityProfile
+      ? {
+          country: normalizeCountry(options.country),
+          accuracy: options.profile ?? loadProfile(),
+          ability: options.abilityProfile ?? loadAbilityProfile(),
+        }
+      : resolveProfiles(options.country);
+  const profile = resolved.accuracy;
+  const abilityProfile = resolved.ability;
 
   let difficultyBlock = '';
   let abilityBlock = '';
   const taskId = qaTaskSlug ? SLUG_TO_TASK_ID[qaTaskSlug] : undefined;
+  const localeHint = resolved.country
+    ? ` in the ${resolved.country.toUpperCase()} pilot sample`
+    : '';
   if (taskId && profile[taskId]) {
     const acc = nearestAccuracy(profile[taskId], ageDecimal);
     if (acc != null) {
       difficultyBlock =
-        `\n\nFor a child this age, this task is typically ${difficultyLabel(acc)} ` +
+        `\n\nFor a child this age${localeHint}, this task is typically ${difficultyLabel(acc)} ` +
         `(about ${Math.round(acc * 100)}% of items answered correctly by children this age).`;
     }
   }
@@ -160,7 +247,7 @@ export function makeChildPersonaPrompt(
     if (cell != null && Number.isFinite(cell.theta)) {
       const sign = cell.theta >= 0 ? '+' : '';
       abilityBlock =
-        `\n\nOn this task's IRT scale, children this age typically have ability θ ≈ ${sign}${cell.theta.toFixed(2)} ` +
+        `\n\nOn this task's IRT scale, children this age${localeHint} typically have ability θ ≈ ${sign}${cell.theta.toFixed(2)} ` +
         `(task-specific scale; higher θ means stronger performance relative to item difficulty).`;
     }
   }

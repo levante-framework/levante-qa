@@ -21,7 +21,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { loadAbilityProfile, loadProfile } from '../support/persona/childPersona';
+import { resolveProfiles } from '../support/persona/childPersona';
 
 /** levante-qa task slug -> canonical LEVANTE task id (item-bank + profile key). */
 const SLUG_TO_TASK_ID: Record<string, string> = {
@@ -31,6 +31,7 @@ const SLUG_TO_TASK_ID: Record<string, string> = {
   matrix_reasoning: 'matrix-reasoning',
   mental_rotation: 'mental-rotation',
   egma_math: 'egma-math',
+  same_different: 'same-different-selection',
 };
 
 const BANK_BUCKET = process.env.QA_SIM_BANK_BUCKET || 'levante-assets-dev';
@@ -41,6 +42,8 @@ export interface SimChildConfig {
   taskId: string;
   ageYears: number;
   ageMonths: number;
+  /** Country key used for stratified norms (`de`/`co`/`ca`), or null for global. */
+  country: string | null;
   /** Mean child IRT theta for this age/task; null when the task has no ability table. */
   theta: number | null;
   /** Calibration offset b (0 when theta or the accuracy target is unavailable). */
@@ -156,12 +159,22 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
   }
   const ageMonths = Number(process.env.QA_SIM_AGE_MONTHS ?? '0') || 0;
   const age = ageYears + ageMonths / 12;
+  // Prefer QA_SIM_COUNTRY; QA_SIM_SITE (e.g. pilot_uniandes_co) maps via suffix.
+  const countryRaw =
+    process.env.QA_SIM_COUNTRY ||
+    (process.env.QA_SIM_SITE ? String(process.env.QA_SIM_SITE).split('_').pop() : '') ||
+    '';
+  const { country, accuracy, ability } = resolveProfiles(countryRaw);
 
-  const abilityCell = nearestAgeRow(loadAbilityProfile()[taskId] ?? {}, age);
+  const abilityCell = nearestAgeRow(ability[taskId] ?? {}, age);
   const theta = abilityCell && Number.isFinite(abilityCell.theta) ? abilityCell.theta : null;
-  const fallbackP = nearestAgeRow(loadProfile()[taskId] ?? {}, age);
+  const fallbackP = nearestAgeRow(accuracy[taskId] ?? {}, age);
   if (fallbackP == null) {
-    throw new Error(`sim: no accuracy-by-age profile for '${taskId}' in age_task_accuracy.json`);
+    throw new Error(
+      `sim: no accuracy-by-age profile for '${taskId}'` +
+        (country ? ` (country=${country})` : '') +
+        ' in age_task_accuracy.json',
+    );
   }
 
   // Some banks are not deployed (e.g. egma-math 404s on GCS). The sim still
@@ -195,6 +208,7 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
     taskId,
     ageYears,
     ageMonths,
+    country,
     theta,
     offset,
     fallbackP,
