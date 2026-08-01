@@ -26,6 +26,66 @@ Esperanto, and posts findings to Slack `#levante-crowdin`.
 5. Prints only the delta report; Slack posts **only when there are findings**.
    Use `--force` to re-screen everything regardless of hashes.
 
+## Diagnosing item translation issues
+
+The screen is a **change detector + triage assistant**, not a full psychometric
+validation. It answers: “Did this newly approved (or edited) pack introduce
+strings that look wrong relative to English / the item images?”
+
+### What a finding means
+
+| Finding kind | Tasks | Meaning |
+| --- | --- | --- |
+| `vision` (`translation_issue`) | vocab, trog, theory-of-mind, same-different-selection | English control answered correctly from the image; the locale string did not. Strong signal the **translation** (or keying) is wrong for that item. |
+| `item_or_model` (not Slacked) | same vision tasks | English also fails. Treat as ambiguous item art / model limit — **do not** blame the translator. |
+| `mqm` (`mqm_score ≤ 90`) | all other itembank tasks | Gemini MQM judge flagged accuracy/fluency/style problems in the text pack (no image check). |
+| `error` | any | Eval script crashed; fix tooling before interpreting content. |
+
+Vision evals always run an **en-US control** first. That control is what turns a
+vague “the model got it wrong” into a diagnosable **translation** issue.
+
+### How to triage a Slack alert
+
+1. Open the posted item id + English vs locale strings.
+2. For vision findings: pull the item image from prod assets and ask whether the
+   locale string still names / describes the keyed target. Common fixes:
+   wrong sense of a word, gender/number mismatch that changes meaning, missing
+   negation, swapped response options, or a Crowdin key bound to the wrong
+   source string.
+3. For MQM findings: read the short `mqm_assessment`; re-check critical/major
+   accuracy errors first (meaning change), then fluency.
+4. Confirm the pack was meant to be live (draft bucket by default). Placeholders
+   and Esperanto are skipped on purpose — silence there is **not** a clean bill
+   of health; it means “not screened.”
+5. Re-run locally after a Crowdin fix:
+   `pnpm run translation-screen -- --tasks=<task> --locales=<locale> --force --no-slack`
+
+### What it catches well
+
+- New locales or edited strings that break picture–word / picture–sentence match
+- Obvious mistranslations and awkward calques on non-vision tasks (MQM)
+- Accidental promotion of empty / placeholder-only packs (they never enter the
+  eval set; if you expected coverage, their absence from inventory is the clue)
+
+### What it does not prove
+
+- Age-appropriate difficulty or human child performance (use child-twins / VLM
+  panel + human norms for that)
+- That an item is psychometrically sound — only that the **locale string** is
+  consistent with English for a VLM, or that MQM text quality is above threshold
+- Completeness of every key vs en-US (hashing is over approved values present in
+  the locale file; missing keys need a separate coverage check)
+
+### Reading artifacts
+
+| File | Use |
+| --- | --- |
+| `results/translation-screen/<date>.md` | Human-readable delta + findings |
+| `results/translation-screen/<date>.json` / `latest.json` | Machine-readable triage |
+| `results/eval/*-vision-<locale>.csv` | Per-item tags, reasons, EN vs translation |
+| `results/eval/screen-mqm-<task>-<locale>.csv` | MQM scores and assessments |
+| `results/translation-screen/inventory-baseline.json` | Yesterday’s hashes (why today’s run was quiet) |
+
 ## Local usage
 
 ```bash
