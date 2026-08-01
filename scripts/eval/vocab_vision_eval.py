@@ -160,14 +160,12 @@ class VocabVisionEvaluator:
                 "reason": "", "error": last}
 
 
-VOCAB_ITEM_RE = re.compile(r"vocab\.xliff::(vocab-item-\d+)")
+# Accept plain keys and legacy Crowdin-style "vocab.xliff::vocab-item-NNN".
+VOCAB_ITEM_RE = re.compile(r"(?:vocab\.xliff::)?(vocab-item-\d+)")
 
 
 def _vid(item_id: str) -> Optional[str]:
     m = VOCAB_ITEM_RE.search(item_id or "")
-    if m:
-        return m.group(1)
-    m = re.search(r"(vocab-item-\d+)", item_id or "")
     return m.group(1) if m else None
 
 
@@ -360,7 +358,7 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
         is_hard = d is not None and d >= hard_threshold
         res = ev.evaluate(it["en_word"], it["word"], locale, it["image"], is_hard=is_hard,
                           distractors=distractors.get(it["vid"]))
-        out.append({"locale": locale, "item_id": f"vocab.xliff::{it['vid']}", "vid": it["vid"],
+        out.append({"locale": locale, "item_id": it["vid"], "vid": it["vid"],
                     "en_word": it["en_word"], "translation": it["word"], "vision_match": res["match"],
                     "object_in_locale": res["object_in_locale"], "confidence": res["confidence"],
                     "reason": res["reason"], "image": str(it["image"]),

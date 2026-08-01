@@ -3,29 +3,29 @@
  * Daily translation screen.
  *
  * Inventories itembank translations (draft bucket by default), skips Esperanto
- * and placeholder-only locales ("NO APPROVED TRANSLATION"), diffs content
- * hashes against the previous snapshot, evaluates only new/changed
- * task×locale packs, and posts findings to Slack #levante-crowdin.
+ * and placeholder-only locales ("NO APPROVED TRANSLATION"), diffs approved keys
+ * against the previous snapshot, evaluates only packs with newly appeared
+ * strings (edits to existing keys are ignored), and DMs findings via Slack.
  *
  * Vision tasks (vocab / trog / theory-of-mind / same-different-selection) use
  * the English-control vision evals. Everything else uses the Gemini MQM judge
  * scoped to that task path.
  *
  * Snapshots:
- *   results/translation-screen/inventory-baseline.json  — pack hashes (always updated)
+ *   results/translation-screen/inventory-baseline.json  — pack hashes + keys
  *   results/translation-screen/latest.json              — last full screen result
- *   results/translation-screen/<YYYY-MM-DD>.{json,md}   — only when something changed
+ *   results/translation-screen/<YYYY-MM-DD>.{json,md}   — only when new strings
  *
- * Output is delta-only: quiet if nothing new/changed since the last run.
- * Slack posts only when there are findings (not on quiet or clean screens).
+ * Output is delta-only: quiet if no new approved keys since the last run.
+ * Slack DMs only when there are findings (not on quiet or clean screens).
  *
  * Config (env / flags):
  *   QA_ITEMBANK_BASE_URL   draft (default) or prod translations root
  *   QA_TRANSLATION_BUCKET  override bucket name (default derived from base)
  *   GEMINI_API_KEY         required when anything needs screening
- *   SLACK_WEBHOOK_URL      preferred Slack path (channel bound at webhook)
- *   SLACK_BOT_TOKEN        bot token fallback
- *   SLACK_ALERT_CHANNEL    default levante-crowdin (bot-token path)
+ *   SLACK_BOT_TOKEN        preferred (DM via chat.postMessage)
+ *   SLACK_ALERT_CHANNEL    Slack user id for DM (default W018924DJJV)
+ *   SLACK_WEBHOOK_URL      optional fallback (channel fixed by webhook)
  *   TRANSLATION_SCREEN_MQM_MAX  flag MQM scores at or below this (default 90)
  *
  * Flags: --dry-run  --no-slack  --force  --locales=de-DE,en-GB  --tasks=vocab,trog
@@ -148,13 +148,15 @@ async function inventory() {
     if (ONLY_LOCALES.size && !ONLY_LOCALES.has(locale)) continue;
     const data = await gcsJson(name);
     const approved = approvedEntries(data);
-    const realCount = Object.keys(approved).length;
+    const keys = Object.keys(approved).sort();
+    const realCount = keys.length;
     packs.push({
       task,
       locale,
       object: name,
       realCount,
       totalKeys: Object.keys(data || {}).length,
+      keys,
       hash: realCount ? sha(approved) : null,
       placeholderOnly: realCount === 0,
     });
@@ -189,12 +191,13 @@ function packsBaselinePayload(packs, date) {
   return {
     date,
     bucket: GCS_BUCKET,
-    packs: packs.map(({ task, locale, object, realCount, totalKeys, hash, placeholderOnly }) => ({
+    packs: packs.map(({ task, locale, object, realCount, totalKeys, keys, hash, placeholderOnly }) => ({
       task,
       locale,
       object,
       realCount,
       totalKeys,
+      keys: keys || [],
       hash,
       placeholderOnly,
     })),
@@ -207,6 +210,18 @@ async function saveInventoryBaseline(packs, date) {
   return path;
 }
 
+/** Keys present in current pack that were not in the previous baseline. */
+function newKeysForPack(pack, prev) {
+  if (!prev) return pack.keys || [];
+  if (!Array.isArray(prev.keys)) {
+    // Legacy baseline without keys: treat a hash change as all keys new once.
+    if (prev.hash !== pack.hash) return pack.keys || [];
+    return [];
+  }
+  const prevKeys = new Set(prev.keys);
+  return (pack.keys || []).filter((k) => !prevKeys.has(k));
+}
+
 function diffPacks(current, previous) {
   const prevMap = new Map(
     (previous?.packs || []).map((p) => [`${p.task}|${p.locale}`, p]),
@@ -215,14 +230,39 @@ function diffPacks(current, previous) {
   for (const p of current) {
     if (p.placeholderOnly) continue;
     const prev = prevMap.get(`${p.task}|${p.locale}`);
-    if (FORCE || !prev || prev.hash !== p.hash) {
-      changed.push({
-        ...p,
-        reason: !prev ? 'new' : FORCE ? 'force' : 'changed',
-      });
+    if (FORCE) {
+      changed.push({ ...p, reason: 'force', newKeys: p.keys || [] });
+      continue;
     }
+    const newKeys = newKeysForPack(p, prev);
+    if (!newKeys.length) continue;
+    changed.push({
+      ...p,
+      reason: !prev ? 'new' : 'new-keys',
+      newKeys,
+    });
   }
   return changed;
+}
+
+function findingMatchesNewKeys(finding, newKeys) {
+  if (finding.kind === 'error') return true;
+  if (!newKeys || !newKeys.length) return true;
+  const id = String(finding.itemId || '');
+  if (!id) return true;
+  return newKeys.some((k) => id === k || id.includes(k));
+}
+
+function filterFindingsToNewKeys(findings, changed) {
+  const byPack = new Map(
+    changed.map((c) => [`${c.task}|${c.locale}`, c.newKeys || c.keys || []]),
+  );
+  return findings.filter((f) => {
+    const keys = byPack.get(`${f.task}|${f.locale}`);
+    // Multi-locale vision errors use locale="a,b"; keep those.
+    if (keys === undefined) return true;
+    return findingMatchesNewKeys(f, keys);
+  });
 }
 
 function runPython(args, env = {}) {
@@ -369,17 +409,11 @@ async function postSlack(text) {
   }
   const webhook = process.env.SLACK_WEBHOOK_URL;
   const token = process.env.SLACK_BOT_TOKEN;
-  const channel = process.env.SLACK_ALERT_CHANNEL || 'levante-crowdin';
+  // Default: DM david_cardinal (W018924DJJV). Override with SLACK_ALERT_CHANNEL.
+  const channel = process.env.SLACK_ALERT_CHANNEL || 'W018924DJJV';
   try {
-    if (webhook) {
-      const res = await fetch(webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error(`webhook HTTP ${res.status}`);
-      log('posted Slack alert via webhook');
-    } else if (token) {
+    // Prefer bot token so we can DM a user id (webhooks are channel-bound).
+    if (token) {
       const res = await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
         headers: {
@@ -390,9 +424,17 @@ async function postSlack(text) {
       });
       const j = await res.json();
       if (!j.ok) throw new Error(`Slack API: ${j.error}`);
-      log(`posted Slack alert to ${channel}`);
+      log(`posted Slack DM/alert to ${channel}`);
+    } else if (webhook) {
+      const res = await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error(`webhook HTTP ${res.status}`);
+      log('posted Slack alert via webhook');
     } else {
-      log('NOTE: no SLACK_WEBHOOK_URL / SLACK_BOT_TOKEN — skipping Slack (report on disk).');
+      log('NOTE: no SLACK_BOT_TOKEN / SLACK_WEBHOOK_URL — skipping Slack (report on disk).');
     }
   } catch (err) {
     log(`WARNING: Slack post failed: ${err.message}`);
@@ -402,9 +444,10 @@ async function postSlack(text) {
 function buildMessage({ date, bucket, changed, findings }) {
   // Slack only for findings — quiet / clean screens stay silent.
   if (!findings.length) return null;
+  const newKeyCount = changed.reduce((n, c) => n + (c.newKeys?.length || 0), 0);
   const lines = [
     `🚨 *Translation screen ${date}* — ${findings.length} finding(s) on \`${bucket}\``,
-    `New/changed packs this run: ${changed.length}`,
+    `Packs with new strings: ${changed.length} (${newKeyCount} new key(s))`,
   ];
   const show = findings.slice(0, 15);
   for (const f of show) {
@@ -423,21 +466,25 @@ function buildMessage({ date, bucket, changed, findings }) {
 
 function buildMarkdown(snapshot) {
   const { date, changed, findings, packs } = snapshot;
+  const newKeyCount = changed.reduce((n, c) => n + (c.newKeys?.length || 0), 0);
   const lines = [
     `# Translation screen ${date}`,
     '',
     `- Bucket: \`${snapshot.bucket}\``,
     `- Packs inventoried: ${packs.length}`,
-    `- New/changed (approved): ${changed.length}`,
+    `- Packs with new strings: ${changed.length} (${newKeyCount} new key(s))`,
     `- Findings: ${findings.length}`,
     '',
-    '## Changed packs',
+    '## Packs with new strings',
     '',
   ];
   if (!changed.length) lines.push('_None_');
   else {
     for (const c of changed) {
-      lines.push(`- \`${c.task}/${c.locale}\` — ${c.reason}, ${c.realCount} approved strings`);
+      const nk = c.newKeys?.length ?? c.realCount;
+      lines.push(
+        `- \`${c.task}/${c.locale}\` — ${c.reason}, ${nk} new / ${c.realCount} approved`,
+      );
     }
   }
   lines.push('', '## Findings', '');
@@ -469,21 +516,24 @@ async function main() {
   if (!changed.length) {
     const baselinePath = await saveInventoryBaseline(packs, date);
     log(
-      `quiet — ${packs.length} pack(s) unchanged` +
+      `quiet — no new strings across ${packs.length} pack(s)` +
         ` (placeholder-only=${skippedPlaceholders}, ignore=${skippedEo}-*); baseline ${baselinePath}`,
     );
     return;
   }
 
+  const newKeyCount = changed.reduce((n, c) => n + (c.newKeys?.length || 0), 0);
   log(
-    `inventory: ${packs.length} pack(s); ${changed.length} new/changed` +
+    `inventory: ${packs.length} pack(s); ${changed.length} with new strings (${newKeyCount} keys)` +
       ` (placeholder-only=${skippedPlaceholders}; ignore=${skippedEo}-*)`,
   );
-  for (const c of changed) log(`  ${c.reason} ${c.task}/${c.locale} (${c.realCount})`);
+  for (const c of changed) {
+    log(`  ${c.reason} ${c.task}/${c.locale} (+${c.newKeys?.length || 0}/${c.realCount})`);
+  }
 
-  const findings = [];
+  let findings = [];
   if (!DRY_RUN && !process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is required to screen changed translations');
+    throw new Error('GEMINI_API_KEY is required to screen new translations');
   }
 
   const visionLocales = new Map();
@@ -507,6 +557,7 @@ async function main() {
   for (const c of mqmJobs) {
     findings.push(...(await screenMqm(c.task, c.locale)));
   }
+  findings = filterFindingsToNewKeys(findings, changed);
 
   const snapshot = {
     date,

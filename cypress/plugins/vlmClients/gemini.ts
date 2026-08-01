@@ -49,7 +49,7 @@ function isTransient(err: unknown): boolean {
   );
 }
 
-const MAX_ATTEMPTS = Math.max(1, Number(process.env.VLM_MAX_RETRIES ?? 6));
+const MAX_ATTEMPTS = Math.max(1, Number(process.env.VLM_MAX_RETRIES ?? 8));
 
 async function generateWithRetry(
   params: GenerateParams,

@@ -15,6 +15,7 @@ difficulty shift** with no human data at all.
 
 > TL;DR: run `run_panel.mjs` to collect a panel, then `analyze.mjs` to produce a
 > difficulty screen (`out/report*.md` + `out/screen_*.csv` + `out/review_*.csv`).
+> Child-prediction results and recollect status: **[`RESULTS.md`](RESULTS.md)**.
 
 ---
 
@@ -42,7 +43,12 @@ difficulty shift** with no human data at all.
 ```
 tools/vlm-panel/
   run_panel.mjs            # collect a panel: one Cypress run per "respondent"
-  analyze.mjs              # build difficulty screen + human comparison
+  analyze.mjs              # build difficulty screen + human comparison + child preds
+  calibration.mjs          # isotonic / logistic p_vlm → p_pred_child
+  benchHuman.mjs           # load levante-bench trials / proportions
+  fit_bench_calibrator.mjs # fit on bench trials; compare to diag; write caches
+  audit_residuals.mjs      # where p_vlm disagrees with humans (prompt targets)
+  calibration/             # saved calibrators + item_pass_rates_* + age_item_rates_*
   panel_grid.json          # TROG grid (models × ages × repeats)
   panel_grid_stories.json  # Stories (Theory of Mind) grid
   README.md                # this file
@@ -50,8 +56,9 @@ tools/vlm-panel/
     manifest.json          # per-respondent covariates + run status (resumable)
     logs/<runId>.log       # raw Cypress stdout/stderr per respondent
     report.md              # TROG screen   (task=trog uses bare filenames)
-    screen_<lang>.csv      # TROG: every item, with flag + p_vlm + p_human
-    review_<lang>.csv      # TROG: only items needing review, prioritized
+    screen_<lang>.csv      # every item: flags, p_vlm, p_human, p_pred_child, p_pred_age_*
+    review_<lang>.csv      # items needing review, prioritized
+    bench_calibration_<task>.md  # diag vs bench calibrator comparison
     report_stories.md      # Stories screen (non-trog tasks are namespaced)
     screen_stories_<lang>.csv
     review_stories_<lang>.csv
@@ -299,6 +306,90 @@ join to human data.
 ---
 
 ## Known issues & caveats
+
+### Predicting average child performance (new items / translations)
+
+`analyze.mjs` fits a **monotonic calibrator** that maps ungated panel pass-rates
+(`p_vlm`) to predicted average child pass-rates (`p_pred_child`). This is the
+path for evaluating a **new item or translation** where no IRT `d` exists — the
+VLM must actually answer the item; the IRT Bernoulli gate cannot help here.
+
+```bash
+# After a panel is on disk (or only new-locale cells were added):
+node tools/vlm-panel/analyze.mjs --task vocab
+# -> out/screen_vocab_<lang>.csv columns include p_pred_child, p_pred_age_6/8/10
+# -> tools/vlm-panel/calibration/vocab_en.json (reused for locales without human joins)
+```
+
+**Workflow for a new translation pack**
+
+1. Collect an **ungated** VLM panel for that locale (`run_panel.mjs --lang …`).
+2. Run `analyze.mjs` for the task. `en` is analyzed first so its calibrator is
+   available; locales with no human item joins **reuse the en calibrator**.
+3. Read `p_pred_child` on `out/screen_*_<lang>.csv` as the predicted pooled child
+   pass-rate. Use cross-language `p_vlm` drops (same report) as the translation-
+   breakage signal; use `p_pred_child` when you need an absolute difficulty guess.
+
+**Better human targets from levante-bench**
+
+Sibling repo `../levante-bench` has trial-level child data. Prefer that over the
+diag CSV when available:
+
+```bash
+# Build trial pass-rates + age×item rates + side-by-side vs diag:
+node tools/vlm-panel/fit_bench_calibrator.mjs --task vocab
+node tools/vlm-panel/fit_bench_calibrator.mjs --task trog
+
+# Re-analyze using bench trial pass-rates (and empirical p_pred_age_* when known):
+node tools/vlm-panel/analyze.mjs --task vocab --human-source=bench
+```
+
+Uses `trials.csv` aggregated `correct` (not `proportions.csv` image1 — vocab
+option columns are not reliably target-in-image1). Override root with
+`LEVANTE_BENCH_ROOT`.
+
+**What the numbers mean**
+
+| Column | Meaning |
+| --- | --- |
+| `p_vlm` | Empirical panel pass-rate (ungated) |
+| `p_pred_child` | Calibrated estimate of average child `p_correct` |
+| `p_pred_age_6/8/10` | Approximate age shift via task-level norms in `age_task_accuracy.json` (not true age×item rates) |
+
+Calibrator: **isotonic regression** when ≥20 matched human items; else **logistic**
+(Platt-style) when ≥5; else identity / reused en. Reports include in-sample and
+held-out CV MAE (calibrated should beat raw `|p_vlm − p_human|`) plus Spearman.
+
+**When not to trust `p_pred_child`**
+
+- Reliability section marks the panel **INCONCLUSIVE** (high TOOL-failure rate).
+- Spread gate is **INADEQUATE** (everyone near ceiling/floor).
+- No en (or other) calibrator exists yet for the task — predictions are clipped
+  `p_vlm`, not child-linked.
+- Age columns are proportional shifts of the pooled prediction; do not treat them
+  as measured age×item pass-rates.
+
+Do **not** use `QA_PERSONA_GATE=irt` for this workflow: unscored items collapse to
+the same age-mean `fallbackP` and cannot differentiate new content.
+
+### Improving raw `p_vlm` (prompts / panel quality)
+
+Age role-play prompts do not fix child match. After calibration, audit residuals:
+
+```bash
+node tools/vlm-panel/audit_residuals.mjs --task trog
+node tools/vlm-panel/audit_residuals.mjs --task vocab
+# -> out/residuals_<task>.md
+```
+
+Targeted fixes already applied for common TROG failure modes (negation, reverse
+agent/patient, spatial, comparative) in `trogVlmAgent` (system checklist +
+transcript-conditioned user hints). Vocab prompts bias toward ordinary senses;
+adult ceiling on rare words is mostly handled by calibration.
+
+**Re-measure requires a new ungated panel** (prompt text is baked into each run).
+Vocab’s last panel was TOOL-failure INCONCLUSIVE (~18%) — recollect failed cells
+(and prefer `VLM_MAX_RETRIES=8+`) before comparing MAE/ρ to the residual baseline.
 
 ### `gemini-2.5-pro` was 100% non-response (FIXED)
 

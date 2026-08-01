@@ -17,6 +17,8 @@
  *   6. Compare: Spearman rho on difficulty and on discrimination, a low/neg
  *      discrimination agreement table, and a ranked divergence list (human-hard /
  *      VLM-easy items -- the trog-item-78 signature).
+ *   7. Fit a monotonic calibrator (isotonic / logistic) on matched p_vlm→p_human
+ *      pairs and emit p_pred_child (+ approximate age-adjusted columns).
  *
  * Output: out/item_comparison.csv + out/report.md (+ stdout summary).
  *
@@ -27,6 +29,18 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { summarizeFailures, renderSummaryMarkdown } from './classify_failures.mjs';
+import {
+  PRED_AGES,
+  ageAdjustedPredictions,
+  formatCalibrationReport,
+  inSampleMetrics,
+  predictChild,
+  resolveCalibrator,
+} from './calibration.mjs';
+import {
+  loadAgeItemRatesJson,
+  normalizeItemUid,
+} from './benchHuman.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
@@ -189,9 +203,23 @@ if (!TASK) {
 }
 const ITEM_BANK = TASK.itemBank;
 const EXTERNAL_HUMAN_CSV = parseArg(process.argv, 'human-csv');
+/** `diag` (default) = pilots diag join; `bench` = levante-bench proportions image1. */
+const HUMAN_SOURCE = (parseArg(process.argv, 'human-source') || 'diag').toLowerCase();
 // Output filename tag: trog keeps the legacy bare names; other tasks namespace
 // their outputs so panels never clobber each other.
 const TAG = TASK_NAME === 'trog' ? '' : `_${TASK_NAME}`;
+
+const AGE_ITEM_RATES = loadAgeItemRatesJson(
+  join(HERE, 'calibration', `age_item_rates_${TASK_NAME}.json`),
+);
+const BENCH_ITEM_PASS = (() => {
+  const path = join(HERE, 'calibration', `item_pass_rates_${TASK_NAME}.json`);
+  const raw = loadAgeItemRatesJson(path);
+  if (!raw?.items) return new Map();
+  return new Map(
+    Object.entries(raw.items).map(([k, v]) => [k, Number(v)]).filter(([, v]) => Number.isFinite(v)),
+  );
+})();
 
 const LOW_DISCRIM = 0.1; // point-biserial below this = "low/anti-discriminating"
 
@@ -657,6 +685,15 @@ function discoverLanguages() {
   return [...set].sort();
 }
 
+/** Prefer analyzing `en` first so other locales can reuse its calibrator. */
+function languagesForAnalyze(langs) {
+  return [...langs].sort((a, b) => {
+    if (a === 'en') return -1;
+    if (b === 'en') return 1;
+    return a.localeCompare(b);
+  });
+}
+
 /**
  * Classify an item into a screen flag from its panel pass-rate. Below chance
  * across a wide-ability panel is the strong "broken / mis-keyed / mistranslated"
@@ -706,6 +743,30 @@ function analyzeLanguage(language) {
     });
   }
 
+  // Optional: replace pooled diag p_human with levante-bench trial pass-rates.
+  // Run fit_bench_calibrator.mjs first to build item_pass_rates_*.json.
+  if (HUMAN_SOURCE === 'bench') {
+    let benchMatched = 0;
+    for (const r of rows) {
+      const key = normalizeItemUid(TASK_NAME, r.item_uid);
+      if (key && BENCH_ITEM_PASS.has(key)) {
+        r.p_human = BENCH_ITEM_PASS.get(key);
+        r.human_source = 'bench';
+        benchMatched++;
+      } else {
+        r.p_human = null;
+        r.human_source = null;
+      }
+    }
+    matched = benchMatched;
+    if (BENCH_ITEM_PASS.size === 0) {
+      console.error(
+        `WARN: --human-source=bench but missing calibration/item_pass_rates_${TASK_NAME}.json; ` +
+          `run: node tools/vlm-panel/fit_bench_calibrator.mjs --task ${TASK_NAME}`,
+      );
+    }
+  }
+
   // screen flags (panel-relative cutoffs; BROKEN uses each item's own chance)
   const pSorted = [...rows.map((r) => r.p_vlm)].sort((a, b) => a - b);
   const hardCut = quantile(pSorted, 0.15);
@@ -731,8 +792,45 @@ function analyzeLanguage(language) {
   const hCeil = m.filter((r) => r.p_human > CEILING_HUMAN);
   const hCeilCaught = hCeil.filter((r) => r.flag === 'CEILING' || r.p_vlm >= ceilCut).length;
 
+  // ---- child-performance calibrator (ungated p_vlm → predicted child p) ----
+  // Prefer a language-specific fit when enough human joins exist; otherwise reuse
+  // the en calibrator so new locales still get absolute predictions.
+  const defaultChance = TASK.defaultChance;
+  const calPairs = m.map((r) => ({ p_vlm: r.p_vlm, p_human: r.p_human }));
+  const calLang = HUMAN_SOURCE === 'bench' ? `${language}_bench` : language;
+  const calSourceLang = HUMAN_SOURCE === 'bench' ? 'en_bench' : 'en';
+  const cal = resolveCalibrator({
+    task: TASK_NAME,
+    language: calLang,
+    pairs: calPairs,
+    sourceLang: calSourceLang,
+    chance: defaultChance,
+    cvChance: defaultChance,
+  });
+  for (const r of rows) {
+    const chance = r.chance ?? defaultChance;
+    r.p_pred_child = predictChild(cal.model, r.p_vlm, chance);
+    r.p_pred_age = ageAdjustedPredictions(TASK_NAME, r.p_pred_child, chance, {
+      itemUid: normalizeItemUid(TASK_NAME, r.item_uid),
+      ageItemRates: AGE_ITEM_RATES,
+    });
+  }
+
   // ---- write screen_<lang>.csv (all items) ----
-  const scrHeader = ['item_uid', 'flag', 'reason', 'n_resp', 'p_vlm', 'rpb_vlm', 'p_human', 'pb_human', 'transcript'];
+  const ageCols = PRED_AGES.map((a) => `p_pred_age_${a}`);
+  const scrHeader = [
+    'item_uid',
+    'flag',
+    'reason',
+    'n_resp',
+    'p_vlm',
+    'rpb_vlm',
+    'p_human',
+    'pb_human',
+    'p_pred_child',
+    ...ageCols,
+    'transcript',
+  ];
   const scr = [scrHeader.join(',')];
   for (const r of [...rows].sort((a, b) => a.p_vlm - b.p_vlm)) {
     scr.push(
@@ -745,6 +843,8 @@ function analyzeLanguage(language) {
         fmt(r.rpb_vlm),
         fmt(r.p_human),
         fmt(r.pb_human),
+        fmt(r.p_pred_child),
+        ...PRED_AGES.map((a) => fmt(r.p_pred_age?.[String(a)] ?? null)),
         `"${String(r.transcript ?? '').replace(/"/g, '""')}"`,
       ].join(','),
     );
@@ -756,7 +856,7 @@ function analyzeLanguage(language) {
   const review = rows
     .filter((r) => r.flag !== 'OK')
     .sort((a, b) => (order[a.flag] - order[b.flag]) || a.p_vlm - b.p_vlm);
-  const rv = [['priority', 'item_uid', 'flag', 'p_vlm', 'p_human', 'transcript'].join(',')];
+  const rv = [['priority', 'item_uid', 'flag', 'p_vlm', 'p_human', 'p_pred_child', 'transcript'].join(',')];
   review.forEach((r, i) =>
     rv.push(
       [
@@ -765,6 +865,7 @@ function analyzeLanguage(language) {
         r.flag,
         fmt(r.p_vlm),
         fmt(r.p_human),
+        fmt(r.p_pred_child),
         `"${String(r.transcript ?? '').replace(/"/g, '""')}"`,
       ].join(','),
     ),
@@ -810,9 +911,25 @@ function analyzeLanguage(language) {
     s.push('');
   }
 
+  s.push(
+    formatCalibrationReport({
+      language,
+      source: cal.source,
+      path: cal.path,
+      cv: cal.cv,
+      fitted: cal.fitted,
+      nMatched: m.length,
+      inSample: cal.model ? inSampleMetrics(calPairs, cal.model, defaultChance) : null,
+    }),
+  );
+
+  const maeNote =
+    cal.cv?.maeCal != null && cal.cv?.maeRaw != null
+      ? ` maeCal=${fmt(cal.cv.maeCal, 2)}/raw=${fmt(cal.cv.maeRaw, 2)}`
+      : '';
   const summary = hasHumanJoin
-    ? `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}] rhoDiff=${fmt(rhoDiff, 2)} brokenCatch=${hBrokenCaught}/${hBroken.length}`
-    : `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}]`;
+    ? `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}] rhoDiff=${fmt(rhoDiff, 2)} brokenCatch=${hBrokenCaught}/${hBroken.length}${maeNote}`
+    : `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}]${maeNote}`;
   return { section: s.join('\n'), summary };
 }
 
@@ -873,7 +990,7 @@ async function main() {
     );
   }
 
-  for (const lang of langs) {
+  for (const lang of languagesForAnalyze(langs)) {
     const out = analyzeLanguage(lang);
     if (!out) continue;
     rep.push(out.section);

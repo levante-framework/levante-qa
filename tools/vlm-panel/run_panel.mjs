@@ -19,7 +19,7 @@
  *   node tools/vlm-panel/run_panel.mjs                 # full grid
  *   node tools/vlm-panel/run_panel.mjs --limit 1       # smoke test: first respondent only
  *   node tools/vlm-panel/run_panel.mjs --dry-run       # print the plan, run nothing
- *   node tools/vlm-panel/run_panel.mjs --grid path.json
+ *   node tools/vlm-panel/run_panel.mjs --force          # re-run even if logs exist
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -29,6 +29,8 @@ import {
   readdirSync,
   writeFileSync,
   openSync,
+  rmSync,
+  statSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,10 +43,17 @@ const LOG_DIR = join(OUT_DIR, 'logs');
 const MANIFEST = join(OUT_DIR, 'manifest.json');
 
 function parseArgs(argv) {
-  const args = { grid: join(HERE, 'panel_grid.json'), limit: Infinity, dryRun: false, lang: null };
+  const args = {
+    grid: join(HERE, 'panel_grid.json'),
+    limit: Infinity,
+    dryRun: false,
+    lang: null,
+    force: false,
+  };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
+    else if (a === '--force') args.force = true;
     else if (a === '--limit') args.limit = Number(argv[++i]);
     else if (a === '--grid') args.grid = argv[++i];
     else if (a === '--lang') args.lang = argv[++i];
@@ -86,11 +95,31 @@ function expand(grid, token, locale) {
   return out;
 }
 
-/** A respondent is "done" if its run dir already holds a finalized trial log. */
+/** A respondent is "done" if its run dir holds a non-empty finalized trial log. */
 function alreadyDone(runId) {
   const dir = join(REPO, 'cypress', 'logs', 'runs', runId);
   if (!existsSync(dir)) return false;
-  return readdirSync(dir).some((f) => /^vlm_.*\.jsonl?$/.test(f));
+  for (const f of readdirSync(dir)) {
+    if (!/^vlm_.*\.jsonl?$/.test(f)) continue;
+    try {
+      // Failed runs sometimes leave a 1-byte stub that must not count as done.
+      if (statSync(join(dir, f)).size > 64) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
+}
+
+/** Remove prior trial logs so a forced re-run starts clean. */
+function clearTrialLogs(runId) {
+  const dir = join(REPO, 'cypress', 'logs', 'runs', runId);
+  if (!existsSync(dir)) return;
+  for (const f of readdirSync(dir)) {
+    if (/^vlm_.*\.jsonl?$/.test(f) || f.endsWith('.jsonl')) {
+      rmSync(join(dir, f), { force: true });
+    }
+  }
 }
 
 function loadManifest() {
@@ -178,18 +207,23 @@ function main() {
   if (Number.isFinite(args.limit)) respondents = respondents.slice(0, args.limit);
 
   const byId = loadManifest();
-  const pending = respondents.filter((r) => !alreadyDone(r.runId));
+  const pending = args.force
+    ? respondents
+    : respondents.filter((r) => !alreadyDone(r.runId));
   const skipped = respondents.length - pending.length;
 
   console.log(
     `Panel: ${respondents.length} respondent(s) [${grid.models.length} models x ${grid.ages.length} ages x ${grid.repeats} repeats]`,
   );
   console.log(`  task=${grid.task} lang=${token} (QA_LANGUAGE=${locale}) temp=${grid.temperature} persona=irt`);
-  console.log(`  already done: ${skipped} | to run: ${pending.length}`);
+  console.log(
+    `  already done: ${skipped} | to run: ${pending.length}` +
+      (args.force ? ' (--force: re-run all)' : ''),
+  );
 
   if (args.dryRun) {
     for (const r of respondents) {
-      const tag = alreadyDone(r.runId) ? 'SKIP' : 'RUN ';
+      const tag = !args.force && alreadyDone(r.runId) ? 'SKIP' : 'RUN ';
       console.log(`  [${tag}] ${r.runId}  model=${r.model} age=${r.age} temp=${r.temperature}`);
     }
     console.log('(dry run -- nothing executed)');
@@ -199,6 +233,7 @@ function main() {
   let i = 0;
   for (const r of pending) {
     i++;
+    if (args.force) clearTrialLogs(r.runId);
     const t0 = new Date().toISOString();
     console.log(`\n[${i}/${pending.length}] ${t0}  START ${r.runId} (model=${r.model} age=${r.age})`);
     const ok = runOne(r, byId);

@@ -1,7 +1,7 @@
 # Daily translation screen
 
-Screens **new or changed** itembank translations each day, skips placeholders and
-Esperanto, and posts findings to Slack `#levante-crowdin`.
+Screens **newly appeared** approved itembank strings each day, skips placeholders
+and Esperanto, and DMs findings to Slack (not `#levante-crowdin`).
 
 - Script: `scripts/daily-translation-screen.mjs`
 - Run: `pnpm run translation-screen`
@@ -16,21 +16,22 @@ Esperanto, and posts findings to Slack `#levante-crowdin`.
    - `en-US` (source)
    - any `eo-*` locale (Esperanto)
    - packs whose every value is `NO APPROVED TRANSLATION` (or empty)
-3. Hashes the remaining approved strings and diffs against
-   `inventory-baseline.json` (updated after every successful run, including
-   `--dry-run`). Unchanged inventory → one-line quiet exit, no Slack.
-4. For each new/changed pack:
+3. Diffs approved **keys** against `inventory-baseline.json` (updated after every
+   successful run, including `--dry-run`). No new keys → one-line quiet exit,
+   no Slack. Edits to existing keys do **not** trigger a re-screen.
+4. For each pack with new keys:
    - **vocab / trog / theory-of-mind / same-different-selection** → vision eval
      (English control vs locale; flags `translation_issue`)
    - **everything else** → Gemini MQM on that task path (`mqm_score ≤ 90`)
-5. Prints only the delta report; Slack posts **only when there are findings**.
-   Use `--force` to re-screen everything regardless of hashes.
+   - Findings are filtered to the new keys only
+5. Prints only the delta report; Slack DMs **only when there are findings**.
+   Use `--force` to re-screen everything regardless of keys.
 
 ## Diagnosing item translation issues
 
-The screen is a **change detector + triage assistant**, not a full psychometric
-validation. It answers: “Did this newly approved (or edited) pack introduce
-strings that look wrong relative to English / the item images?”
+The screen is a **new-string detector + triage assistant**, not a full psychometric
+validation. It answers: “Did newly approved keys look wrong relative to English /
+the item images?”
 
 ### What a finding means
 
@@ -62,13 +63,15 @@ vague “the model got it wrong” into a diagnosable **translation** issue.
 
 ### What it catches well
 
-- New locales or edited strings that break picture–word / picture–sentence match
+- Newly approved keys that break picture–word / picture–sentence match
 - Obvious mistranslations and awkward calques on non-vision tasks (MQM)
 - Accidental promotion of empty / placeholder-only packs (they never enter the
   eval set; if you expected coverage, their absence from inventory is the clue)
 
 ### What it does not prove
 
+- That an **edited** existing string is still correct (edits are ignored unless
+  `--force`)
 - Age-appropriate difficulty or human child performance (use child-twins / VLM
   panel + human norms for that)
 - That an item is psychometrically sound — only that the **locale string** is
@@ -84,7 +87,7 @@ vague “the model got it wrong” into a diagnosable **translation** issue.
 | `results/translation-screen/<date>.json` / `latest.json` | Machine-readable triage |
 | `results/eval/*-vision-<locale>.csv` | Per-item tags, reasons, EN vs translation |
 | `results/eval/screen-mqm-<task>-<locale>.csv` | MQM scores and assessments |
-| `results/translation-screen/inventory-baseline.json` | Yesterday’s hashes (why today’s run was quiet) |
+| `results/translation-screen/inventory-baseline.json` | Yesterday’s keys/hashes (why today’s run was quiet) |
 
 ## Local usage
 
@@ -98,14 +101,13 @@ pnpm run translation-screen -- --tasks=vocab,trog --force
 
 ## Slack
 
-Same credentials as the oracle sweep. Prefer a webhook bound to
-`#levante-crowdin`, or a bot token:
+Alerts go as a **DM** via bot token (not `#levante-crowdin`):
 
 ```bash
 # .env
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...   # optional; channel fixed by webhook
 SLACK_BOT_TOKEN=xoxb-...
-SLACK_ALERT_CHANNEL=levante-crowdin                      # bot-token path (default)
+SLACK_ALERT_CHANNEL=W018924DJJV   # david_cardinal (default); override to change recipient
+# SLACK_WEBHOOK_URL=...           # optional fallback only (channel fixed by webhook)
 ```
 
 ## GitHub Actions secrets
@@ -113,8 +115,7 @@ SLACK_ALERT_CHANNEL=levante-crowdin                      # bot-token path (defau
 | Secret | Purpose |
 | --- | --- |
 | `GEMINI_API_KEY` | Vision + MQM judges |
-| `SLACK_BOT_TOKEN` | Post to `#levante-crowdin` |
-| `SLACK_TRANSLATION_WEBHOOK_URL` | Optional webhook override |
+| `SLACK_BOT_TOKEN` | DM findings via `chat.postMessage` |
 
 The workflow caches `results/translation-screen/` so the next day can diff
-against yesterday’s hashes.
+against yesterday’s keys.
