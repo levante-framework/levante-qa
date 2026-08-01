@@ -12,6 +12,7 @@ Age × country × language agents for LEVANTE core tasks — psychometric twin
 | Language | paired with country | `QA_LANGUAGE` |
 | Task | trog, vocab, matrix, stories, egma, SDS, mental rotation | Cypress specs |
 | Agent | `sim`, `vlm` | entry specs |
+| VLM gate | `irt` (twins only) | `QA_PERSONA_GATE` |
 
 **Locale pairs** (edit `locales[]` in `panel_grid.json` to add cross pairs):
 
@@ -41,5 +42,9 @@ already has a `.jsonl` are skipped.
 ```bash
 QA_SIM_AGE_YEARS=6 QA_SIM_COUNTRY=co QA_LANGUAGE=es-CO pnpm cy:run:trog:sim
 QA_PERSONA=child QA_PERSONA_AGE_YEARS=10 QA_PERSONA_COUNTRY=de \
-  QA_PERSONA_ABILITY=irt QA_LANGUAGE=de-DE pnpm cy:run:vocab:vlm
+  QA_PERSONA_ABILITY=irt QA_PERSONA_GATE=irt QA_LANGUAGE=de-DE pnpm cy:run:vocab:vlm
 ```
+
+VLM child-twins cells set `QA_PERSONA_GATE=irt` so final answers are IRT-gated
+to the age accuracy curve (soft persona prompt alone does not). The
+`tools/vlm-panel` difficulty screen leaves the gate off on purpose.

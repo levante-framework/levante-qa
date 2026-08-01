@@ -209,6 +209,15 @@ See **[`DAILY_SWEEP.md`](DAILY_SWEEP.md)** for the full operator's guide:
 prerequisites, running it on a fresh machine, config/env, Slack setup, cron, and
 how to tell a real regression from transient `-dev` flakiness.
 
+## Daily translation screen
+
+`pnpm run translation-screen` inventories draft itembank translations, skips
+Esperanto and `NO APPROVED TRANSLATION` placeholders, evaluates only new/changed
+packs (vision eval or MQM), and posts findings to Slack `#levante-crowdin`.
+Scheduled via `.github/workflows/translation-screen-daily.yml`.
+
+See **[`DAILY_TRANSLATION_SCREEN.md`](DAILY_TRANSLATION_SCREEN.md)**.
+
 ## Child-age VLM persona (optional)
 
 VLM runs can optionally ask the model to answer **as a typical child of a target

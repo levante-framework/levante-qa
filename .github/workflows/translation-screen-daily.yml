@@ -1,0 +1,96 @@
+name: Daily translation screen
+
+on:
+  schedule:
+    # 14:00 UTC daily (~07:00 PT / 10:00 ET).
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-screen all approved packs (ignore baseline hashes)'
+        required: false
+        type: boolean
+        default: false
+      locales:
+        description: 'Optional comma-separated locales (e.g. de-DE,en-GB)'
+        required: false
+        type: string
+        default: ''
+      tasks:
+        description: 'Optional comma-separated itembank tasks (e.g. vocab,trog)'
+        required: false
+        type: string
+        default: ''
+      no_slack:
+        description: 'Write report only; do not post to Slack'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  screen:
+    name: Screen new translations
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_TRANSLATION_WEBHOOK_URL }}
+      SLACK_ALERT_CHANNEL: levante-crowdin
+      QA_ITEMBANK_BASE_URL: https://storage.googleapis.com/levante-assets-draft/translations
+      QA_VISION_IMAGE_BUCKET: levante-assets-prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python eval deps (light)
+        run: pip install tqdm
+
+      - name: Restore previous baseline
+        uses: actions/cache@v4
+        with:
+          path: results/translation-screen
+          key: translation-screen-baseline-${{ github.run_id }}
+          restore-keys: |
+            translation-screen-baseline-
+
+      - name: Run translation screen
+        env:
+          FORCE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+          NO_SLACK_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.no_slack || false }}
+          LOCALES: ${{ github.event_name == 'workflow_dispatch' && inputs.locales || '' }}
+          TASKS: ${{ github.event_name == 'workflow_dispatch' && inputs.tasks || '' }}
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ "${FORCE_INPUT}" = "true" ]; then ARGS+=(--force); fi
+          if [ "${NO_SLACK_INPUT}" = "true" ]; then ARGS+=(--no-slack); fi
+          if [ -n "${LOCALES}" ]; then ARGS+=(--locales="${LOCALES}"); fi
+          if [ -n "${TASKS}" ]; then ARGS+=(--tasks="${TASKS}"); fi
+          set +e
+          pnpm run translation-screen -- "${ARGS[@]}"
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+          echo "screen_exit=$code" >> "$GITHUB_ENV"
+
+      - name: Upload screen report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: translation-screen-${{ github.run_id }}
+          path: results/translation-screen
+          if-no-files-found: ignore

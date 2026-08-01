@@ -67,6 +67,7 @@
     "cy:run:mr:sim": "cypress run --spec 'cypress/e2e/mental_rotation/sim_child.cy.ts'",
     "dashboard": "node dashboard/server.mjs",
     "sweep": "node scripts/daily-oracle-sweep.mjs",
+    "translation-screen": "node scripts/daily-translation-screen.mjs",
     "run:assignment": "node scripts/run-assignment.mjs",
     "publish:assignments": "node scripts/publish-assignments.mjs",
     "lint": "eslint . --ext .ts",

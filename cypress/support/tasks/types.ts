@@ -199,6 +199,11 @@ export const VocabTrialRecordSchema = z.object({
   modelRaw: z.string().nullable().default(null),
   latencyMs: z.number().nonnegative().nullable().default(null),
   timedOut: z.boolean().nullable().default(null),
+  // Optional IRT age-gate audit (QA_PERSONA_GATE=irt).
+  vlmProposedIndex: z.number().int().nullable().default(null),
+  gateWantCorrect: z.boolean().nullable().default(null),
+  gateP: z.number().nullable().default(null),
+  gateOverridden: z.boolean().nullable().default(null),
 });
 export type VocabTrialRecord = z.infer<typeof VocabTrialRecordSchema>;
 
@@ -251,6 +256,11 @@ export const StoriesTrialRecordSchema = z.object({
   modelRaw: z.string().nullable().default(null),
   latencyMs: z.number().nonnegative().nullable().default(null),
   timedOut: z.boolean().nullable().default(null),
+  // Optional IRT age-gate audit (QA_PERSONA_GATE=irt).
+  vlmProposedIndex: z.number().int().nullable().default(null),
+  gateWantCorrect: z.boolean().nullable().default(null),
+  gateP: z.number().nullable().default(null),
+  gateOverridden: z.boolean().nullable().default(null),
 });
 export type StoriesTrialRecord = z.infer<typeof StoriesTrialRecordSchema>;
 
@@ -409,6 +419,11 @@ export const TrogTrialRecordSchema = z.object({
   modelRaw: z.string().nullable().default(null),
   latencyMs: z.number().nonnegative().nullable().default(null),
   timedOut: z.boolean().nullable().default(null),
+  // Optional IRT age-gate audit (QA_PERSONA_GATE=irt).
+  vlmProposedIndex: z.number().int().nullable().default(null),
+  gateWantCorrect: z.boolean().nullable().default(null),
+  gateP: z.number().nullable().default(null),
+  gateOverridden: z.boolean().nullable().default(null),
 });
 export type TrogTrialRecord = z.infer<typeof TrogTrialRecordSchema>;
 

@@ -1,5 +1,10 @@
 import storiesVlmAgent from '../../support/agents/storiesVlmAgent';
 import {
+  gateLogFields,
+  initVlmIrtGateIfEnabled,
+  resolveVlmChoice,
+} from '../../support/agents/vlmIrtGate';
+import {
   appKeyedCorrectIndex,
   buildUrl,
   isComplete,
@@ -100,11 +105,17 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
     cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
       storiesVlmAgent.decide(pngBase64, storyContext, promptText || null, choices.length).then(
         (decision) => {
-          const vlmIndex = decision.index;
-          const inRange = vlmIndex !== null && vlmIndex >= 0 && vlmIndex < choices.length;
-          const correct = hasKey ? inRange && vlmIndex === keyedIndex : null;
-          const actIndex = inRange ? (vlmIndex as number) : hasKey ? keyedIndex : 0;
-
+          // Stories answer values repeat across questions; composite itemKey +
+          // bank lookup via keyed value (same as sim_child).
+          const simKey = `${promptText}::${[...choices].sort().join('|')}::${choices[keyedIndex] ?? ''}`;
+          const resolved = resolveVlmChoice({
+            keyedIndex,
+            hasKey,
+            vlmIndex: decision.index,
+            choices,
+            itemKey: simKey,
+            dKey: hasKey ? choices[keyedIndex] : undefined,
+          });
           logRecord({
             timestamp: new Date().toISOString(),
             task: TASK,
@@ -113,9 +124,13 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
             promptText: promptText || null,
             storyContext,
             choices,
-            chosenIndex: inRange ? vlmIndex : null,
-            chosenValue: inRange ? (choices[vlmIndex as number] ?? null) : null,
-            correct,
+            chosenIndex: resolved.gate ? resolved.actIndex : resolved.vlmIndex,
+            chosenValue: resolved.gate
+              ? (choices[resolved.actIndex] ?? null)
+              : resolved.vlmIndex !== null
+                ? (choices[resolved.vlmIndex] ?? null)
+                : null,
+            correct: resolved.correct,
             keyedIndex: hasKey ? keyedIndex : null,
             keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
             rtMs: decision.latencyMs,
@@ -126,10 +141,11 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
             timedOut: decision.latencyMs > TIMEOUT_MS,
             audioTranscript: audio.transcript,
             audioSource: audio.source,
+            ...gateLogFields(resolved.gate, resolved.vlmIndex),
           });
 
           actedKey = key;
-          cy.chooseStoriesOption(actIndex);
+          cy.chooseStoriesOption(resolved.actIndex);
           cy.wait(200, { log: false });
           step(i + 1);
         },
@@ -221,6 +237,7 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
   }
 
   it('drives the task via the configured VLM provider', () => {
+    initVlmIrtGateIfEnabled('stories');
     resetAudioCapture();
     launchTask({ taskId: 'theory-of-mind', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.get('button.primary', { timeout: 300000 }).should('be.visible');

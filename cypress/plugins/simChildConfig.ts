@@ -153,15 +153,22 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
         `(supported: ${Object.keys(SLUG_TO_TASK_ID).join(', ')})`,
     );
   }
-  const ageYears = Number(process.env.QA_SIM_AGE_YEARS ?? '');
+  // Prefer QA_SIM_*; fall back to QA_PERSONA_* so VLM IRT-gate runs can reuse
+  // the same age/country tables without mirroring every env var.
+  const ageYears = Number(process.env.QA_SIM_AGE_YEARS ?? process.env.QA_PERSONA_AGE_YEARS ?? '');
   if (!Number.isFinite(ageYears) || ageYears <= 0) {
-    throw new Error('sim: set QA_SIM_AGE_YEARS (e.g. QA_SIM_AGE_YEARS=8) for sim_child runs');
+    throw new Error(
+      'sim: set QA_SIM_AGE_YEARS or QA_PERSONA_AGE_YEARS (e.g. QA_SIM_AGE_YEARS=8) for sim/gate runs',
+    );
   }
-  const ageMonths = Number(process.env.QA_SIM_AGE_MONTHS ?? '0') || 0;
+  const ageMonths =
+    Number(process.env.QA_SIM_AGE_MONTHS ?? process.env.QA_PERSONA_AGE_MONTHS ?? '0') || 0;
   const age = ageYears + ageMonths / 12;
-  // Prefer QA_SIM_COUNTRY; QA_SIM_SITE (e.g. pilot_uniandes_co) maps via suffix.
+  // Prefer QA_SIM_COUNTRY; QA_SIM_SITE (e.g. pilot_uniandes_co) maps via suffix;
+  // QA_PERSONA_COUNTRY covers gated VLM twins.
   const countryRaw =
     process.env.QA_SIM_COUNTRY ||
+    process.env.QA_PERSONA_COUNTRY ||
     (process.env.QA_SIM_SITE ? String(process.env.QA_SIM_SITE).split('_').pop() : '') ||
     '';
   const { country, accuracy, ability } = resolveProfiles(countryRaw);
@@ -213,6 +220,6 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
     offset,
     fallbackP,
     dByAnswer,
-    seed: String(process.env.QA_SIM_SEED ?? '1'),
+    seed: String(process.env.QA_SIM_SEED ?? process.env.QA_PERSONA_SEED ?? '1'),
   };
 }

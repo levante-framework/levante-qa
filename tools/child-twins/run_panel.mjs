@@ -6,6 +6,7 @@
  * SEQUENTIALLY (parallel Cypress OOMs under WSL2). Agents:
  *   - sim: IRT-calibrated psychometric twin (QA_SIM_*)
  *   - vlm: vision agent with child-age + country persona (QA_PERSONA_*)
+ *          and QA_PERSONA_GATE=irt so final accuracy tracks age norms
  *
  * Each cell gets a unique QA_RUN_ID. Progress is written to out/manifest.json;
  * a cell whose run dir already has a matching log is skipped (resumable).
@@ -170,6 +171,11 @@ function buildEnv(r) {
     env.QA_PERSONA_AGE_YEARS = String(r.age);
     env.QA_PERSONA_AGE_MONTHS = '0';
     env.QA_PERSONA_ABILITY = r.personaAbility;
+    // IRT gate: final correctness tracks age norms; VLM shapes distractors.
+    // (vlm-panel stays ungated so item-difficulty screens stay pure-VLM.)
+    env.QA_PERSONA_GATE = 'irt';
+    env.QA_PERSONA_SEED = r.seed;
+    env.QA_SIM_SEED = r.seed;
     if (r.country) env.QA_PERSONA_COUNTRY = r.country;
   }
   if ((env.CYPRESS_CACHE_FOLDER ?? '').includes('sandbox-cache')) {
