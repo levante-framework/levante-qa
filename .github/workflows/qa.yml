@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # setup-node caches the pnpm store, not ~/.cache/Cypress. On a warm store pnpm
+      # skips cypress's postinstall, so the binary must be fetched explicitly.
+      - name: Ensure Cypress binary
+        run: pnpm exec cypress install
+
       - name: Typecheck
         run: pnpm typecheck
 
