@@ -1,5 +1,10 @@
 import vocabVlmAgent from '../../support/agents/vocabVlmAgent';
 import {
+  gateLogFields,
+  initVlmIrtGateIfEnabled,
+  resolveVlmChoice,
+} from '../../support/agents/vlmIrtGate';
+import {
   appKeyedCorrectIndex,
   buildUrl,
   isComplete,
@@ -90,19 +95,27 @@ describe(`Vocab — VLM agent (${provider})`, () => {
       const screenshotName = `vlm_vocab_step_${String(i).padStart(4, '0')}`;
       cy.captureViewportBase64(screenshotName).then((pngBase64: string) => {
         vocabVlmAgent.decide(pngBase64, audio.transcript).then((decision) => {
-          const vlmIndex = decision.index;
-          // Ground truth is the task's own answer key when present (falling back
-          // to the audio-matched answer only if no marker is exposed).
-          const correct = hasKey
-            ? vlmIndex !== null && vlmIndex === keyedIndex
-            : vlmIndex !== null && vlmIndex === solveFromTranscript(audio.transcript, choices);
-          // Act on the VLM's choice; fall back to the key only to advance.
-          const actIndex =
-            vlmIndex !== null && vlmIndex >= 0 && vlmIndex < choices.length
-              ? vlmIndex
-              : hasKey
-                ? keyedIndex
-                : 0;
+          const itemKey = choices[keyedIndex] ?? `step-${i}`;
+          let resolved = resolveVlmChoice({
+            keyedIndex,
+            hasKey,
+            vlmIndex: decision.index,
+            choices,
+            itemKey,
+          });
+          // Ungated fallback when no app key: score vs audio-matched oracle.
+          if (!hasKey) {
+            const vlmIndex = decision.index;
+            const inRange =
+              vlmIndex !== null && vlmIndex >= 0 && vlmIndex < choices.length;
+            const oracleIdx = solveFromTranscript(audio.transcript, choices);
+            resolved = {
+              actIndex: inRange ? (vlmIndex as number) : 0,
+              correct: inRange && vlmIndex === oracleIdx,
+              vlmIndex: inRange ? vlmIndex : null,
+              gate: null,
+            };
+          }
 
           logRecord({
             timestamp: new Date().toISOString(),
@@ -112,9 +125,15 @@ describe(`Vocab — VLM agent (${provider})`, () => {
             promptText: audio.transcript,
             targetWord: targetWordFromTranscript(audio.transcript),
             choices,
-            chosenIndex: vlmIndex,
-            chosenValue: vlmIndex !== null ? (choices[vlmIndex] ?? null) : null,
-            correct,
+            // When gated, chosen* is the final (age-matched) click; otherwise
+            // preserve prior behavior of logging the raw VLM proposal.
+            chosenIndex: resolved.gate ? resolved.actIndex : resolved.vlmIndex,
+            chosenValue: resolved.gate
+              ? (choices[resolved.actIndex] ?? null)
+              : resolved.vlmIndex !== null
+                ? (choices[resolved.vlmIndex] ?? null)
+                : null,
+            correct: resolved.correct,
             keyedIndex: hasKey ? keyedIndex : null,
             keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
             rtMs: decision.latencyMs,
@@ -125,10 +144,11 @@ describe(`Vocab — VLM agent (${provider})`, () => {
             timedOut: decision.latencyMs > TIMEOUT_MS,
             audioTranscript: audio.transcript,
             audioSource: audio.source,
+            ...gateLogFields(resolved.gate, resolved.vlmIndex),
           });
 
           actedKey = key;
-          cy.chooseVocabOption(actIndex);
+          cy.chooseVocabOption(resolved.actIndex);
           cy.wait(180, { log: false });
           step(i + 1);
         });
@@ -194,6 +214,7 @@ describe(`Vocab — VLM agent (${provider})`, () => {
   }
 
   it('drives the task via the configured VLM provider', () => {
+    initVlmIrtGateIfEnabled('vocab');
     resetAudioCapture();
     launchTask({ taskId: 'vocab', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.get('.primary', { timeout: 300000 }).should('be.visible');

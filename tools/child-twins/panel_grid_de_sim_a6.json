@@ -1,0 +1,39 @@
+{
+  "ages": [6],
+  "locales": [{ "country": "de", "language": "de-DE" }],
+  "agents": ["sim"],
+  "repeats": 1,
+  "tasks": [
+    {
+      "slug": "vocab",
+      "simSpec": "cypress/e2e/vocab/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/vocab/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "matrix_reasoning",
+      "simSpec": "cypress/e2e/matrix_reasoning/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/matrix_reasoning/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "stories",
+      "simSpec": "cypress/e2e/stories/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/stories/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "egma_math",
+      "simSpec": "cypress/e2e/egma_math/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/egma_math/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "same_different",
+      "simSpec": "cypress/e2e/same_different/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/same_different/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "mental_rotation",
+      "simSpec": "cypress/e2e/mental_rotation/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/mental_rotation/vlm_agent.cy.ts"
+    }
+  ],
+  "_notes": "One-shot: remaining sim tasks for German 6yo (de + de-DE), matching the TROG smoke cell."
+}

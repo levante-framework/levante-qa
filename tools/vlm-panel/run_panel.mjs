@@ -78,6 +78,7 @@ function expand(grid, token, locale) {
           repeat: rep,
           temperature: grid.temperature ?? 0.8,
           personaAbility: grid.personaAbility ?? 'irt',
+          country: grid.country ?? null,
         });
       }
     }
@@ -120,6 +121,8 @@ function runOne(r, byId) {
     QA_LANGUAGE: r.qaLanguage ?? r.language,
     QA_RUN_ID: r.runId,
   };
+  // Optional country-stratified persona norms (Child Twins / grid.country).
+  if (r.country) env.QA_PERSONA_COUNTRY = String(r.country);
 
   // A sandboxed CYPRESS_CACHE_FOLDER (e.g. a temp dir with no installed binary)
   // makes `cypress run` fail immediately. Drop it so Cypress falls back to the

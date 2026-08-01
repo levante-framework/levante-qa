@@ -83,15 +83,34 @@ export interface SimDecision {
   d: number | null;
 }
 
+export interface VlmGateDecision {
+  /** Final choice index to click. */
+  index: number;
+  /** Whether the final choice matches the keyed answer. */
+  correct: boolean;
+  /** IRT draw: child of this age should get the item right. */
+  wantCorrect: boolean;
+  p: number;
+  roll: number;
+  d: number | null;
+  /** Raw VLM proposal (null / OOB left as-is for logging). */
+  vlmIndex: number | null;
+  /** True when the clicked index differs from a valid VLM proposal. */
+  overridden: boolean;
+}
+
 let simConfig: SimChildConfig | null = null;
 // Keyed by itemKey so gated re-presentations (which re-run the decision) don't
 // double-count an item in the predicted-accuracy tally or the decisions log.
 const simDecisions = new Map<string, SimDecision>();
+/** Memo for VLM IRT-gate decisions (separate from sim so modes don't collide). */
+const vlmGateDecisions = new Map<string, VlmGateDecision>();
 
 /** Install the node-built sim config (call once per spec, before the first item). */
 export function simInit(cfg: SimChildConfig): void {
   simConfig = cfg;
   simDecisions.clear();
+  vlmGateDecisions.clear();
 }
 
 /** Deterministic string hash -> uniform [0, 1). FNV-1a with a final avalanche. */
@@ -226,6 +245,108 @@ export function simDecisionLog(): (SimDecision & { itemKey: string })[] {
 /** The installed config (for logging run metadata). */
 export function simConfigInfo(): SimChildConfig | null {
   return simConfig;
+}
+
+// --- VLM IRT age gate (opt-in via QA_PERSONA_GATE=irt) ----------------------
+
+/**
+ * When true, VLM specs load sim config and post-filter the model's choice so
+ * final correctness matches the age IRT Bernoulli draw. Off by default so the
+ * item-difficulty panel stays a pure-VLM screen.
+ */
+export function isPersonaIrtGate(): boolean {
+  return String(Cypress.expose('QA_PERSONA_GATE') ?? '').toLowerCase() === 'irt';
+}
+
+/** Clear gate memo (also cleared by simInit). */
+export function vlmGateReset(): void {
+  vlmGateDecisions.clear();
+}
+
+function pickWrongIndexHashed(
+  keyedIndex: number,
+  choiceCount: number,
+  stem: string,
+  choiceValues?: string[],
+): number {
+  if (choiceCount <= 1) return keyedIndex;
+  const pick = hashToUnit(`${stem}#pick`);
+  if (choiceValues && choiceValues.length === choiceCount) {
+    const wrongVals = choiceValues.filter((_, i) => i !== keyedIndex).sort();
+    return choiceValues.indexOf(wrongVals[Math.floor(pick * wrongVals.length)]);
+  }
+  const wrong: number[] = [];
+  for (let i = 0; i < choiceCount; i++) if (i !== keyedIndex) wrong.push(i);
+  return wrong[Math.floor(pick * wrong.length)];
+}
+
+/**
+ * Hybrid IRT gate: VLM proposes, age-calibrated Bernoulli decides whether the
+ * child should be correct, then:
+ *   wantCorrect + VLM correct → keep VLM
+ *   wantCorrect + VLM wrong   → force keyed
+ *   !wantCorrect + VLM wrong  → keep VLM distractor
+ *   !wantCorrect + VLM correct → hash-picked distractor
+ *
+ * Final correctness always equals `wantCorrect`, so age accuracy matches the
+ * sim twin; VLM only shapes *which* mistake when both say wrong.
+ */
+export function gateVlmIndex(
+  keyedIndex: number,
+  vlmIndex: number | null,
+  choiceCount: number,
+  itemKey: string,
+  choiceValues?: string[],
+  dKey?: string,
+): VlmGateDecision {
+  if (!simConfig) {
+    throw new Error('vlm-gate: gateVlmIndex called before simInit (getSimConfig task)');
+  }
+  const prior = vlmGateDecisions.get(itemKey);
+  if (prior) return prior;
+
+  const c = choiceCount > 0 ? 1 / choiceCount : 0.25;
+  const d = simConfig.dByAnswer[dKey ?? itemKey] ?? null;
+  const p =
+    d != null && simConfig.theta != null
+      ? Math.min(0.995, c + (1 - c) * sigmoid(simConfig.theta + simConfig.offset - d))
+      : Math.max(c, simConfig.fallbackP);
+  const stem = `${simConfig.seed}#vlm-gate#${simConfig.taskSlug}#${itemKey}`;
+  const roll = hashToUnit(stem);
+  const wantCorrect = roll < p;
+
+  const vlmInRange =
+    vlmIndex !== null && Number.isFinite(vlmIndex) && vlmIndex >= 0 && vlmIndex < choiceCount;
+  const vlmIsCorrect = vlmInRange && vlmIndex === keyedIndex;
+
+  let index: number;
+  if (wantCorrect) {
+    index = vlmIsCorrect ? (vlmIndex as number) : keyedIndex;
+  } else if (vlmInRange && !vlmIsCorrect) {
+    index = vlmIndex as number;
+  } else {
+    index = pickWrongIndexHashed(keyedIndex, choiceCount, stem, choiceValues);
+  }
+
+  const decision: VlmGateDecision = {
+    index,
+    correct: index === keyedIndex,
+    wantCorrect,
+    p,
+    roll,
+    d,
+    vlmIndex,
+    overridden: !vlmInRange || index !== vlmIndex,
+  };
+  vlmGateDecisions.set(itemKey, decision);
+  return decision;
+}
+
+/** Per-item gate decisions (for audit logs). */
+export function vlmGateDecisionLog(): (VlmGateDecision & { itemKey: string })[] {
+  const out: (VlmGateDecision & { itemKey: string })[] = [];
+  vlmGateDecisions.forEach((r, itemKey) => out.push({ ...r, itemKey }));
+  return out;
 }
 
 /** Indices for a deliberately non-matching SDS match pair. */

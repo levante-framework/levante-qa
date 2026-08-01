@@ -203,8 +203,25 @@ Live end-to-end (real task in Cypress, real narration/audio pipeline):
 | `cypress/logs/sim_<task>_<ts>_decisions.jsonl` | per-item `d`, P(correct), roll, chosen index — plus the run's config header |
 
 Env: `QA_SIM_AGE_YEARS` (required), `QA_SIM_AGE_MONTHS`, `QA_SIM_SEED`
-(default `1`), `QA_SIM_REFRESH=1`, `QA_SIM_BANK_BUCKET`. Scripts:
+(default `1`), `QA_SIM_COUNTRY` (`de`/`co`/`ca` — country-stratified θ and
+accuracy; omit for global pooled norms), `QA_SIM_SITE` (optional pilot id,
+e.g. `pilot_uniandes_co` — country inferred from suffix), `QA_SIM_REFRESH=1`,
+`QA_SIM_BANK_BUCKET`. Scripts:
 `pnpm cy:run:trog:sim`, `pnpm cy:run:vocab:sim`, `pnpm cy:run:sim`.
+
+## Child Twins panel (age × country × language)
+
+The product surface for running **psychometric twins and VLM persona agents**
+across ages, pilot countries, and UI languages is
+[`tools/child-twins/`](tools/child-twins/README.md):
+
+```bash
+pnpm child-twins:dry     # expand panel_grid.json
+pnpm child-twins:smoke   # first cell only
+```
+
+Default grid: ages 6/8/10 × locale pairs (de+de-DE, co+es-CO, ca+en-US) ×
+core tasks × agents `sim`+`vlm`.
 
 ## Context: the wider session
 

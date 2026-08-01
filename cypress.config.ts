@@ -59,6 +59,9 @@ const PERSONA_AGE_YEARS = Number(process.env.QA_PERSONA_AGE_YEARS ?? '');
 const PERSONA_AGE_MONTHS = Number(process.env.QA_PERSONA_AGE_MONTHS ?? '0');
 /** When `irt`, append mean child IRT θ for this age/task (requires age_task_ability.json). */
 const PERSONA_ABILITY_IRT = String(process.env.QA_PERSONA_ABILITY ?? '').toLowerCase() === 'irt';
+/** Optional country-stratified norms (`de`/`co`/`ca`); falls back to QA_SIM_COUNTRY. */
+const PERSONA_COUNTRY =
+  process.env.QA_PERSONA_COUNTRY || process.env.QA_SIM_COUNTRY || undefined;
 let personaLogged = false;
 let crowdinApprovedTranslationsCache: Promise<CrowdinApprovedTranslationsPayload> | null = null;
 
@@ -67,6 +70,7 @@ function applyPersona(req: VLMRequest): VLMRequest {
   const ageMonths = Number.isFinite(PERSONA_AGE_MONTHS) ? PERSONA_AGE_MONTHS : 0;
   const preamble = makeChildPersonaPrompt(PERSONA_AGE_YEARS, ageMonths, req.taskId ?? undefined, {
     includeIrtAbility: PERSONA_ABILITY_IRT,
+    country: PERSONA_COUNTRY,
   });
   if (!personaLogged) {
     personaLogged = true;
@@ -294,6 +298,14 @@ export default defineConfig({
         'QA_SIM_AGE_YEARS',
         'QA_SIM_AGE_MONTHS',
         'QA_SIM_SEED',
+        'QA_SIM_COUNTRY',
+        'QA_SIM_SITE',
+        'QA_PERSONA_AGE_YEARS',
+        'QA_PERSONA_AGE_MONTHS',
+        'QA_PERSONA_ABILITY',
+        'QA_PERSONA_COUNTRY',
+        'QA_PERSONA_GATE',
+        'QA_PERSONA_SEED',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];

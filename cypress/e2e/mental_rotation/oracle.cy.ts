@@ -21,10 +21,19 @@ import { currentAudioTranscript, resetAudioCapture } from '../../support/audio/a
 import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
+  isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  simAccuracyTolerance,
+  simConfigInfo,
+  simDecideIndex,
+  simDecisionLog,
+  simInit,
+  simPredictedAccuracy,
   trialRecordOracleFlag,
 } from '../../support/agentMode';
+import type { SimChildConfig } from '../../plugins/simChildConfig';
 import {
   parseMentalRotationTrialRecord,
   type MentalRotationTrialRecord,
@@ -45,7 +54,13 @@ const NO_KEY_LOG = 'cypress/logs/_mr_no_key.jsonl';
 // Items where the pixel solver disagreed with the app's `.correct` key.
 const MISMATCH_LOG = 'cypress/logs/_mr_key_mismatch.jsonl';
 
-describe(`Mental Rotation — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (pixel rotation/mirror solver)'}`, () => {
+const AGENT_LABEL = isWrongAgentMode()
+  ? 'wrong agent'
+  : isSimMode()
+    ? 'simulated child (IRT-calibrated)'
+    : 'oracle (pixel rotation/mirror solver)';
+
+describe(`Mental Rotation — ${AGENT_LABEL}`, () => {
   const records: MentalRotationTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -102,6 +117,15 @@ describe(`Mental Rotation — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (pi
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_mr_${ts}.jsonl`, records });
+    if (isStochasticMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/${agentLogStem()}_mr_${ts}_decisions.jsonl`,
+        records: [
+          { config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
+          ...simDecisionLog(),
+        ],
+      });
+    }
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     const agreement = nSolved > 0 ? nAgree / nSolved : 0;
@@ -109,13 +133,17 @@ describe(`Mental Rotation — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (pi
       expect(taskComplete, 'task reached the completion screen').to.equal(true);
       expect(stats.nItems, 'recorded item trials').to.be.greaterThan(0);
       cy.log(`items: ${nItems}, missing key: ${nNoKey}, solver agreement: ${nAgree}/${nSolved}`);
-      // Every scored item must ship an answer key to cross-check against.
       expect(nNoKey, `items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
-      // The pixel solver ran on (essentially) every item.
-      expect(nSolved, 'items the pixel solver decided').to.be.greaterThan(0);
-      // The independent solver agrees with the app key on (nearly) every item —
-      // the authentic differential check. Disagreements are in MISMATCH_LOG.
-      if (!isWrongAgentMode()) {
+      if (isStochasticMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracy ?? 0,
+          `${agentLogStem()} accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
+      } else if (!isWrongAgentMode()) {
+        expect(nSolved, 'items the pixel solver decided').to.be.greaterThan(0);
         expect(agreement, `solver/key agreement (mismatches in ${MISMATCH_LOG})`).to.be.greaterThan(
           MIN_SOLVER_AGREEMENT,
         );
@@ -146,6 +174,49 @@ describe(`Mental Rotation — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (pi
       return;
     }
     lastActedSig = sig;
+
+    // Sim twin: IRT-calibrated clicks against the app key (no pixel solver).
+    if (isSimMode()) {
+      const actIndex = hasKey
+        ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
+            .index
+        : 0;
+      nItems += 1;
+      if (!hasKey) {
+        nNoKey += 1;
+        cy.task(
+          'writeJsonl',
+          { path: NO_KEY_LOG, records: [{ step: i, promptText, targetAlt, choices }] },
+          { log: false },
+        );
+      }
+      currentAudioTranscript(win as unknown as AudioWindow).then((audio) => {
+        logRecord({
+          timestamp: new Date().toISOString(),
+          task: TASK,
+          step: i,
+          itemType: 'item',
+          promptText: promptText || null,
+          targetAlt,
+          choices,
+          chosenIndex: actIndex,
+          chosenValue: choices[actIndex] ?? null,
+          correct: hasKey ? actIndex === keyedIndex : null,
+          keyedIndex: hasKey ? keyedIndex : null,
+          keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
+          solverIndex: null,
+          solverMargin: null,
+          oracle: trialRecordOracleFlag(),
+          audioTranscript: audio.transcript,
+          audioSource: audio.source,
+        });
+        cy.get('body', { log: false }).then(($b) => {
+          if ($b.find(CHOICE_BUTTON).length > actIndex) cy.chooseMrOption(actIndex);
+        });
+        waitChangedThenStep(i, sig);
+      });
+      return;
+    }
 
     cy.task<import('../../support/tasks/mentalRotation').SolveResult>(
       'solveMentalRotation',
@@ -289,7 +360,12 @@ describe(`Mental Rotation — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (pi
     });
   }
 
-  it('solves each item from pixels and matches the app answer key', () => {
+  it(`completes the task as the ${AGENT_LABEL}`, () => {
+    if (isSimMode()) {
+      cy.task('getSimConfig', { taskSlug: 'mental_rotation' }).then((cfg) =>
+        simInit(cfg as SimChildConfig),
+      );
+    }
     resetAudioCapture();
     launchTask({ taskId: 'mental-rotation', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });

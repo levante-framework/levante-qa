@@ -46,6 +46,11 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--source", default=None, help="Translation source: draft (default) | crowdin. Overrides QA_TRANSLATIONS_SOURCE.")
     p.add_argument("--content-type", default="", help="Filter rows: itembank | survey | dashboard | general.")
+    p.add_argument(
+        "--path-contains",
+        default="",
+        help="Keep only rows whose _path contains this substring (e.g. itembank/mental-rotation).",
+    )
     p.add_argument("--output-csv", default="output/eval_results.csv")
     p.add_argument("--source-col", default="en")
     p.add_argument("--target-col", required=True, help="Target column; also used as the locale label.")
@@ -98,6 +103,10 @@ def main() -> int:
     all_rows, lang_columns = fetch_rows(source=source)
     if args.content_type:
         all_rows = [r for r in all_rows if str(r.get("contentType", "")).lower() == args.content_type.lower()]
+    if args.path_contains:
+        needle = args.path_contains
+        all_rows = [r for r in all_rows if needle in str(r.get("_path", ""))]
+        print(f"[load] path-contains={needle!r} -> {len(all_rows)} row(s).")
     if args.target_col not in lang_columns and args.target_col != args.source_col:
         sys.exit(f"Error: target '{args.target_col}' not among languages: {lang_columns}")
     fieldnames = [*META_COLUMNS, *lang_columns]

@@ -1,5 +1,10 @@
 import trogVlmAgent from '../../support/agents/trogVlmAgent';
 import {
+  gateLogFields,
+  initVlmIrtGateIfEnabled,
+  resolveVlmChoice,
+} from '../../support/agents/vlmIrtGate';
+import {
   appKeyedCorrectIndex,
   buildUrl,
   isComplete,
@@ -111,10 +116,14 @@ describe(`TROG — VLM agent (${provider})`, () => {
       const name = `vlm_trog_step_${String(i).padStart(4, '0')}`;
       cy.captureViewportBase64(name).then((pngBase64: string) => {
         trogVlmAgent.decide(pngBase64, sentence).then((decision) => {
-          const vlmIndex = decision.index;
-          const inRange = vlmIndex !== null && vlmIndex >= 0 && vlmIndex < choices.length;
-          const correct = hasKey ? inRange && vlmIndex === keyedIndex : null;
-          const actIndex = inRange ? (vlmIndex as number) : hasKey ? keyedIndex : 0;
+          const itemKey = choices[keyedIndex] ?? `step-${i}`;
+          const resolved = resolveVlmChoice({
+            keyedIndex,
+            hasKey,
+            vlmIndex: decision.index,
+            choices,
+            itemKey,
+          });
 
           logRecord({
             timestamp: new Date().toISOString(),
@@ -123,9 +132,14 @@ describe(`TROG — VLM agent (${provider})`, () => {
             itemType: 'item',
             promptText: promptText || null,
             choices,
-            chosenIndex: inRange ? vlmIndex : null,
-            chosenValue: inRange ? (choices[vlmIndex as number] ?? null) : null,
-            correct,
+            // Gated: log final click (age-matched). Ungated: log raw VLM only.
+            chosenIndex: resolved.gate ? resolved.actIndex : resolved.vlmIndex,
+            chosenValue: resolved.gate
+              ? (choices[resolved.actIndex] ?? null)
+              : resolved.vlmIndex !== null
+                ? (choices[resolved.vlmIndex] ?? null)
+                : null,
+            correct: resolved.correct,
             keyedIndex: hasKey ? keyedIndex : null,
             keyedValue: hasKey ? (choices[keyedIndex] ?? null) : null,
             rtMs: decision.latencyMs,
@@ -136,9 +150,12 @@ describe(`TROG — VLM agent (${provider})`, () => {
             timedOut: decision.latencyMs > TIMEOUT_MS,
             audioTranscript: sentence,
             audioSource: audio.source,
+            ...gateLogFields(resolved.gate, resolved.vlmIndex),
           });
           cy.get('body', { log: false }).then(($b) => {
-            if ($b.find(CHOICE_BUTTON).length > actIndex) cy.chooseTrogOption(actIndex);
+            if ($b.find(CHOICE_BUTTON).length > resolved.actIndex) {
+              cy.chooseTrogOption(resolved.actIndex);
+            }
           });
           waitChangedThenStep(i, sig);
         });
@@ -195,6 +212,7 @@ describe(`TROG — VLM agent (${provider})`, () => {
   }
 
   it('benchmarks sentence→picture matching via the VLM, scored against the app key', () => {
+    initVlmIrtGateIfEnabled('trog');
     resetAudioCapture();
     launchTask({
       taskId: 'trog',

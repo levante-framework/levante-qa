@@ -1,0 +1,52 @@
+{
+  "ages": [6, 8, 10],
+  "locales": [
+    { "country": "de", "language": "de-DE" },
+    { "country": "co", "language": "es-CO" },
+    { "country": "ca", "language": "en-US" }
+  ],
+  "agents": ["sim", "vlm"],
+  "provider": "gemini",
+  "models": ["gemini-2.5-flash"],
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 1,
+  "tasks": [
+    {
+      "slug": "trog",
+      "simSpec": "cypress/e2e/trog/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/trog/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "vocab",
+      "simSpec": "cypress/e2e/vocab/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/vocab/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "matrix_reasoning",
+      "simSpec": "cypress/e2e/matrix_reasoning/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/matrix_reasoning/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "stories",
+      "simSpec": "cypress/e2e/stories/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/stories/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "egma_math",
+      "simSpec": "cypress/e2e/egma_math/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/egma_math/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "same_different",
+      "simSpec": "cypress/e2e/same_different/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/same_different/vlm_agent.cy.ts"
+    },
+    {
+      "slug": "mental_rotation",
+      "simSpec": "cypress/e2e/mental_rotation/sim_child.cy.ts",
+      "vlmSpec": "cypress/e2e/mental_rotation/vlm_agent.cy.ts"
+    }
+  ],
+  "_notes": "Child Twins MVP grid: age × (country+language pair) × task × agent. Locale pairs map pilot countries to UI languages (de→de-DE, co→es-CO, ca→en-US). Cross pairs can be added to locales[] for translation stress tests. Sim ignores models[]; VLM uses models[] + temperature. Expand models/repeats for fuller panels."
+}

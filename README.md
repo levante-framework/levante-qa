@@ -209,6 +209,15 @@ See **[`DAILY_SWEEP.md`](DAILY_SWEEP.md)** for the full operator's guide:
 prerequisites, running it on a fresh machine, config/env, Slack setup, cron, and
 how to tell a real regression from transient `-dev` flakiness.
 
+## Daily translation screen
+
+`pnpm run translation-screen` inventories draft itembank translations, skips
+Esperanto and `NO APPROVED TRANSLATION` placeholders, evaluates only new/changed
+packs (vision eval or MQM), and posts findings to Slack `#levante-crowdin`.
+Scheduled via `.github/workflows/translation-screen-daily.yml`.
+
+See **[`DAILY_TRANSLATION_SCREEN.md`](DAILY_TRANSLATION_SCREEN.md)**.
+
 ## Child-age VLM persona (optional)
 
 VLM runs can optionally ask the model to answer **as a typical child of a target
@@ -319,15 +328,20 @@ decisions live in `cypress/support/agentMode.ts`. Notes per task:
 ```bash
 QA_SIM_AGE_YEARS=6 pnpm cy:run:trog:sim          # a 6-year-old plays TROG
 QA_SIM_AGE_YEARS=8 QA_SIM_SEED=7 pnpm cy:run:vocab:sim
-QA_SIM_AGE_YEARS=7 pnpm cy:run:matrix:sim
+QA_SIM_AGE_YEARS=7 QA_SIM_COUNTRY=co pnpm cy:run:matrix:sim   # Colombian norms
 QA_SIM_AGE_YEARS=7 pnpm cy:run:stories:sim
 pnpm cy:run:sim                                   # all sim_child specs
 ```
 
 Env: `QA_SIM_AGE_YEARS` (required), `QA_SIM_AGE_MONTHS`, `QA_SIM_SEED`
-(default `1`), `QA_SIM_REFRESH=1` to re-fetch the cached item banks,
-`QA_SIM_BANK_BUCKET` (default `levante-assets-dev`).
+(default `1`), `QA_SIM_COUNTRY` (`de`/`co`/`ca` for country-stratified norms;
+omit for global), `QA_SIM_SITE` (optional pilot id), `QA_SIM_REFRESH=1` to
+re-fetch the cached item banks, `QA_SIM_BANK_BUCKET` (default `levante-assets-dev`).
+VLM persona runs can set `QA_PERSONA_COUNTRY` the same way.
 
+**Child Twins panel** (age × country × language × task × sim/vlm): see
+[`tools/child-twins/README.md`](tools/child-twins/README.md) —
+`pnpm child-twins:dry` / `pnpm child-twins:smoke`.
 ### Random agent (chance-level check)
 
 A sixth agent, **Random**, picks every choice with equal probability — a

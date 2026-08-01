@@ -34,11 +34,20 @@ import { launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
+  isSimMode,
+  isStochasticMode,
   isWrongAgentMode,
   pickWrongIndex,
+  simAccuracyTolerance,
+  simConfigInfo,
+  simDecideIndex,
+  simDecisionLog,
+  simInit,
+  simPredictedAccuracy,
   trialRecordOracleFlag,
   wrongMatchIndices,
 } from '../../support/agentMode';
+import type { SimChildConfig } from '../../plugins/simChildConfig';
 import { parseSdsTrialRecord, type SdsTrialRecord } from '../../support/tasks/types';
 
 // 31 single + 90 match + instructions ≈ 132 screens; this cap is generous.
@@ -57,7 +66,13 @@ const MATCH_STALL_LIMIT = 15;
 const SCREEN_STUCK_LOG = 'cypress/logs/_sds_screen_stuck.jsonl';
 const SCREEN_STALL_LIMIT = 40;
 
-describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'oracle'}`, () => {
+const AGENT_LABEL = isWrongAgentMode()
+  ? 'wrong agent'
+  : isSimMode()
+    ? 'simulated child (IRT-calibrated)'
+    : 'oracle';
+
+describe(`Same-Different Selection — ${AGENT_LABEL}`, () => {
   const records: SdsTrialRecord[] = [];
   let taskComplete = false;
   let started = false;
@@ -67,7 +82,8 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   // Single-select items already handled (keyed by prompt+cards). The oracle
   // clicks the correct card, so a single never re-presents on purpose; a repeat
   // sighting is just a lingering feedback frame, which we skip (re-handling it
-  // would race the trial transition and click a vanished button).
+  // would race the trial transition and click a vanished button). Sim may miss
+  // gated practice — then we escape with the keyed answer (see handleSingle).
   const answeredSingles = new Set<string>();
   let nSingle = 0;
   let nMatch = 0;
@@ -135,6 +151,15 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_sds_${ts}.jsonl`, records });
+    if (isStochasticMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/${agentLogStem()}_sds_${ts}_decisions.jsonl`,
+        records: [
+          { config: simConfigInfo() && { ...simConfigInfo(), dByAnswer: undefined } },
+          ...simDecisionLog(),
+        ],
+      });
+    }
     const stats = scoreTrials(records);
     const withAudio = records.filter((r) => r.audioTranscript);
     cy.wrap(null).then(() => {
@@ -146,11 +171,21 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
       cy.log(`single: ${nSingle} (no key: ${nNoKey}), match: ${nMatch}`);
       expect(nNoKey, `single-select items with no answer key (see ${NO_KEY_LOG})`).to.equal(0);
 
-      // The oracle clicks the keyed card, so single-select accuracy is 1.0 iff
-      // every single item had a key; this asserts the run completes end to end.
-      expect(stats.accuracySingle ?? 0, `${agentLogStem()} single-select accuracy`).to.equal(
-        expectedAccuracy(),
-      );
+      if (isStochasticMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracySingle ?? 0,
+          `${agentLogStem()} single-select accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
+      } else {
+        // The oracle clicks the keyed card, so single-select accuracy is 1.0 iff
+        // every single item had a key; this asserts the run completes end to end.
+        expect(stats.accuracySingle ?? 0, `${agentLogStem()} single-select accuracy`).to.equal(
+          expectedAccuracy(),
+        );
+      }
       expect(withAudio.length, 'captured narration transcripts').to.be.greaterThan(0);
     });
   }
@@ -165,18 +200,29 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
     // key is missing, so prompt+choices alone collides across distinct items and
     // the oracle skips clicking — permanently stalling the trial.
     const key = `${promptText}::${hasKey ? choices[keyedIndex] : ''}::${choices.join('|')}`;
-    // Lingering frame of an already-answered single: wait for it to clear.
+    const sig = screenSig(win);
     if (answeredSingles.has(key)) {
+      // Sim gated practice: escalate to the keyed answer. Oracle: lingering
+      // feedback frame — wait for it to clear without re-clicking.
+      if (isStochasticMode() && hasKey) {
+        cy.get('body', { log: false }).then(($b) => {
+          if ($b.find(SINGLE_CHOICE).length > keyedIndex) cy.chooseSdsSingle(keyedIndex);
+        });
+        waitChangedThenStep(i, sig);
+        return;
+      }
       cy.wait(150, { log: false });
       step(i + 1);
       return;
     }
     answeredSingles.add(key);
-    const sig = screenSig(win);
     const actIndex = hasKey
       ? isWrongAgentMode()
         ? pickWrongIndex(keyedIndex, choices.length)
-        : keyedIndex
+        : isSimMode()
+          ? simDecideIndex(keyedIndex, choices.length, choices[keyedIndex] ?? `step-${i}`, choices)
+              .index
+          : keyedIndex
       : 0;
     nSingle += 1;
     if (!hasKey) {
@@ -454,7 +500,12 @@ describe(`Same-Different Selection — ${isWrongAgentMode() ? 'wrong agent' : 'o
     });
   }
 
-  it('completes the task (single-select via the key, match via the proven heuristic)', () => {
+  it(`completes the task as the ${AGENT_LABEL}`, () => {
+    if (isSimMode()) {
+      cy.task('getSimConfig', { taskSlug: 'same_different' }).then((cfg) =>
+        simInit(cfg as SimChildConfig),
+      );
+    }
     resetAudioCapture();
     launchTask({
       taskId: 'same-different-selection',
