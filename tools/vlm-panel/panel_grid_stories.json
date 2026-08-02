@@ -7,10 +7,9 @@
   "personaAbility": "irt",
   "repeats": 3,
   "models": [
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro"
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
   ],
   "ages": [6, 8, 11],
-  "_notes": "Stories = Theory of Mind (diag task 'tom'). Ability spread from model tier + child-age IRT persona (theta 6:-1.00, 8:-0.06, 11:0.93) + temperature seeds. Stimulus never altered. Scored unit = itemType 'question'; chance varies per item (yes/no=0.5, n-choice from item bank). Run per language with --lang en-US|de-DE|es-CO."
+  "_notes": "Stories = Theory of Mind (diag task 'tom'). Default: 3.5-flash-lite + 3.6-flash (2.5 EOL ~2026-10-16; pro off by default). Ability spread from model tier + child-age IRT persona (theta 6:-1.00, 8:-0.06, 11:0.93) + temperature seeds. Stimulus never altered. Scored unit = itemType 'question'; chance varies per item (yes/no=0.5, n-choice from item bank). Run per language with --lang en-US|de-DE|es-CO."
 }

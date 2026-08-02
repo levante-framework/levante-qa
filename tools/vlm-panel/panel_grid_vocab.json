@@ -7,10 +7,9 @@
   "personaAbility": "irt",
   "repeats": 3,
   "models": [
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro"
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
   ],
   "ages": [6, 8, 11],
-  "_notes": "Vocab = picture-vocabulary (4-AFC). The model is given the spoken word (the narration transcript) and must pick the matching picture by grid position. Ability spread from model tier + child-age IRT persona + temperature seeds; stimulus never altered. Run per language with --lang en-US|de-DE|nl-NL. For nl-NL the narration mp3s aren't in the dev bucket yet (they live in levante-assets-draft under audio/nl-NL/), so either point at the draft bucket with QA_AUDIO_BUCKET=levante-assets-draft, or set QA_AUDIO_PLACEHOLDER=en-US (silent placeholder audio) + QA_TRANSLATIONS_SOURCE=crowdin-approved: the word then comes from the Crowdin-approved Dutch text the real mp3 will be generated from. (Crowdin's language code is the bare 'nl' primary subtag, so panel run-ids and analysis still group under the 'nl' token.)"
+  "_notes": "Vocab = picture-vocabulary (4-AFC). Default models: 3.5-flash-lite + 3.6-flash (Gemini 2.5 EOL ~2026-10-16; pro off by default). Ability spread from model tier + child-age IRT persona + temperature seeds; stimulus never altered. Run per language with --lang en-US|de-DE|nl-NL. For nl-NL the narration mp3s aren't in the dev bucket yet (they live in levante-assets-draft under audio/nl-NL/), so either point at the draft bucket with QA_AUDIO_BUCKET=levante-assets-draft, or set QA_AUDIO_PLACEHOLDER=en-US (silent placeholder audio) + QA_TRANSLATIONS_SOURCE=crowdin-approved: the word then comes from the Crowdin-approved Dutch text the real mp3 will be generated from. (Crowdin's language code is the bare 'nl' primary subtag, so panel run-ids and analysis still group under the 'nl' token.)"
 }

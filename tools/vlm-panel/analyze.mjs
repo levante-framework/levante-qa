@@ -17,6 +17,8 @@
  *   6. Compare: Spearman rho on difficulty and on discrimination, a low/neg
  *      discrimination agreement table, and a ranked divergence list (human-hard /
  *      VLM-easy items -- the trog-item-78 signature).
+ *   7. Fit a monotonic calibrator (isotonic / logistic) on matched p_vlm→p_human
+ *      pairs and emit p_pred_child (+ approximate age-adjusted columns).
  *
  * Output: out/item_comparison.csv + out/report.md (+ stdout summary).
  *
@@ -27,6 +29,18 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { summarizeFailures, renderSummaryMarkdown } from './classify_failures.mjs';
+import {
+  PRED_AGES,
+  ageAdjustedPredictions,
+  formatCalibrationReport,
+  inSampleMetrics,
+  predictChild,
+  resolveCalibrator,
+} from './calibration.mjs';
+import {
+  loadAgeItemRatesJson,
+  normalizeItemUid,
+} from './benchHuman.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
@@ -189,9 +203,23 @@ if (!TASK) {
 }
 const ITEM_BANK = TASK.itemBank;
 const EXTERNAL_HUMAN_CSV = parseArg(process.argv, 'human-csv');
+/** `diag` (default) = pilots diag join; `bench` = levante-bench proportions image1. */
+const HUMAN_SOURCE = (parseArg(process.argv, 'human-source') || 'diag').toLowerCase();
 // Output filename tag: trog keeps the legacy bare names; other tasks namespace
 // their outputs so panels never clobber each other.
 const TAG = TASK_NAME === 'trog' ? '' : `_${TASK_NAME}`;
+
+const AGE_ITEM_RATES = loadAgeItemRatesJson(
+  join(HERE, 'calibration', `age_item_rates_${TASK_NAME}.json`),
+);
+const BENCH_ITEM_PASS = (() => {
+  const path = join(HERE, 'calibration', `item_pass_rates_${TASK_NAME}.json`);
+  const raw = loadAgeItemRatesJson(path);
+  if (!raw?.items) return new Map();
+  return new Map(
+    Object.entries(raw.items).map(([k, v]) => [k, Number(v)]).filter(([, v]) => Number.isFinite(v)),
+  );
+})();
 
 const LOW_DISCRIM = 0.1; // point-biserial below this = "low/anti-discriminating"
 
@@ -657,6 +685,15 @@ function discoverLanguages() {
   return [...set].sort();
 }
 
+/** Prefer analyzing `en` first so other locales can reuse its calibrator. */
+function languagesForAnalyze(langs) {
+  return [...langs].sort((a, b) => {
+    if (a === 'en') return -1;
+    if (b === 'en') return 1;
+    return a.localeCompare(b);
+  });
+}
+
 /**
  * Classify an item into a screen flag from its panel pass-rate. Below chance
  * across a wide-ability panel is the strong "broken / mis-keyed / mistranslated"
@@ -706,6 +743,30 @@ function analyzeLanguage(language) {
     });
   }
 
+  // Optional: replace pooled diag p_human with levante-bench trial pass-rates.
+  // Run fit_bench_calibrator.mjs first to build item_pass_rates_*.json.
+  if (HUMAN_SOURCE === 'bench') {
+    let benchMatched = 0;
+    for (const r of rows) {
+      const key = normalizeItemUid(TASK_NAME, r.item_uid);
+      if (key && BENCH_ITEM_PASS.has(key)) {
+        r.p_human = BENCH_ITEM_PASS.get(key);
+        r.human_source = 'bench';
+        benchMatched++;
+      } else {
+        r.p_human = null;
+        r.human_source = null;
+      }
+    }
+    matched = benchMatched;
+    if (BENCH_ITEM_PASS.size === 0) {
+      console.error(
+        `WARN: --human-source=bench but missing calibration/item_pass_rates_${TASK_NAME}.json; ` +
+          `run: node tools/vlm-panel/fit_bench_calibrator.mjs --task ${TASK_NAME}`,
+      );
+    }
+  }
+
   // screen flags (panel-relative cutoffs; BROKEN uses each item's own chance)
   const pSorted = [...rows.map((r) => r.p_vlm)].sort((a, b) => a - b);
   const hardCut = quantile(pSorted, 0.15);
@@ -731,8 +792,45 @@ function analyzeLanguage(language) {
   const hCeil = m.filter((r) => r.p_human > CEILING_HUMAN);
   const hCeilCaught = hCeil.filter((r) => r.flag === 'CEILING' || r.p_vlm >= ceilCut).length;
 
+  // ---- child-performance calibrator (ungated p_vlm → predicted child p) ----
+  // Prefer a language-specific fit when enough human joins exist; otherwise reuse
+  // the en calibrator so new locales still get absolute predictions.
+  const defaultChance = TASK.defaultChance;
+  const calPairs = m.map((r) => ({ p_vlm: r.p_vlm, p_human: r.p_human }));
+  const calLang = HUMAN_SOURCE === 'bench' ? `${language}_bench` : language;
+  const calSourceLang = HUMAN_SOURCE === 'bench' ? 'en_bench' : 'en';
+  const cal = resolveCalibrator({
+    task: TASK_NAME,
+    language: calLang,
+    pairs: calPairs,
+    sourceLang: calSourceLang,
+    chance: defaultChance,
+    cvChance: defaultChance,
+  });
+  for (const r of rows) {
+    const chance = r.chance ?? defaultChance;
+    r.p_pred_child = predictChild(cal.model, r.p_vlm, chance);
+    r.p_pred_age = ageAdjustedPredictions(TASK_NAME, r.p_pred_child, chance, {
+      itemUid: normalizeItemUid(TASK_NAME, r.item_uid),
+      ageItemRates: AGE_ITEM_RATES,
+    });
+  }
+
   // ---- write screen_<lang>.csv (all items) ----
-  const scrHeader = ['item_uid', 'flag', 'reason', 'n_resp', 'p_vlm', 'rpb_vlm', 'p_human', 'pb_human', 'transcript'];
+  const ageCols = PRED_AGES.map((a) => `p_pred_age_${a}`);
+  const scrHeader = [
+    'item_uid',
+    'flag',
+    'reason',
+    'n_resp',
+    'p_vlm',
+    'rpb_vlm',
+    'p_human',
+    'pb_human',
+    'p_pred_child',
+    ...ageCols,
+    'transcript',
+  ];
   const scr = [scrHeader.join(',')];
   for (const r of [...rows].sort((a, b) => a.p_vlm - b.p_vlm)) {
     scr.push(
@@ -745,6 +843,8 @@ function analyzeLanguage(language) {
         fmt(r.rpb_vlm),
         fmt(r.p_human),
         fmt(r.pb_human),
+        fmt(r.p_pred_child),
+        ...PRED_AGES.map((a) => fmt(r.p_pred_age?.[String(a)] ?? null)),
         `"${String(r.transcript ?? '').replace(/"/g, '""')}"`,
       ].join(','),
     );
@@ -756,7 +856,7 @@ function analyzeLanguage(language) {
   const review = rows
     .filter((r) => r.flag !== 'OK')
     .sort((a, b) => (order[a.flag] - order[b.flag]) || a.p_vlm - b.p_vlm);
-  const rv = [['priority', 'item_uid', 'flag', 'p_vlm', 'p_human', 'transcript'].join(',')];
+  const rv = [['priority', 'item_uid', 'flag', 'p_vlm', 'p_human', 'p_pred_child', 'transcript'].join(',')];
   review.forEach((r, i) =>
     rv.push(
       [
@@ -765,6 +865,7 @@ function analyzeLanguage(language) {
         r.flag,
         fmt(r.p_vlm),
         fmt(r.p_human),
+        fmt(r.p_pred_child),
         `"${String(r.transcript ?? '').replace(/"/g, '""')}"`,
       ].join(','),
     ),
@@ -810,9 +911,25 @@ function analyzeLanguage(language) {
     s.push('');
   }
 
+  s.push(
+    formatCalibrationReport({
+      language,
+      source: cal.source,
+      path: cal.path,
+      cv: cal.cv,
+      fitted: cal.fitted,
+      nMatched: m.length,
+      inSample: cal.model ? inSampleMetrics(calPairs, cal.model, defaultChance) : null,
+    }),
+  );
+
+  const maeNote =
+    cal.cv?.maeCal != null && cal.cv?.maeRaw != null
+      ? ` maeCal=${fmt(cal.cv.maeCal, 2)}/raw=${fmt(cal.cv.maeRaw, 2)}`
+      : '';
   const summary = hasHumanJoin
-    ? `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}] rhoDiff=${fmt(rhoDiff, 2)} brokenCatch=${hBrokenCaught}/${hBroken.length}`
-    : `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}]`;
+    ? `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}] rhoDiff=${fmt(rhoDiff, 2)} brokenCatch=${hBrokenCaught}/${hBroken.length}${maeNote}`
+    : `${language}: resp=${respondents.length} items=${commonKeys.length} flags[B${flagCounts.BROKEN ?? 0}/H${flagCounts.HARD ?? 0}/C${flagCounts.CEILING ?? 0}]${maeNote}`;
   return { section: s.join('\n'), summary };
 }
 
@@ -873,7 +990,7 @@ async function main() {
     );
   }
 
-  for (const lang of langs) {
+  for (const lang of languagesForAnalyze(langs)) {
     const out = analyzeLanguage(lang);
     if (!out) continue;
     rep.push(out.section);
@@ -883,10 +1000,14 @@ async function main() {
   // cross-language difficulty shift (vs en) -- the translation-breakage signal
   if (langs.includes('en') && langs.length > 1) {
     rep.push(crossLanguageSection(langs));
+    writeCrossLanguageReviewCsvs(langs);
   }
 
   writeFileSync(join(OUT_DIR, `report${TAG}.md`), rep.join('\n') + '\n', 'utf-8');
   console.log(`Wrote out/report${TAG}.md, out/screen${TAG}_<lang>.csv, out/review${TAG}_<lang>.csv`);
+  if (langs.includes('en') && langs.length > 1) {
+    console.log(`Wrote out/review_xlang${TAG}_<lang>.csv (delta vs en; |delta|>=0.25 = strong candidates)`);
+  }
 }
 
 /**
@@ -909,6 +1030,12 @@ function crossLanguageSection(langs) {
   }
   const label = TASK.humanJoin ? 'item_uid' : 'item_key';
   const s = ['## Cross-language difficulty shift vs en (translation-breakage signal)'];
+  s.push('');
+  s.push(
+    'Spreadsheet triage: `out/review_xlang' +
+      TAG +
+      '_<lang>.csv` (all items sorted by delta; |delta| ≥ 0.25 is a strong candidate).',
+  );
   for (const lang of langs.filter((l) => l !== 'en')) {
     const deltas = [];
     for (const [uid, pEn] of byLang.en) {
@@ -926,6 +1053,112 @@ function crossLanguageSection(langs) {
   }
   s.push('');
   return s.join('\n');
+}
+
+/** Parse the simple screen_*.csv we just wrote (quoted fields, no nested commas in ids). */
+function loadScreenCsv(language) {
+  const path = join(OUT_DIR, `screen${TAG}_${language}.csv`);
+  if (!existsSync(path)) return new Map();
+  const lines = readFileSync(path, 'utf-8').trim().split(/\r?\n/);
+  if (lines.length < 2) return new Map();
+  const header = splitCsvLine(lines[0]);
+  const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+  const out = new Map();
+  for (const line of lines.slice(1)) {
+    const cols = splitCsvLine(line);
+    const uid = cols[idx.item_uid];
+    if (!uid) continue;
+    out.set(uid, {
+      item_uid: uid,
+      flag: cols[idx.flag] ?? '',
+      p_vlm: Number(cols[idx.p_vlm]),
+      transcript: cols[idx.transcript] ?? '',
+    });
+  }
+  return out;
+}
+
+function splitCsvLine(line) {
+  const out = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (c === '"') inQ = false;
+      else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+/**
+ * Write review_xlang_<lang>.csv for each non-en language: all joined items
+ * sorted by delta = p_lang - p_en (most negative first).
+ */
+function writeCrossLanguageReviewCsvs(langs) {
+  const en = loadScreenCsv('en');
+  if (en.size === 0) return;
+  const XLANG_STRONG = 0.25;
+  for (const lang of langs.filter((l) => l !== 'en')) {
+    const other = loadScreenCsv(lang);
+    if (other.size === 0) continue;
+    const rows = [];
+    for (const [uid, a] of en) {
+      const b = other.get(uid);
+      if (!b || !Number.isFinite(a.p_vlm) || !Number.isFinite(b.p_vlm)) continue;
+      const delta = b.p_vlm - a.p_vlm;
+      rows.push({
+        item_uid: uid,
+        p_en: a.p_vlm,
+        p_lang: b.p_vlm,
+        delta,
+        strong: Math.abs(delta) >= XLANG_STRONG ? 'yes' : '',
+        flag_en: a.flag,
+        flag_lang: b.flag,
+        transcript_en: a.transcript,
+        transcript_lang: b.transcript,
+      });
+    }
+    rows.sort((x, y) => x.delta - y.delta);
+    const header = [
+      'item_uid',
+      'p_en',
+      `p_${lang}`,
+      'delta',
+      'strong_delta',
+      'flag_en',
+      `flag_${lang}`,
+      'transcript_en',
+      `transcript_${lang}`,
+    ];
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      lines.push(
+        [
+          r.item_uid,
+          fmt(r.p_en),
+          fmt(r.p_lang),
+          fmt(r.delta),
+          r.strong,
+          r.flag_en,
+          r.flag_lang,
+          `"${String(r.transcript_en).replace(/"/g, '""')}"`,
+          `"${String(r.transcript_lang).replace(/"/g, '""')}"`,
+        ].join(','),
+      );
+    }
+    const outPath = join(OUT_DIR, `review_xlang${TAG}_${lang}.csv`);
+    writeFileSync(outPath, lines.join('\n') + '\n', 'utf-8');
+  }
 }
 
 main();

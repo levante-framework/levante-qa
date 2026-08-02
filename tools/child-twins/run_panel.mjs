@@ -74,7 +74,7 @@ function expand(grid) {
   const locales = grid.locales ?? [];
   const tasks = grid.tasks ?? [];
   const agents = grid.agents ?? ['sim', 'vlm'];
-  const models = grid.models?.length ? grid.models : ['gemini-2.5-flash'];
+  const models = grid.models?.length ? grid.models : ['gemini-3.6-flash'];
   const repeats = grid.repeats ?? 1;
   const out = [];
 

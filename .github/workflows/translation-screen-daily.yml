@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: 'Re-screen all approved packs (ignore baseline hashes)'
+        description: 'Re-screen all approved packs (ignore baseline; not new-keys-only)'
         required: false
         type: boolean
         default: false
@@ -22,7 +22,7 @@ on:
         type: string
         default: ''
       no_slack:
-        description: 'Write report only; do not post to Slack'
+        description: 'Write report only; do not DM Slack'
         required: false
         type: boolean
         default: false
@@ -35,8 +35,8 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_TRANSLATION_WEBHOOK_URL }}
-      SLACK_ALERT_CHANNEL: levante-crowdin
+      # DM david_cardinal instead of #levante-crowdin (bot token + user id).
+      SLACK_ALERT_CHANNEL: W018924DJJV
       QA_ITEMBANK_BASE_URL: https://storage.googleapis.com/levante-assets-draft/translations
       QA_VISION_IMAGE_BUCKET: levante-assets-prod
     steps:

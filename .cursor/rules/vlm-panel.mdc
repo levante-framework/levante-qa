@@ -1,0 +1,43 @@
+---
+description: VLM panel → child pass-rate prediction (design decisions + ops gotchas)
+globs: tools/vlm-panel/**,cypress/support/agents/*VlmAgent.ts,cypress/plugins/vlmClients/**
+alwaysApply: false
+---
+
+# VLM panel fidelity
+
+Read `tools/vlm-panel/RESULTS.md` for numbers and live recollect status. README is the operator guide.
+
+## Prediction path (do not regress)
+
+```
+ungated VLM panel → p_vlm → monotonic calibrator → p_pred_child
+```
+
+- **IRT gate / `sim_child` cannot predict new unscored items** (no item `d` → age-mean `fallbackP`). Wrong tool for translation/new-item prediction.
+- Prefer `--human-source=bench` (levante-bench `trials.csv` `correct`). **Never** use vocab `proportions.csv` `image1` as P(correct) — often ~0 while trials ~85%.
+- Soft age personas already failed for age curves; do not revive without new evidence.
+
+## Recollect ops
+
+- Panel bills **`GEMINI_API_KEY` (Google)**, not Cursor. **Pro is off by default** in grids (thinking cost ~30–50× flash $). Default models: `gemini-3.5-flash-lite` + `gemini-3.6-flash` (2.5 family EOL ~2026-10-16).
+- Cross-lang TROG: `run_langs_trog.mjs` (force de/es by default; resume en/nl). Log: `out/recollect_xlang.log`. Triage: `out/review_xlang_<lang>.csv`.
+- Prompt changes require new runs only for cells you care about. Default **`run_panel.mjs` resumes** (retries failed/missing; skips finalized successes). Use `--force` only to re-run successes too.
+- Finalized log = `vlm_*.jsonl` **>64 bytes**. Stubs are cleared automatically on resume retry.
+- Log: `tools/vlm-panel/out/recollect.log`. Manifest: `out/manifest.json`. Trials: `cypress/logs/runs/<runId>/vlm_*.jsonl`.
+- Many TROG fails are ~5 min Cypress startups with **no Gemini call** (empty run dir) — wall-clock waste, not token waste.
+
+## After panel fills in
+
+```bash
+node tools/vlm-panel/analyze.mjs --human-source=bench   # prefer analyzing en first
+node tools/vlm-panel/fit_bench_calibrator.mjs
+node tools/vlm-panel/audit_residuals.mjs
+# then update RESULTS.md
+```
+
+## Residual-driven prompts (current)
+
+- Vocab: too easy on rare words → ordinary concrete sense (`vocabVlmAgent.ts`).
+- TROG: too hard on negation / reverse agent / spatial / comparative → checklist + `trogUserText()` (`trogVlmAgent.ts`).
+- Gemini default retries 6→8 (`gemini.ts`).

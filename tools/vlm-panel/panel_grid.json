@@ -7,10 +7,9 @@
   "personaAbility": "irt",
   "repeats": 4,
   "models": [
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro"
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
   ],
   "ages": [6, 8, 10, 13],
-  "_notes": "Each respondent = one full TROG run = one cell (model x age x repeat). 3 x 4 x 4 = 48 respondents. Ability is varied only on the responder side (model strength + child-age IRT persona); the stimulus is never altered. temperature>0 + repeats give within-cell variance so identical cells are not deterministic duplicates. Tune `repeats`/`models`/`ages` to trade compute for panel size. If the low-ability tail is thin (spread gate fails in analyze.mjs), add weaker/older Gemini snapshots here -- never degrade the input."
+  "_notes": "Each respondent = one full TROG run = one cell (model x age x repeat). Default 2 x 4 x 4 = 32 respondents (flash-lite + flash only). Pro is off by default — expensive thinking tokens and flaky for panels; add e.g. gemini-2.5-pro or a 3.x pro id only when you intentionally want that tier. Models: Gemini 2.5 Flash/Flash-Lite shut down ~2026-10-16 (ai.google.dev deprecations); defaults follow Google replacements (3.6-flash, 3.5-flash-lite). Ability is varied only on the responder side; stimulus never altered."
 }

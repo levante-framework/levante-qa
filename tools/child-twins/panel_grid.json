@@ -7,7 +7,7 @@
   ],
   "agents": ["sim", "vlm"],
   "provider": "gemini",
-  "models": ["gemini-2.5-flash"],
+  "models": ["gemini-3.6-flash"],
   "temperature": 0.8,
   "personaAbility": "irt",
   "repeats": 1,

@@ -4,7 +4,7 @@
   "language": "en-US",
   "temperature": 0.8,
   "repeats": 2,
-  "models": ["gemini-2.5-flash-lite", "gemini-2.5-flash"],
+  "models": ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
   "ages": [6, 10],
-  "_notes": "ROAR SWR scaled panel. 8 respondents per language (2 models x 2 ages x 2 repeats). Provisioning is handled by run_roar_panel.mjs per respondent."
+  "_notes": "ROAR SWR scaled panel. 8 respondents per language (2 models x 2 ages x 2 repeats). Gemini 2.5 EOL ~2026-10-16 — defaults are 3.5-flash-lite + 3.6-flash. Provisioning is handled by run_roar_panel.mjs per respondent."
 }

@@ -1,0 +1,278 @@
+{
+  "locale": "nl-NL",
+  "completion_code": "NLTR0GA1",
+  "items": [
+    {
+      "item_id": "trog/trog_xnoty_box_not_chair_red",
+      "identifier": "trog_xnoty_box_not_chair_red",
+      "source_en": "the box but not the chair is red",
+      "translation": "de doos, maar niet de stoel, is rood",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_conditional_we_dance_if_music_play",
+      "identifier": "trog_conditional_we_dance_if_music_play",
+      "source_en": "We will dance together if there is music playing.",
+      "translation": "We zullen samen dansen, als er muziek speelt.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_abovebelow_pencil_above_flower",
+      "identifier": "trog_abovebelow_pencil_above_flower",
+      "source_en": "the pencil is above the flower",
+      "translation": "het potlood is boven de bloem",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_disjunctive_he_wear_despite_size",
+      "identifier": "trog_disjunctive_he_wear_despite_size",
+      "source_en": "He wore the clown's hat despite its large size.",
+      "translation": "Hij droeg de clownshoed, ondanks de grote omvang.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_adjective_black",
+      "identifier": "trog_adjective_black",
+      "source_en": "Choose the picture that shows black.",
+      "translation": "Kies het plaatje waarop zwart te zien is.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_inon_fork_on_shoe",
+      "identifier": "trog_inon_fork_on_shoe",
+      "source_en": "the fork is on the shoe",
+      "translation": "de vork ligt op de schoen",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_3combo_man_eat_apple",
+      "identifier": "trog_3combo_man_eat_apple",
+      "source_en": "the man is eating the apple",
+      "translation": "de man eet de appel",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_comparative_shoe_bigger_bird",
+      "identifier": "trog_comparative_shoe_bigger_bird",
+      "source_en": "the shoe is bigger than the bird",
+      "translation": "de schoen is groter dan de vogel",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_neither_boy_hat_nor_shoe",
+      "identifier": "trog_neither_boy_hat_nor_shoe",
+      "source_en": "the boy has neither hat nor shoes",
+      "translation": "de jongen heeft geen hoed en ook geen schoenen",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_notonly_notonly_bird_flower_blue",
+      "identifier": "trog_notonly_notonly_bird_flower_blue",
+      "source_en": "not only the bird but also the flower is blue",
+      "translation": "niet alleen de vogel, maar ook de bloem is blauw",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_conjcoord_say_sunny_however_rain",
+      "identifier": "trog_conjcoord_say_sunny_however_rain",
+      "source_en": "Her mom said it would be sunny. However, it rained heavily.",
+      "translation": "Haar moeder zei dat het zonnig zou zijn. Het regende echter hevig.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_temporal_student_open_notebook_draw_tree",
+      "identifier": "trog_temporal_student_open_notebook_draw_tree",
+      "source_en": "the student opened the notebook and drew a tree",
+      "translation": "de student opende het schrift en tekende een boom",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "attn/dog_cat",
+      "identifier": "attn_dog_vs_cat",
+      "source_en": "Point to the dog.",
+      "translation": "Wijs naar de kat.",
+      "is_attention_check": true,
+      "expect": {
+        "adequacy_max": 1
+      }
+    },
+    {
+      "item_id": "trog/trog_notonly_girl_notonly_food_drink",
+      "identifier": "trog_notonly_girl_notonly_food_drink",
+      "source_en": "the girl has not only food but also a drink",
+      "translation": "het meisje heeft niet alleen eten, maar ook drinken",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_revactive_cow_push_lady",
+      "identifier": "trog_revactive_cow_push_lady",
+      "source_en": "the cow is pushing the lady",
+      "translation": "de koe duwt de dame",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_disjunctive_although_hot_i_wear",
+      "identifier": "trog_disjunctive_although_hot_i_wear",
+      "source_en": "Although it is hot outside, I am wearing a jacket with a hood.",
+      "translation": "Hoewel het buiten warm is, draag ik een jas met capuchon.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_abovebelow_square_below_star",
+      "identifier": "trog_abovebelow_square_below_star",
+      "source_en": "the square is below the star",
+      "translation": "het vierkant is onder de ster",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_noun_shoe",
+      "identifier": "trog_noun_shoe",
+      "source_en": "Choose the picture of the shoe.",
+      "translation": "Kies het plaatje van de schoen.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_relclause_square_in_star_that_blue",
+      "identifier": "trog_relclause_square_in_star_that_blue",
+      "source_en": "the square is in the star that is blue",
+      "translation": "het vierkant zit in de ster die blauw is",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_pluralmorph_girl_drop_cups",
+      "identifier": "trog_pluralmorph_girl_drop_cups",
+      "source_en": "the girl drops the cups",
+      "translation": "het meisje laat de kopjes vallen",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_revpassive_horse_chased_man",
+      "identifier": "trog_revpassive_horse_chased_man",
+      "source_en": "the horse is chased by the man",
+      "translation": "het paard wordt achtervolgd door de man",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_preploc_plane_gray_above_cloud",
+      "identifier": "trog_preploc_plane_gray_above_cloud",
+      "source_en": "The plane that is gray is above the clouds.",
+      "translation": "Het vliegtuig dat grijs is, is boven de wolken.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_negative_dog_not_drink",
+      "identifier": "trog_negative_dog_not_drink",
+      "source_en": "the dog is not drinking",
+      "translation": "de hond drinkt niet",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_pluralmorph_boys_pick_apples",
+      "identifier": "trog_pluralmorph_boys_pick_apples",
+      "source_en": "the boys pick the apples",
+      "translation": "de jongens plukken de appels",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_conjcoord_kid_clean_but_forget",
+      "identifier": "trog_conjcoord_kid_clean_but_forget",
+      "source_en": "The kids cleaned the room, but forgot to put away the train.",
+      "translation": "De kinderen hebben de kamer opgeruimd, maar zijn vergeten de trein op te bergen.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "attn/formal_ball",
+      "identifier": "attn_formal_ball",
+      "source_en": "The ball is red.",
+      "translation": "Gelieve het rode speelvoorwerp te selecteren.",
+      "is_attention_check": true,
+      "expect": {
+        "appropriateness_max": 1
+      }
+    },
+    {
+      "item_id": "trog/trog_relclause_girl_chase_dog_that_big",
+      "identifier": "trog_relclause_girl_chase_dog_that_big",
+      "source_en": "the girl chases the dog that is big",
+      "translation": "het meisje achtervolgt de hond die groot is",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_gerund_bump_table_case_book_fall",
+      "identifier": "trog_gerund_bump_table_case_book_fall",
+      "source_en": "Bumping the table with my foot caused a book to fall.",
+      "translation": "Doordat ik met mijn voet tegen de tafel stootte, viel er een boek op de grond.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_relclause_person_chase_dog_that_big",
+      "identifier": "trog_relclause_person_chase_dog_that_big",
+      "source_en": "The person chases the dog that is big.",
+      "translation": "De persoon zit achter de hond aan die groot is.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_relclause_pencil_on_book_that_yellow",
+      "identifier": "trog_relclause_pencil_on_book_that_yellow",
+      "source_en": "the pencil is on the book that is yellow",
+      "translation": "het potlood ligt op het boek dat geel is",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_adjective_red",
+      "identifier": "trog_adjective_red",
+      "source_en": "Choose the picture that shows red.",
+      "translation": "Kies het plaatje waarop rood te zien is.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_3combo_boy_jump_box",
+      "identifier": "trog_3combo_boy_jump_box",
+      "source_en": "the boy is jumping over the box",
+      "translation": "de jongen springt over de doos",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_abovebelow_comb_below_spoon",
+      "identifier": "trog_abovebelow_comb_below_spoon",
+      "source_en": "the comb is below the spoon",
+      "translation": "de kam is onder de lepel",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_conditional_teacher_give_if_stand_line",
+      "identifier": "trog_conditional_teacher_give_if_stand_line",
+      "source_en": "The teacher will give the students cake if they stand in a line.",
+      "translation": "De leraar zal de leerlingen taart geven, als ze in de rij gaan staan.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_neither_dog_nor_ball_brown",
+      "identifier": "trog_neither_dog_nor_ball_brown",
+      "source_en": "neither the dog nor the ball is brown",
+      "translation": "de hond is niet bruin en de bal ook niet",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_pluralpronoun_cow_look_them",
+      "identifier": "trog_pluralpronoun_cow_look_them",
+      "source_en": "the cow is looking at them",
+      "translation": "de koe kijkt naar hen",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_disjunctive_despite_noise_she_focus",
+      "identifier": "trog_disjunctive_despite_noise_she_focus",
+      "source_en": "Despite the noise in the classroom, she focused on reading her notebook.",
+      "translation": "Ondanks het lawaai in het klaslokaal concentreerde ze zich op het lezen van haar schrift.",
+      "is_attention_check": false
+    },
+    {
+      "item_id": "trog/trog_embedding_book_pencil_on_red",
+      "identifier": "trog_embedding_book_pencil_on_red",
+      "source_en": "the book the pencil is on is red",
+      "translation": "het boek waar het potlood op ligt, is rood",
+      "is_attention_check": false
+    }
+  ]
+}
