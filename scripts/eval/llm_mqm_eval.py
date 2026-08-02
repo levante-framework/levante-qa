@@ -105,7 +105,7 @@ def _normalize_errors(raw: Any) -> List[Dict[str, Any]]:
 class LlmMqmEvaluator:
     def __init__(
         self,
-        model_name: str = "gemini-2.5-flash",
+        model_name: str = "gemini-3.6-flash",
         fallback_model: str = "gemini-flash-latest",
         api_key: Optional[str] = None,
         cache_dir: str = "output/llm_cache",

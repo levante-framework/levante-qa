@@ -13,9 +13,12 @@ whose translation reverses agent/patient and which only **1%** of German childre
 answered correctly. This panel re-discovers that item from a **cross-language
 difficulty shift** with no human data at all.
 
-> TL;DR: run `run_panel.mjs` to collect a panel, then `analyze.mjs` to produce a
-> difficulty screen (`out/report*.md` + `out/screen_*.csv` + `out/review_*.csv`).
-> Child-prediction results and recollect status: **[`RESULTS.md`](RESULTS.md)**.
+> TL;DR: run `run_panel.mjs` (one locale) or **`run_langs_trog.mjs`** (cross-lang
+> TROG refresh), then `analyze.mjs`. Plain-language takeaways:
+> **[`LEARNINGS.md`](LEARNINGS.md)**. Numbers + handoff: **[`RESULTS.md`](RESULTS.md)**.
+> Agent rules: [`.cursor/rules/vlm-panel.mdc`](../../.cursor/rules/vlm-panel.mdc).
+>
+> Translation triage: `out/review_xlang_<lang>.csv` (`strong_delta=yes` ⇒ |Δ|≥0.25 vs EN).
 
 ---
 
@@ -43,7 +46,10 @@ difficulty shift** with no human data at all.
 ```
 tools/vlm-panel/
   run_panel.mjs            # collect a panel: one Cypress run per "respondent"
+  run_langs_trog.mjs       # multi-locale TROG: force stale langs, resume others
+  run_xlang_pipeline.sh    # full EN→DE→analyze→ES→NL→analyze chain
   analyze.mjs              # build difficulty screen + human comparison + child preds
+                           # + review_xlang_<lang>.csv (delta vs en)
   calibration.mjs          # isotonic / logistic p_vlm → p_pred_child
   benchHuman.mjs           # load levante-bench trials / proportions
   fit_bench_calibrator.mjs # fit on bench trials; compare to diag; write caches
@@ -78,14 +84,29 @@ Prerequisites:
 - `GEMINI_API_KEY` exported (the panels here use Gemini). The runner runs Cypress
   headless via WSLg/Electron.
 
-Collect + analyze a TROG panel for one language:
+### Cross-language TROG (recommended for translation QA)
 
 ```bash
-# Collect (sequential; parallel Cypress OOMs under WSL2). Resumable.
-node tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid.json --lang en-US
+# Default: en-US resume, de-DE+es-CO force+resume, nl-NL collect. Log: out/recollect_xlang.log
+node tools/vlm-panel/run_langs_trog.mjs
 
-# Analyze whatever is on disk for this task.
-node tools/vlm-panel/analyze.mjs --task trog
+node tools/vlm-panel/analyze.mjs --task trog --human-source=bench
+# open out/review_xlang_de.csv / _es.csv / _nl.csv
+```
+
+June 2026 de/es panels are **stale** relative to Aug 2026 EN prompt fixes — force
+refresh them before trusting cross-language deltas.
+
+### Single-locale panel
+
+```bash
+node tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid.json --lang en-US
+```
+
+Collect + analyze (resume by default):
+
+```bash
+node tools/vlm-panel/analyze.mjs --task trog --human-source=bench
 ```
 
 Stories (Theory of Mind), all three languages, then analyze:
@@ -106,8 +127,11 @@ respondents — a smoke test).
 
 Expands a grid into one **respondent** per `(model × age × repeat)` cell and runs
 the task's VLM-agent spec once per respondent, **sequentially**. Each respondent
-gets a unique `QA_RUN_ID` so its trial log is isolated. The runner is
-**resumable**: a respondent whose finalized log already exists is skipped.
+gets a unique `QA_RUN_ID` so its trial log is isolated. **Resume is the default:**
+respondents with a finalized `vlm_*.jsonl` (>64 bytes) are skipped; failed /
+stub / missing cells are retried and stubs are cleared automatically. Pass
+`--force` only to re-run successes too (expensive; use after intentional prompt
+changes on already-finished cells).
 
 Ability is varied only on the responder side, via environment variables the spec
 and persona layer read:
@@ -141,7 +165,7 @@ sandbox contexts: a sandboxed `CYPRESS_CACHE_FOLDER`, and `ELECTRON_RUN_AS_NODE`
   "temperature": 0.8,
   "personaAbility": "irt",
   "repeats": 4,
-  "models": ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro"],
+  "models": ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
   "ages": [6, 8, 10, 13]
 }
 ```

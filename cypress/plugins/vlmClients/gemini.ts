@@ -2,9 +2,9 @@ import { GoogleGenAI } from '@google/genai';
 import type { VLMRequest } from '../../support/tasks/types';
 import { buildUserText } from './index';
 
-// Current vision-capable default (the legacy gemini-1.5 family is deprecated).
-// Override per run with GEMINI_MODEL, e.g. gemini-2.5-pro or gemini-3-flash-preview.
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Default follows Google's replacement for gemini-2.5-flash (EOL ~2026-10-16).
+// Override per run with GEMINI_MODEL, e.g. gemini-3.5-flash-lite or a pro id.
+const DEFAULT_MODEL = 'gemini-3.6-flash';
 
 /**
  * Sampling temperature. Defaults to 0 (deterministic) so the oracle and normal

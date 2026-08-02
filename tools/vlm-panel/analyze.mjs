@@ -1000,10 +1000,14 @@ async function main() {
   // cross-language difficulty shift (vs en) -- the translation-breakage signal
   if (langs.includes('en') && langs.length > 1) {
     rep.push(crossLanguageSection(langs));
+    writeCrossLanguageReviewCsvs(langs);
   }
 
   writeFileSync(join(OUT_DIR, `report${TAG}.md`), rep.join('\n') + '\n', 'utf-8');
   console.log(`Wrote out/report${TAG}.md, out/screen${TAG}_<lang>.csv, out/review${TAG}_<lang>.csv`);
+  if (langs.includes('en') && langs.length > 1) {
+    console.log(`Wrote out/review_xlang${TAG}_<lang>.csv (delta vs en; |delta|>=0.25 = strong candidates)`);
+  }
 }
 
 /**
@@ -1026,6 +1030,12 @@ function crossLanguageSection(langs) {
   }
   const label = TASK.humanJoin ? 'item_uid' : 'item_key';
   const s = ['## Cross-language difficulty shift vs en (translation-breakage signal)'];
+  s.push('');
+  s.push(
+    'Spreadsheet triage: `out/review_xlang' +
+      TAG +
+      '_<lang>.csv` (all items sorted by delta; |delta| ≥ 0.25 is a strong candidate).',
+  );
   for (const lang of langs.filter((l) => l !== 'en')) {
     const deltas = [];
     for (const [uid, pEn] of byLang.en) {
@@ -1043,6 +1053,112 @@ function crossLanguageSection(langs) {
   }
   s.push('');
   return s.join('\n');
+}
+
+/** Parse the simple screen_*.csv we just wrote (quoted fields, no nested commas in ids). */
+function loadScreenCsv(language) {
+  const path = join(OUT_DIR, `screen${TAG}_${language}.csv`);
+  if (!existsSync(path)) return new Map();
+  const lines = readFileSync(path, 'utf-8').trim().split(/\r?\n/);
+  if (lines.length < 2) return new Map();
+  const header = splitCsvLine(lines[0]);
+  const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+  const out = new Map();
+  for (const line of lines.slice(1)) {
+    const cols = splitCsvLine(line);
+    const uid = cols[idx.item_uid];
+    if (!uid) continue;
+    out.set(uid, {
+      item_uid: uid,
+      flag: cols[idx.flag] ?? '',
+      p_vlm: Number(cols[idx.p_vlm]),
+      transcript: cols[idx.transcript] ?? '',
+    });
+  }
+  return out;
+}
+
+function splitCsvLine(line) {
+  const out = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (c === '"') inQ = false;
+      else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+/**
+ * Write review_xlang_<lang>.csv for each non-en language: all joined items
+ * sorted by delta = p_lang - p_en (most negative first).
+ */
+function writeCrossLanguageReviewCsvs(langs) {
+  const en = loadScreenCsv('en');
+  if (en.size === 0) return;
+  const XLANG_STRONG = 0.25;
+  for (const lang of langs.filter((l) => l !== 'en')) {
+    const other = loadScreenCsv(lang);
+    if (other.size === 0) continue;
+    const rows = [];
+    for (const [uid, a] of en) {
+      const b = other.get(uid);
+      if (!b || !Number.isFinite(a.p_vlm) || !Number.isFinite(b.p_vlm)) continue;
+      const delta = b.p_vlm - a.p_vlm;
+      rows.push({
+        item_uid: uid,
+        p_en: a.p_vlm,
+        p_lang: b.p_vlm,
+        delta,
+        strong: Math.abs(delta) >= XLANG_STRONG ? 'yes' : '',
+        flag_en: a.flag,
+        flag_lang: b.flag,
+        transcript_en: a.transcript,
+        transcript_lang: b.transcript,
+      });
+    }
+    rows.sort((x, y) => x.delta - y.delta);
+    const header = [
+      'item_uid',
+      'p_en',
+      `p_${lang}`,
+      'delta',
+      'strong_delta',
+      'flag_en',
+      `flag_${lang}`,
+      'transcript_en',
+      `transcript_${lang}`,
+    ];
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      lines.push(
+        [
+          r.item_uid,
+          fmt(r.p_en),
+          fmt(r.p_lang),
+          fmt(r.delta),
+          r.strong,
+          r.flag_en,
+          r.flag_lang,
+          `"${String(r.transcript_en).replace(/"/g, '""')}"`,
+          `"${String(r.transcript_lang).replace(/"/g, '""')}"`,
+        ].join(','),
+      );
+    }
+    const outPath = join(OUT_DIR, `review_xlang${TAG}_${lang}.csv`);
+    writeFileSync(outPath, lines.join('\n') + '\n', 'utf-8');
+  }
 }
 
 main();

@@ -65,7 +65,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=0, help="Use only the first N rows (after filtering).")
     p.add_argument("--comet-model", default="Unbabel/wmt22-cometkiwi-da")
     p.add_argument("--embed-model", default="intfloat/multilingual-e5-large")
-    p.add_argument("--llm-model", default="gemini-2.5-flash")
+    p.add_argument("--llm-model", default="gemini-3.6-flash")
     p.add_argument("--no-cache", action="store_true", help="Disable the LLM disk cache.")
     return p.parse_args()
 

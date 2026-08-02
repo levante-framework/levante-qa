@@ -81,7 +81,7 @@ object than the one shown, or is a mistranslation. Still report any such real is
 
 
 class VocabVisionEvaluator:
-    def __init__(self, model_name: str = "gemini-2.5-flash", fallback_model: str = "gemini-flash-latest",
+    def __init__(self, model_name: str = "gemini-3.6-flash", fallback_model: str = "gemini-flash-latest",
                  cache_dir: str = "output/vocab_vision_cache", timeout: int = 90):
         load_env()
         import os

@@ -11,15 +11,18 @@
  * The stimulus is never altered.
  *
  * Each respondent gets a unique QA_RUN_ID so its trial log lands in
- * cypress/logs/runs/<QA_RUN_ID>/vlm_trog_gemini_*.jsonl. Progress + covariates
- * are written to out/manifest.json; the runner is resumable (a respondent whose
- * log already exists is skipped).
+ * cypress/logs/runs/<QA_RUN_ID>/vlm_*.jsonl. Progress + covariates are written
+ * to out/manifest.json.
+ *
+ * Default is **resume**: skip respondents that already have a finalized trial
+ * log (>64 bytes). Failed / stub / missing cells are retried automatically
+ * (stubs cleared before re-run). Use --force only to re-bill successes too.
  *
  * Usage:
- *   node tools/vlm-panel/run_panel.mjs                 # full grid
+ *   node tools/vlm-panel/run_panel.mjs                 # resume: run pending/failed only
  *   node tools/vlm-panel/run_panel.mjs --limit 1       # smoke test: first respondent only
  *   node tools/vlm-panel/run_panel.mjs --dry-run       # print the plan, run nothing
- *   node tools/vlm-panel/run_panel.mjs --force          # re-run even if logs exist
+ *   node tools/vlm-panel/run_panel.mjs --force          # re-run ALL cells (expensive)
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -95,14 +98,16 @@ function expand(grid, token, locale) {
   return out;
 }
 
-/** A respondent is "done" if its run dir holds a non-empty finalized trial log. */
-function alreadyDone(runId) {
+/**
+ * Finalized success = non-stub `vlm_*.jsonl` (failed runs often leave 1-byte stubs
+ * or only `_…_vlm_live.jsonl`; those must not count as done).
+ */
+function hasFinalizedLog(runId) {
   const dir = join(REPO, 'cypress', 'logs', 'runs', runId);
   if (!existsSync(dir)) return false;
   for (const f of readdirSync(dir)) {
     if (!/^vlm_.*\.jsonl?$/.test(f)) continue;
     try {
-      // Failed runs sometimes leave a 1-byte stub that must not count as done.
       if (statSync(join(dir, f)).size > 64) return true;
     } catch {
       /* ignore */
@@ -111,7 +116,7 @@ function alreadyDone(runId) {
   return false;
 }
 
-/** Remove prior trial logs so a forced re-run starts clean. */
+/** Clear trial / live / stub jsonl so a re-run starts clean. */
 function clearTrialLogs(runId) {
   const dir = join(REPO, 'cypress', 'logs', 'runs', runId);
   if (!existsSync(dir)) return;
@@ -207,9 +212,10 @@ function main() {
   if (Number.isFinite(args.limit)) respondents = respondents.slice(0, args.limit);
 
   const byId = loadManifest();
+  // Resume (default): only cells lacking a finalized trial log. --force: everyone.
   const pending = args.force
     ? respondents
-    : respondents.filter((r) => !alreadyDone(r.runId));
+    : respondents.filter((r) => !hasFinalizedLog(r.runId));
   const skipped = respondents.length - pending.length;
 
   console.log(
@@ -218,12 +224,12 @@ function main() {
   console.log(`  task=${grid.task} lang=${token} (QA_LANGUAGE=${locale}) temp=${grid.temperature} persona=irt`);
   console.log(
     `  already done: ${skipped} | to run: ${pending.length}` +
-      (args.force ? ' (--force: re-run all)' : ''),
+      (args.force ? ' (--force: re-run all, including successes)' : ' (resume: pending/failed only)'),
   );
 
   if (args.dryRun) {
     for (const r of respondents) {
-      const tag = !args.force && alreadyDone(r.runId) ? 'SKIP' : 'RUN ';
+      const tag = !args.force && hasFinalizedLog(r.runId) ? 'SKIP' : 'RUN ';
       console.log(`  [${tag}] ${r.runId}  model=${r.model} age=${r.age} temp=${r.temperature}`);
     }
     console.log('(dry run -- nothing executed)');
@@ -233,7 +239,8 @@ function main() {
   let i = 0;
   for (const r of pending) {
     i++;
-    if (args.force) clearTrialLogs(r.runId);
+    // Always clear before a cell we are (re)running so stubs/partials cannot block.
+    clearTrialLogs(r.runId);
     const t0 = new Date().toISOString();
     console.log(`\n[${i}/${pending.length}] ${t0}  START ${r.runId} (model=${r.model} age=${r.age})`);
     const ok = runOne(r, byId);
