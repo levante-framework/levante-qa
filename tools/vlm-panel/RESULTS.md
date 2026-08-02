@@ -10,20 +10,20 @@ Durable agent rules: [`.cursor/rules/vlm-panel.mdc`](../../.cursor/rules/vlm-pan
 
 ## Handoff (live)
 
-**Cross-lang TROG refresh running** (log: `out/recollect_xlang.log`; PID via `pgrep -af run_xlang_pipeline`).
+**Cross-lang TROG refresh finished** `2026-08-02T20:04:10.381Z` (nl mop) (log: `out/recollect_xlang.log`).
 
-| Locale | Status |
-|--------|--------|
-| en-US | **48/48 done** (resume mop finished) |
-| de-DE | **force in progress** (~8/48 as of last check) |
-| es-CO | queued (force after DE) |
-| nl-NL | queued (collect after ES) |
+| Lang | Done | Failed | Other |
+|------|-----:|-------:|------:|
+| de | 48 | 0 | 0 |
+| en | 48 | 0 | 0 |
+| es | 48 | 0 | 0 |
+| nl | 48 | 0 | 0 |
 
-Pipeline script: [`run_xlang_pipeline.sh`](run_xlang_pipeline.sh) → analyze after DE → ES/NL → final analyze → refreshes this handoff.
-
-Triage when ready: `out/review_xlang_<lang>.csv` (`strong_delta=yes` ⇒ |Δ|≥0.25 vs EN).
+Triage: `out/review_xlang_<lang>.csv` (`strong_delta=yes` ⇒ |Δ|≥0.25 vs EN).
+See also `out/report.md` cross-language section.
 
 Uncommitted work on `improve-vlm-fidelity` (no commit/PR yet).
+
 
 ## Pipeline
 

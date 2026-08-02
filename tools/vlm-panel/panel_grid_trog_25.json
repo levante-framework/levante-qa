@@ -1,0 +1,16 @@
+{
+  "task": "trog",
+  "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 4,
+  "models": [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro"
+  ],
+  "ages": [6, 8, 10, 13],
+  "_notes": "Snapshot of the Aug 2026 cross-lang TROG grid (2.5 models, 48 cells). Use for resume mop of that panel; default panel_grid.json now targets 3.x."
+}
