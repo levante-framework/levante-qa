@@ -1,0 +1,189 @@
+:root {
+  --bg: #f3efe6;
+  --ink: #1c1914;
+  --muted: #5c564c;
+  --card: #fffdf8;
+  --line: #d9d0c0;
+  --accent: #0f5c4c;
+  --accent-ink: #f7fff9;
+  --warn: #8a3b12;
+  --radius: 14px;
+  --font: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #efe4c8 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #d7e6df 0%, transparent 50%),
+    var(--bg);
+}
+
+.shell {
+  width: min(720px, calc(100% - 2rem));
+  margin: 2rem auto 3rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.5rem 1.6rem;
+  box-shadow: 0 10px 30px rgba(28, 25, 20, 0.06);
+}
+
+h1, h2 {
+  font-family: var(--font);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.25rem; }
+
+p { margin: 0 0 0.85rem; line-height: 1.5; }
+.muted { color: var(--muted); }
+.small { font-size: 0.92rem; }
+
+.progress {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.bar {
+  height: 6px;
+  background: #e7dfd0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1.1rem;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 160ms ease;
+}
+
+.pair {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1rem 0 1.25rem;
+}
+.pair .box {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  background: #fbf8f1;
+}
+.pair .label {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+  font-family: var(--sans);
+}
+.pair .text {
+  font-family: var(--font);
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.scale {
+  margin: 1rem 0 1.2rem;
+}
+.scale legend {
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+}
+.scale .hint {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0 0 0.55rem;
+}
+.choices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.45rem;
+}
+@media (max-width: 560px) {
+  .choices { grid-template-columns: 1fr 1fr; }
+}
+.choices label {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.4rem;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  user-select: none;
+}
+.choices input { position: absolute; opacity: 0; pointer-events: none; }
+.choices label:has(input:checked) {
+  border-color: var(--accent);
+  background: #e7f4ef;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.choices .score { display: block; font-weight: 700; font-size: 1.1rem; }
+.choices .cap { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+
+textarea {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+  resize: vertical;
+  background: #fff;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1.2rem;
+}
+button {
+  font: inherit;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.7rem 1.15rem;
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+button.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+button.ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+.error {
+  color: var(--warn);
+  font-size: 0.92rem;
+  margin-top: 0.6rem;
+}
+.checklist { padding-left: 1.1rem; margin: 0 0 1rem; }
+.checklist li { margin-bottom: 0.35rem; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #efe8da;
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+}

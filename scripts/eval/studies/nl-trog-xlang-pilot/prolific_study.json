@@ -1,0 +1,163 @@
+{
+  "id": "6a6fb44b0b68815a0b97428c",
+  "name": "Dutch translations for a children’s language task (English → Dutch)",
+  "description": "<p>We are checking Dutch translations used in a research assessment for children.</p><p>You will see short English sentences and their Dutch translations. For each pair, you rate (1) whether the meaning matches and (2) whether the Dutch wording is natural for speaking with children.</p><p>No specialised linguistics training is required. Please do <strong>not</strong> use machine-translation tools — we need your own judgment.</p><ul><li>Estimated time: 15–20 minutes</li><li>Desktop or laptop preferred</li></ul>",
+  "total_available_places": 8,
+  "reward": 300,
+  "average_reward_per_hour": 1000,
+  "external_study_url": "https://nl-trog-study-a.vercel.app/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}",
+  "video_platform": null,
+  "video_id": null,
+  "device_compatibility": [
+    "desktop",
+    "tablet"
+  ],
+  "peripheral_requirements": [],
+  "researcher": {
+    "id": "69b735ad37ea56d39da41168",
+    "name": "David Cardinal",
+    "email": "david81@stanford.edu",
+    "country": "US",
+    "institution": {
+      "name": "stanford.edu",
+      "logo": "https://internal-api.prolific.com/assets/img/institutions/stanford.edu.png",
+      "link": "http://www.stanford.edu"
+    }
+  },
+  "publisher": {
+    "id": "69b735ad37ea56d39da41168",
+    "name": "David Cardinal",
+    "email": "david81@stanford.edu",
+    "country": "US",
+    "institution": {
+      "name": "stanford.edu",
+      "logo": "https://internal-api.prolific.com/assets/img/institutions/stanford.edu.png",
+      "link": "http://www.stanford.edu"
+    }
+  },
+  "places_taken": 0,
+  "study_type": "SINGLE",
+  "submissions_config": {
+    "max_submissions_per_participant": 1,
+    "max_concurrent_submissions": -1,
+    "auto_rejection_categories": []
+  },
+  "status": "PUBLISHING",
+  "internal_name": "nl-trog-xlang-study-a-pilot",
+  "minimum_reward_per_hour": 800,
+  "date_created": "2026-08-02T21:19:07.894000Z",
+  "published_at": "2026-08-02T21:19:42.474Z",
+  "number_of_submissions": 0,
+  "estimated_completion_time": 18,
+  "average_time_taken": 18,
+  "average_time_taken_seconds": 1080,
+  "completion_code": null,
+  "failed_attention_code": null,
+  "alternative_completion_codes": [],
+  "completion_code_action": null,
+  "last_email_update_sent_datetime": null,
+  "maximum_allowed_time": 45,
+  "receipt": null,
+  "eligible_participant_count": 2154,
+  "total_participant_pool": 324777,
+  "currency_code": "USD",
+  "total_cost": 3200,
+  "fees_per_submission": 0,
+  "fees_percentage": 0.333333,
+  "service_margin_percentage": "0.25000000000000000",
+  "vat_percentage": 0,
+  "discount_from_coupons": 0,
+  "estimated_reward_per_hour": 1000,
+  "representative_sample": null,
+  "publish_at": null,
+  "prolific_id_option": "url_parameters",
+  "is_underpaying": false,
+  "average_reward_per_hour_without_adjustment": 1000,
+  "has_had_adjustment": false,
+  "reward_level": {
+    "below_prolific_min": false,
+    "below_original_estimate": false
+  },
+  "project": "69b735ae37ea56d39da4116f",
+  "workspace": "69b735ae37ea56d39da4116b",
+  "naivety_distribution_rate": -1,
+  "is_reallocated": false,
+  "external_app": null,
+  "external_id": null,
+  "privacy_notice": null,
+  "can_be_reallocated": false,
+  "reallocated_places": 0,
+  "progress_percentage": 0,
+  "completion_codes": [
+    {
+      "code": "NLTR0GA1",
+      "code_type": "COMPLETED",
+      "actions": [
+        {
+          "action": "AUTOMATICALLY_APPROVE"
+        }
+      ],
+      "actor": "participant"
+    }
+  ],
+  "metadata": null,
+  "filter_set_id": null,
+  "filter_set_version": null,
+  "filters": [
+    {
+      "filter_id": "current-country-of-residence",
+      "selected_values": [
+        "158"
+      ]
+    },
+    {
+      "filter_id": "first-language",
+      "selected_values": [
+        "17"
+      ]
+    },
+    {
+      "filter_id": "age",
+      "selected_range": {
+        "lower": 18,
+        "upper": 100
+      }
+    },
+    {
+      "filter_id": "approval_rate",
+      "selected_range": {
+        "lower": 95,
+        "upper": 100
+      }
+    }
+  ],
+  "has_credentials": false,
+  "credential_pool_id": null,
+  "access_details_collection_id": null,
+  "access_details": null,
+  "data_collection_method": null,
+  "data_collection_id": null,
+  "data_collection_metadata": null,
+  "study_collection_id": null,
+  "study_labels": [],
+  "content_warnings": [],
+  "content_warning_details": null,
+  "is_trial_study": false,
+  "is_custom_screening": false,
+  "pii": {
+    "enabled": false
+  },
+  "is_authenticity_check": false,
+  "is_auth_check_llm": false,
+  "is_auth_check_bot": false,
+  "is_guardian_enabled": false,
+  "workflow_managed": false,
+  "is_ready_to_publish": true,
+  "_links": {
+    "self": {
+      "href": "http://api.prolific.com/api/v1/studies/6a6fb44b0b68815a0b97428c/transition/",
+      "title": "Current"
+    }
+  },
+  "published": true
+}
