@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { VLMRequest } from '../../support/tasks/types';
+import type { VLMRequest, VLMUsage } from '../../support/tasks/types';
 import { buildUserText } from './index';
 
 const DEFAULT_MODEL = 'gpt-4o';
@@ -17,7 +17,9 @@ function getClient(): OpenAI {
   return client;
 }
 
-export async function askOpenAI(req: VLMRequest): Promise<string> {
+export type OpenAIReply = { text: string; usage: VLMUsage | null };
+
+export async function askOpenAI(req: VLMRequest): Promise<OpenAIReply> {
   const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
   const response = await getClient().chat.completions.create({
     model,
@@ -39,5 +41,14 @@ export async function askOpenAI(req: VLMRequest): Promise<string> {
   });
 
   const raw = response.choices[0]?.message?.content ?? '';
-  return typeof raw === 'string' ? raw : '';
+  const text = typeof raw === 'string' ? raw : '';
+  const u = response.usage;
+  const usage: VLMUsage | null = u
+    ? {
+        promptTokenCount: u.prompt_tokens,
+        candidatesTokenCount: u.completion_tokens,
+        totalTokenCount: u.total_tokens,
+      }
+    : null;
+  return { text, usage };
 }

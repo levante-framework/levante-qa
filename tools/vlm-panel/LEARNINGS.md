@@ -68,7 +68,21 @@ used new ones. Do not trust cross-lang deltas until de/es are force-refreshed
 ## Where we landed (EN, after recollect)
 
 - **TROG:** Prompt + calibration improvements are real (better absolute error and ranking vs kids).
-- **Vocab:** Calibration helps; raw agent behavior still won’t look like a child on rare words without a different idea (e.g. frequency priors), not a bigger model.
+- **Vocab:** Calibration helps; rare-word residual is adult lexical knowledge. Analyze applies a mild wordfreq Zipf shrink into `p_pred_child` for zipf<3 (`vocab_lexicon.json`, β≈0.1) — not more prompting. Heavier blends hurt MAE (Zipf ≠ child AoA).
+
+## Operator extras (7–10)
+
+```bash
+# Rebuild Zipf lexicon (needs wordfreq once): python3 tools/vlm-panel/build_vocab_lexicon.py
+# Spatial/negation smoke vs out/screen_en.csv:
+node tools/vlm-panel/check_trog_smoke.mjs
+# Matched 3.x xlang force-all (long):
+bash tools/vlm-panel/run_xlang_pipeline_3x.sh
+# Limited 3.x check (EN+DE, 2 repeats) + compare to frozen 2.5 triage:
+bash tools/vlm-panel/run_xlang_limited_3x.sh
+# Gemini usage jsonl → summary (after panel cells with QA_RUN_ID):
+node tools/vlm-panel/aggregate_usage.mjs
+```
 
 ## Commands (operator)
 

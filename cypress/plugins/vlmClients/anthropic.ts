@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { VLMRequest } from '../../support/tasks/types';
+import type { VLMRequest, VLMUsage } from '../../support/tasks/types';
 import { buildUserText } from './index';
 
 const DEFAULT_MODEL = 'claude-3-5-sonnet-latest';
@@ -17,7 +17,9 @@ function getClient(): Anthropic {
   return client;
 }
 
-export async function askAnthropic(req: VLMRequest): Promise<string> {
+export type AnthropicReply = { text: string; usage: VLMUsage | null };
+
+export async function askAnthropic(req: VLMRequest): Promise<AnthropicReply> {
   const model = process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL;
   const response = await getClient().messages.create({
     model,
@@ -39,5 +41,14 @@ export async function askAnthropic(req: VLMRequest): Promise<string> {
   });
 
   const block = response.content.find((c) => c.type === 'text');
-  return block && block.type === 'text' ? block.text : '';
+  const text = block && block.type === 'text' ? block.text : '';
+  const u = response.usage;
+  const usage: VLMUsage | null = u
+    ? {
+        promptTokenCount: u.input_tokens,
+        candidatesTokenCount: u.output_tokens,
+        totalTokenCount: (u.input_tokens ?? 0) + (u.output_tokens ?? 0),
+      }
+    : null;
+  return { text, usage };
 }

@@ -162,9 +162,31 @@ export default defineConfig({
         async askVLM(req: VLMRequest): Promise<VLMResult> {
           const personaReq = applyPersona(req);
           const start = Date.now();
-          const raw = await dispatchVLM(provider, personaReq);
+          const reply = await dispatchVLM(provider, personaReq);
           const latencyMs = Date.now() - start;
-          return { action: parseAction(raw), raw, latencyMs, provider };
+          const raw = reply.text;
+          // Panel cells set QA_RUN_ID; append Gemini/OpenAI usage per call for cost.
+          const runId = process.env.QA_RUN_ID;
+          if (runId && reply.usage) {
+            const usagePath = `tools/vlm-panel/out/usage/${runId}.jsonl`;
+            mkdirSync(dirname(usagePath), { recursive: true });
+            appendFileSync(
+              usagePath,
+              `${JSON.stringify({
+                ts: new Date().toISOString(),
+                runId,
+                provider,
+                model:
+                  process.env.GEMINI_MODEL ||
+                  process.env.OPENAI_MODEL ||
+                  process.env.ANTHROPIC_MODEL ||
+                  null,
+                latencyMs,
+                usage: reply.usage,
+              })}\n`,
+            );
+          }
+          return { action: parseAction(raw), raw, latencyMs, provider, usage: reply.usage };
         },
 
         /**

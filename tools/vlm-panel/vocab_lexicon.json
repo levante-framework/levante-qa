@@ -1,0 +1,965 @@
+{
+  "source": "wordfreq",
+  "lang": "en",
+  "n_words": 159,
+  "blend_beta": 0.1,
+  "max_zipf": 3.0,
+  "zipf_mid": 3.5,
+  "zipf_scale": 1.2,
+  "words": {
+    "acorn": {
+      "zipf": 3.08,
+      "item_uids": [
+        "vocab_word_acorn"
+      ]
+    },
+    "aesthete": {
+      "zipf": 1.95,
+      "item_uids": [
+        "vocab_word_aesthete"
+      ]
+    },
+    "aloe": {
+      "zipf": 3.06,
+      "item_uids": [
+        "vocab_word_aloe"
+      ]
+    },
+    "antenna": {
+      "zipf": 3.77,
+      "item_uids": [
+        "vocab_word_antenna"
+      ]
+    },
+    "applaud": {
+      "zipf": 3.46,
+      "item_uids": [
+        "vocab_word_applaud"
+      ]
+    },
+    "arbor": {
+      "zipf": 3.49,
+      "item_uids": [
+        "vocab_word_arbor"
+      ]
+    },
+    "arcade": {
+      "zipf": 3.73,
+      "item_uids": [
+        "vocab_word_arcade"
+      ]
+    },
+    "arrow": {
+      "zipf": 4.13,
+      "item_uids": [
+        "vocab_word_arrow"
+      ]
+    },
+    "artichoke": {
+      "zipf": 2.73,
+      "item_uids": [
+        "vocab_word_artichoke"
+      ]
+    },
+    "artifact": {
+      "zipf": 3.41,
+      "item_uids": [
+        "vocab_word_artifact"
+      ]
+    },
+    "aversion": {
+      "zipf": 3.25,
+      "item_uids": [
+        "vocab_word_aversion"
+      ]
+    },
+    "awning": {
+      "zipf": 2.7,
+      "item_uids": [
+        "vocab_word_awning"
+      ]
+    },
+    "bamboo": {
+      "zipf": 3.65,
+      "item_uids": [
+        "vocab_word_bamboo"
+      ]
+    },
+    "bandage": {
+      "zipf": 3.24,
+      "item_uids": [
+        "vocab_word_bandage"
+      ]
+    },
+    "barrel": {
+      "zipf": 4.17,
+      "item_uids": [
+        "vocab_word_barrel"
+      ]
+    },
+    "baywindow": {
+      "zipf": 0.0,
+      "item_uids": [
+        "vocab_word_baywindow"
+      ]
+    },
+    "beret": {
+      "zipf": 2.92,
+      "item_uids": [
+        "vocab_word_beret"
+      ]
+    },
+    "blender": {
+      "zipf": 3.43,
+      "item_uids": [
+        "vocab_word_blender"
+      ]
+    },
+    "blower": {
+      "zipf": 3.27,
+      "item_uids": [
+        "vocab_word_blower"
+      ]
+    },
+    "bouquet": {
+      "zipf": 3.41,
+      "item_uids": [
+        "vocab_word_bouquet"
+      ]
+    },
+    "buffet": {
+      "zipf": 3.54,
+      "item_uids": [
+        "vocab_word_buffet"
+      ]
+    },
+    "bulldozer": {
+      "zipf": 2.88,
+      "item_uids": [
+        "vocab_word_bulldozer"
+      ]
+    },
+    "cake": {
+      "zipf": 4.53,
+      "item_uids": [
+        "vocab_word_cake"
+      ]
+    },
+    "calendar": {
+      "zipf": 4.3,
+      "item_uids": [
+        "vocab_word_calendar"
+      ]
+    },
+    "camp": {
+      "zipf": 4.79,
+      "item_uids": [
+        "vocab_word_camp"
+      ]
+    },
+    "caramel": {
+      "zipf": 3.48,
+      "item_uids": [
+        "vocab_word_caramel"
+      ]
+    },
+    "carousel": {
+      "zipf": 3.21,
+      "item_uids": [
+        "vocab_word_carousel"
+      ]
+    },
+    "carrot": {
+      "zipf": 3.62,
+      "item_uids": [
+        "vocab_word_carrot"
+      ]
+    },
+    "cassette": {
+      "zipf": 3.4,
+      "item_uids": [
+        "vocab_word_cassette"
+      ]
+    },
+    "chat": {
+      "zipf": 4.57,
+      "item_uids": [
+        "vocab_word_chat"
+      ]
+    },
+    "cheese": {
+      "zipf": 4.57,
+      "item_uids": [
+        "vocab_word_cheese"
+      ]
+    },
+    "claw": {
+      "zipf": 3.59,
+      "item_uids": [
+        "vocab_word_claw"
+      ]
+    },
+    "cloak": {
+      "zipf": 3.57,
+      "item_uids": [
+        "vocab_word_cloak"
+      ]
+    },
+    "clothespin": {
+      "zipf": 1.83,
+      "item_uids": [
+        "vocab_word_clothespin"
+      ]
+    },
+    "coaster": {
+      "zipf": 3.69,
+      "item_uids": [
+        "vocab_word_coaster"
+      ]
+    },
+    "colony": {
+      "zipf": 4.12,
+      "item_uids": [
+        "vocab_word_colony"
+      ]
+    },
+    "concentric": {
+      "zipf": 2.92,
+      "item_uids": [
+        "vocab_word_concentric"
+      ]
+    },
+    "confectionery": {
+      "zipf": 2.96,
+      "item_uids": [
+        "vocab_word_confectionery"
+      ]
+    },
+    "cork": {
+      "zipf": 3.71,
+      "item_uids": [
+        "vocab_word_cork"
+      ]
+    },
+    "cormorant": {
+      "zipf": 2.34,
+      "item_uids": [
+        "vocab_word_cormorant"
+      ]
+    },
+    "cornbread": {
+      "zipf": 2.72,
+      "item_uids": [
+        "vocab_word_cornbread"
+      ]
+    },
+    "corset": {
+      "zipf": 3.03,
+      "item_uids": [
+        "vocab_word_corset"
+      ]
+    },
+    "couturier": {
+      "zipf": 2.3,
+      "item_uids": [
+        "vocab_word_couturier"
+      ]
+    },
+    "degression": {
+      "zipf": 0.0,
+      "item_uids": [
+        "vocab_word_degression"
+      ]
+    },
+    "delivering": {
+      "zipf": 4.09,
+      "item_uids": [
+        "vocab_word_delivering"
+      ]
+    },
+    "dentist": {
+      "zipf": 3.86,
+      "item_uids": [
+        "vocab_word_dentist"
+      ]
+    },
+    "diamond": {
+      "zipf": 4.42,
+      "item_uids": [
+        "vocab_word_diamond"
+      ]
+    },
+    "divan": {
+      "zipf": 2.53,
+      "item_uids": [
+        "vocab_word_divan"
+      ]
+    },
+    "dredging": {
+      "zipf": 3.12,
+      "item_uids": [
+        "vocab_word_dredging"
+      ]
+    },
+    "dressing": {
+      "zipf": 4.17,
+      "item_uids": [
+        "vocab_word_dressing"
+      ]
+    },
+    "dripping": {
+      "zipf": 3.48,
+      "item_uids": [
+        "vocab_word_dripping"
+      ]
+    },
+    "dumpling": {
+      "zipf": 2.67,
+      "item_uids": [
+        "vocab_word_dumpling"
+      ]
+    },
+    "ecstatic": {
+      "zipf": 3.37,
+      "item_uids": [
+        "vocab_word_ecstatic"
+      ]
+    },
+    "elbow": {
+      "zipf": 3.84,
+      "item_uids": [
+        "vocab_word_elbow"
+      ]
+    },
+    "envelope": {
+      "zipf": 3.86,
+      "item_uids": [
+        "vocab_word_envelope"
+      ]
+    },
+    "facade": {
+      "zipf": 3.42,
+      "item_uids": [
+        "vocab_word_facade"
+      ]
+    },
+    "fan": {
+      "zipf": 4.92,
+      "item_uids": [
+        "vocab_word_fan"
+      ]
+    },
+    "farm": {
+      "zipf": 4.75,
+      "item_uids": [
+        "vocab_word_farm"
+      ]
+    },
+    "fetch": {
+      "zipf": 3.65,
+      "item_uids": [
+        "vocab_word_fetch"
+      ]
+    },
+    "foam": {
+      "zipf": 3.78,
+      "item_uids": [
+        "vocab_word_foam"
+      ]
+    },
+    "footbath": {
+      "zipf": 1.23,
+      "item_uids": [
+        "vocab_word_footbath"
+      ]
+    },
+    "fruitcake": {
+      "zipf": 2.36,
+      "item_uids": [
+        "vocab_word_fruitcake"
+      ]
+    },
+    "furry": {
+      "zipf": 3.56,
+      "item_uids": [
+        "vocab_word_furry"
+      ]
+    },
+    "gesticulate": {
+      "zipf": 1.58,
+      "item_uids": [
+        "vocab_word_gesticulate"
+      ]
+    },
+    "gourmet": {
+      "zipf": 3.36,
+      "item_uids": [
+        "vocab_word_gourmet"
+      ]
+    },
+    "gutter": {
+      "zipf": 3.38,
+      "item_uids": [
+        "vocab_word_gutter"
+      ]
+    },
+    "habit": {
+      "zipf": 4.24,
+      "item_uids": [
+        "vocab_word_habit"
+      ]
+    },
+    "hamster": {
+      "zipf": 3.31,
+      "item_uids": [
+        "vocab_word_hamster"
+      ]
+    },
+    "hedgehog": {
+      "zipf": 3.25,
+      "item_uids": [
+        "vocab_word_hedgehog"
+      ]
+    },
+    "hoe": {
+      "zipf": 3.25,
+      "item_uids": [
+        "vocab_word_hoe"
+      ]
+    },
+    "hopscotch": {
+      "zipf": 2.38,
+      "item_uids": [
+        "vocab_word_hopscotch"
+      ]
+    },
+    "intersection": {
+      "zipf": 3.88,
+      "item_uids": [
+        "vocab_word_intersection"
+      ]
+    },
+    "irrigation": {
+      "zipf": 3.69,
+      "item_uids": [
+        "vocab_word_irrigation"
+      ]
+    },
+    "juggling": {
+      "zipf": 3.23,
+      "item_uids": [
+        "vocab_word_juggling"
+      ]
+    },
+    "kazoo": {
+      "zipf": 2.35,
+      "item_uids": [
+        "vocab_word_kazoo"
+      ]
+    },
+    "kimono": {
+      "zipf": 2.95,
+      "item_uids": [
+        "vocab_word_kimono"
+      ]
+    },
+    "knight": {
+      "zipf": 4.28,
+      "item_uids": [
+        "vocab_word_knight"
+      ]
+    },
+    "latch": {
+      "zipf": 3.34,
+      "item_uids": [
+        "vocab_word_latch"
+      ]
+    },
+    "locker": {
+      "zipf": 3.95,
+      "item_uids": [
+        "vocab_word_locker"
+      ]
+    },
+    "lollipop": {
+      "zipf": 3.15,
+      "item_uids": [
+        "vocab_word_lollipop"
+      ]
+    },
+    "mammalogy": {
+      "zipf": 1.73,
+      "item_uids": [
+        "vocab_word_mammalogy"
+      ]
+    },
+    "map": {
+      "zipf": 4.76,
+      "item_uids": [
+        "vocab_word_map"
+      ]
+    },
+    "marshmallow": {
+      "zipf": 3.15,
+      "item_uids": [
+        "vocab_word_marshmallow"
+      ]
+    },
+    "metronome": {
+      "zipf": 2.62,
+      "item_uids": [
+        "vocab_word_metronome"
+      ]
+    },
+    "mischievous": {
+      "zipf": 3.15,
+      "item_uids": [
+        "vocab_word_mischievous"
+      ]
+    },
+    "net": {
+      "zipf": 4.76,
+      "item_uids": [
+        "vocab_word_net"
+      ]
+    },
+    "oil": {
+      "zipf": 5.1,
+      "item_uids": [
+        "vocab_word_oil"
+      ]
+    },
+    "omelet": {
+      "zipf": 2.63,
+      "item_uids": [
+        "vocab_word_omelet"
+      ]
+    },
+    "paleontologist": {
+      "zipf": 2.52,
+      "item_uids": [
+        "vocab_word_paleontologist"
+      ]
+    },
+    "panda": {
+      "zipf": 3.65,
+      "item_uids": [
+        "vocab_word_panda"
+      ]
+    },
+    "peeking": {
+      "zipf": 2.96,
+      "item_uids": [
+        "vocab_word_peeking"
+      ]
+    },
+    "percussion": {
+      "zipf": 3.37,
+      "item_uids": [
+        "vocab_word_percussion"
+      ]
+    },
+    "picking": {
+      "zipf": 4.44,
+      "item_uids": [
+        "vocab_word_picking"
+      ]
+    },
+    "pie": {
+      "zipf": 4.19,
+      "item_uids": [
+        "vocab_word_pie"
+      ]
+    },
+    "pistachio": {
+      "zipf": 2.76,
+      "item_uids": [
+        "vocab_word_pistachio"
+      ]
+    },
+    "pitcher": {
+      "zipf": 3.79,
+      "item_uids": [
+        "vocab_word_pitcher"
+      ]
+    },
+    "posterior": {
+      "zipf": 3.43,
+      "item_uids": [
+        "vocab_word_posterior"
+      ]
+    },
+    "potato": {
+      "zipf": 4.11,
+      "item_uids": [
+        "vocab_word_potato"
+      ]
+    },
+    "precarious": {
+      "zipf": 3.27,
+      "item_uids": [
+        "vocab_word_precarious"
+      ]
+    },
+    "preserve": {
+      "zipf": 4.19,
+      "item_uids": [
+        "vocab_word_preserve"
+      ]
+    },
+    "prism": {
+      "zipf": 3.44,
+      "item_uids": [
+        "vocab_word_prism"
+      ]
+    },
+    "puddle": {
+      "zipf": 3.26,
+      "item_uids": [
+        "vocab_word_puddle"
+      ]
+    },
+    "pump": {
+      "zipf": 4.28,
+      "item_uids": [
+        "vocab_word_pump"
+      ]
+    },
+    "resuscitation": {
+      "zipf": 2.93,
+      "item_uids": [
+        "vocab_word_resuscitation"
+      ]
+    },
+    "rice": {
+      "zipf": 4.55,
+      "item_uids": [
+        "vocab_word_rice"
+      ]
+    },
+    "rickety": {
+      "zipf": 2.68,
+      "item_uids": [
+        "vocab_word_rickety"
+      ]
+    },
+    "roof": {
+      "zipf": 4.55,
+      "item_uids": [
+        "vocab_word_roof"
+      ]
+    },
+    "rosette": {
+      "zipf": 2.74,
+      "item_uids": [
+        "vocab_word_rosette"
+      ]
+    },
+    "rubber band": {
+      "zipf": 4.15,
+      "item_uids": [
+        "vocab_word_rubberband"
+      ]
+    },
+    "ruler": {
+      "zipf": 3.84,
+      "item_uids": [
+        "vocab_word_ruler"
+      ]
+    },
+    "saddle": {
+      "zipf": 3.73,
+      "item_uids": [
+        "vocab_word_saddle"
+      ]
+    },
+    "saffron": {
+      "zipf": 3.21,
+      "item_uids": [
+        "vocab_word_saffron"
+      ]
+    },
+    "sandbag": {
+      "zipf": 2.43,
+      "item_uids": [
+        "vocab_word_sandbag"
+      ]
+    },
+    "scaffolding": {
+      "zipf": 3.1,
+      "item_uids": [
+        "vocab_word_scaffolding"
+      ]
+    },
+    "scoop": {
+      "zipf": 3.69,
+      "item_uids": [
+        "vocab_word_scoop"
+      ]
+    },
+    "seagull": {
+      "zipf": 3.02,
+      "item_uids": [
+        "vocab_word_seagull"
+      ]
+    },
+    "sedentary": {
+      "zipf": 3.14,
+      "item_uids": [
+        "vocab_word_sedentary"
+      ]
+    },
+    "ship": {
+      "zipf": 4.93,
+      "item_uids": [
+        "vocab_word_ship"
+      ]
+    },
+    "shower": {
+      "zipf": 4.5,
+      "item_uids": [
+        "vocab_word_shower"
+      ]
+    },
+    "silverware": {
+      "zipf": 3.08,
+      "item_uids": [
+        "vocab_word_silverware"
+      ]
+    },
+    "sink": {
+      "zipf": 4.21,
+      "item_uids": [
+        "vocab_word_sink"
+      ]
+    },
+    "ski": {
+      "zipf": 4.13,
+      "item_uids": [
+        "vocab_word_ski"
+      ]
+    },
+    "skimmer": {
+      "zipf": 2.44,
+      "item_uids": [
+        "vocab_word_skimmer"
+      ]
+    },
+    "slope": {
+      "zipf": 3.9,
+      "item_uids": [
+        "vocab_word_slope"
+      ]
+    },
+    "sloth": {
+      "zipf": 3.1,
+      "item_uids": [
+        "vocab_word_sloth"
+      ]
+    },
+    "snail": {
+      "zipf": 3.67,
+      "item_uids": [
+        "vocab_word_snail"
+      ]
+    },
+    "sorbet": {
+      "zipf": 2.64,
+      "item_uids": [
+        "vocab_word_sorbet"
+      ]
+    },
+    "spatula": {
+      "zipf": 2.86,
+      "item_uids": [
+        "vocab_word_spatula"
+      ]
+    },
+    "sprinkler": {
+      "zipf": 3.05,
+      "item_uids": [
+        "vocab_word_sprinkler"
+      ]
+    },
+    "squash": {
+      "zipf": 3.63,
+      "item_uids": [
+        "vocab_word_squash"
+      ]
+    },
+    "squirrel": {
+      "zipf": 3.69,
+      "item_uids": [
+        "vocab_word_squirrel"
+      ]
+    },
+    "steam": {
+      "zipf": 4.52,
+      "item_uids": [
+        "vocab_word_steam"
+      ]
+    },
+    "stew": {
+      "zipf": 3.48,
+      "item_uids": [
+        "vocab_word_stew"
+      ]
+    },
+    "stump": {
+      "zipf": 3.45,
+      "item_uids": [
+        "vocab_word_stump"
+      ]
+    },
+    "suede": {
+      "zipf": 3.25,
+      "item_uids": [
+        "vocab_word_suede"
+      ]
+    },
+    "sunflower": {
+      "zipf": 3.36,
+      "item_uids": [
+        "vocab_word_sunflower"
+      ]
+    },
+    "swordfish": {
+      "zipf": 2.67,
+      "item_uids": [
+        "vocab_word_swordfish"
+      ]
+    },
+    "tapestry": {
+      "zipf": 3.24,
+      "item_uids": [
+        "vocab_word_tapestry"
+      ]
+    },
+    "teabag": {
+      "zipf": 2.14,
+      "item_uids": [
+        "vocab_word_teabag"
+      ]
+    },
+    "telescope": {
+      "zipf": 3.75,
+      "item_uids": [
+        "vocab_word_telescope"
+      ]
+    },
+    "thermos": {
+      "zipf": 2.65,
+      "item_uids": [
+        "vocab_word_thermos"
+      ]
+    },
+    "timid": {
+      "zipf": 3.25,
+      "item_uids": [
+        "vocab_word_timid"
+      ]
+    },
+    "treasure": {
+      "zipf": 4.17,
+      "item_uids": [
+        "vocab_word_treasure"
+      ]
+    },
+    "triad": {
+      "zipf": 3.23,
+      "item_uids": [
+        "vocab_word_triad"
+      ]
+    },
+    "trumpet": {
+      "zipf": 3.58,
+      "item_uids": [
+        "vocab_word_trumpet"
+      ]
+    },
+    "tulip": {
+      "zipf": 3.18,
+      "item_uids": [
+        "vocab_word_tulip"
+      ]
+    },
+    "tumble": {
+      "zipf": 3.41,
+      "item_uids": [
+        "vocab_word_tumble"
+      ]
+    },
+    "tunnel": {
+      "zipf": 4.24,
+      "item_uids": [
+        "vocab_word_tunnel"
+      ]
+    },
+    "turbine": {
+      "zipf": 3.63,
+      "item_uids": [
+        "vocab_word_turbine"
+      ]
+    },
+    "turkey": {
+      "zipf": 4.56,
+      "item_uids": [
+        "vocab_word_turkey"
+      ]
+    },
+    "turnstile": {
+      "zipf": 2.39,
+      "item_uids": [
+        "vocab_word_turnstile"
+      ]
+    },
+    "turtle": {
+      "zipf": 3.91,
+      "item_uids": [
+        "vocab_word_turtle"
+      ]
+    },
+    "typewriter": {
+      "zipf": 3.26,
+      "item_uids": [
+        "vocab_word_typewriter"
+      ]
+    },
+    "uniform": {
+      "zipf": 4.33,
+      "item_uids": [
+        "vocab_word_uniform"
+      ]
+    },
+    "urban": {
+      "zipf": 4.65,
+      "item_uids": [
+        "vocab_word_urban"
+      ]
+    },
+    "vertebra": {
+      "zipf": 2.77,
+      "item_uids": [
+        "vocab_word_vertebra"
+      ]
+    },
+    "watermelon": {
+      "zipf": 3.35,
+      "item_uids": [
+        "vocab_word_watermelon"
+      ]
+    },
+    "waterwheel": {
+      "zipf": 1.9,
+      "item_uids": [
+        "vocab_word_waterwheel"
+      ]
+    },
+    "wetland": {
+      "zipf": 3.14,
+      "item_uids": [
+        "vocab_word_wetland"
+      ]
+    }
+  }
+}

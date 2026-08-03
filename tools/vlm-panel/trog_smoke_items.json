@@ -1,0 +1,58 @@
+{
+  "name": "trog_spatial_negation_smoke",
+  "description": "Regression smoke set for spatial / negation / embedding constructions that historically diverge from kids or flip across languages.",
+  "en_screen": "out/screen_en.csv",
+  "xlang_reviews": ["out/review_xlang_de.csv", "out/review_xlang_es.csv", "out/review_xlang_nl.csv"],
+  "thresholds": {
+    "en_mae_cal_max": 0.35,
+    "en_item_abs_cal_max": 0.55,
+    "fail_on_missing_en": true
+  },
+  "items": [
+    {
+      "item_uid": "trog_xnoty_horse_not_boy_stand",
+      "tags": ["negation"],
+      "note": "X-but-not-Y; EN residual often VLM-too-hard"
+    },
+    {
+      "item_uid": "trog_neither_pencil_long_nor_red",
+      "tags": ["negation", "adjective"],
+      "note": "neither/nor"
+    },
+    {
+      "item_uid": "trog_inon_fork_on_shoe",
+      "tags": ["spatial"],
+      "note": "simple locative; kids near ceiling"
+    },
+    {
+      "item_uid": "trog_preploc_plane_gray_above_cloud",
+      "tags": ["spatial", "relative_clause"],
+      "note": "NL Study A plane item; model noise vs human"
+    },
+    {
+      "item_uid": "trog_relclause_square_in_star_that_blue",
+      "tags": ["spatial", "adjective"],
+      "note": "containment + color"
+    },
+    {
+      "item_uid": "trog_embedding_circle_star_in_red",
+      "tags": ["relative_clause", "spatial"],
+      "note": "center-embedded; VLM often too easy"
+    },
+    {
+      "item_uid": "trog_embedding_boy_dog_chase_big",
+      "tags": ["relative_clause", "reverse_agent"],
+      "note": "hard embedding for kids and models"
+    },
+    {
+      "item_uid": "trog_embedding_cat_cow_chase_black",
+      "tags": ["relative_clause"],
+      "note": "classic embedding (trog-item-78); DE xlang scare lineage"
+    },
+    {
+      "item_uid": "trog_disjunctive_he_wear_despite_size",
+      "tags": ["disjunctive"],
+      "note": "NL omvang Study A human flag"
+    }
+  ]
+}

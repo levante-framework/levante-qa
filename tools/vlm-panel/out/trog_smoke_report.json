@@ -1,0 +1,115 @@
+{
+  "ok": true,
+  "mae_cal": 0.1801111111111111,
+  "missing": 0,
+  "n": 9,
+  "thresholds": {
+    "en_mae_cal_max": 0.35,
+    "en_item_abs_cal_max": 0.55,
+    "fail_on_missing_en": true
+  },
+  "failMissing": false,
+  "failMae": false,
+  "failItem": false,
+  "rows": [
+    {
+      "item_uid": "trog_xnoty_horse_not_boy_stand",
+      "status": "ok",
+      "tags": "negation",
+      "p_vlm": 0.688,
+      "p_human": 0.752,
+      "p_pred_child": 0.704,
+      "abs_cal": 0.04800000000000004,
+      "flag": "HARD",
+      "note": "X-but-not-Y; EN residual often VLM-too-hard"
+    },
+    {
+      "item_uid": "trog_neither_pencil_long_nor_red",
+      "status": "ok",
+      "tags": "negation+adjective",
+      "p_vlm": 0.938,
+      "p_human": 0.741,
+      "p_pred_child": 0.839,
+      "abs_cal": 0.09799999999999998,
+      "flag": "OK",
+      "note": "neither/nor"
+    },
+    {
+      "item_uid": "trog_inon_fork_on_shoe",
+      "status": "ok",
+      "tags": "spatial",
+      "p_vlm": 1,
+      "p_human": 0.915,
+      "p_pred_child": 0.909,
+      "abs_cal": 0.006000000000000005,
+      "flag": "CEILING",
+      "note": "simple locative; kids near ceiling"
+    },
+    {
+      "item_uid": "trog_preploc_plane_gray_above_cloud",
+      "status": "ok",
+      "tags": "spatial+relative_clause",
+      "p_vlm": 0.75,
+      "p_human": 0.82,
+      "p_pred_child": 0.815,
+      "abs_cal": 0.0050000000000000044,
+      "flag": "HARD",
+      "note": "NL Study A plane item; model noise vs human"
+    },
+    {
+      "item_uid": "trog_relclause_square_in_star_that_blue",
+      "status": "ok",
+      "tags": "spatial+adjective",
+      "p_vlm": 1,
+      "p_human": 0.724,
+      "p_pred_child": 0.909,
+      "abs_cal": 0.18500000000000005,
+      "flag": "CEILING",
+      "note": "containment + color"
+    },
+    {
+      "item_uid": "trog_embedding_circle_star_in_red",
+      "status": "ok",
+      "tags": "relative_clause+spatial",
+      "p_vlm": 1,
+      "p_human": 0.649,
+      "p_pred_child": 0.909,
+      "abs_cal": 0.26,
+      "flag": "CEILING",
+      "note": "center-embedded; VLM often too easy"
+    },
+    {
+      "item_uid": "trog_embedding_boy_dog_chase_big",
+      "status": "ok",
+      "tags": "relative_clause+reverse_agent",
+      "p_vlm": 0.688,
+      "p_human": 0.242,
+      "p_pred_child": 0.704,
+      "abs_cal": 0.46199999999999997,
+      "flag": "HARD",
+      "note": "hard embedding for kids and models"
+    },
+    {
+      "item_uid": "trog_embedding_cat_cow_chase_black",
+      "status": "ok",
+      "tags": "relative_clause",
+      "p_vlm": 0.688,
+      "p_human": 0.238,
+      "p_pred_child": 0.704,
+      "abs_cal": 0.46599999999999997,
+      "flag": "HARD",
+      "note": "classic embedding (trog-item-78); DE xlang scare lineage"
+    },
+    {
+      "item_uid": "trog_disjunctive_he_wear_despite_size",
+      "status": "ok",
+      "tags": "disjunctive",
+      "p_vlm": 0.75,
+      "p_human": 0.724,
+      "p_pred_child": 0.815,
+      "abs_cal": 0.09099999999999997,
+      "flag": "HARD",
+      "note": "NL omvang Study A human flag"
+    }
+  ]
+}

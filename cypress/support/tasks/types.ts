@@ -696,6 +696,14 @@ export interface VLMRequest {
   taskId?: string | null;
 }
 
+/** Token usage from a provider call (Gemini usageMetadata today). */
+export interface VLMUsage {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  totalTokenCount?: number;
+  thoughtsTokenCount?: number;
+}
+
 export interface VLMResult {
   // Normalized Hearts & Flowers action (LEFT/RIGHT/CONTINUE). Always present for
   // back-compat; tasks with non-action answers should read `raw` instead.
@@ -704,6 +712,8 @@ export interface VLMResult {
   raw: string;
   latencyMs: number;
   provider: string;
+  /** Present when the provider returned usageMetadata (Gemini). */
+  usage?: VLMUsage | null;
 }
 
 /**

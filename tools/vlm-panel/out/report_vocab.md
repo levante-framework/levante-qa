@@ -1,6 +1,6 @@
 # Picture Vocabulary (4-AFC) VLM difficulty screen
 
-Generated: 2026-08-01T21:42:13.805Z
+Generated: 2026-08-02T22:47:40.461Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
 
@@ -58,6 +58,8 @@ Failures by cause: TOOL/Google **1** · `-dev`/app **0** · unknown **1**
 - Age columns `p_pred_age_*`: empirical age×item rates from levante-bench trials when available; otherwise task-norm scaling of `p_pred_child` (approximate).
 
 ## Cross-language difficulty shift vs en (translation-breakage signal)
+
+Spreadsheet triage: `out/review_xlang_vocab_<lang>.csv` (all items sorted by delta; |delta| ≥ 0.25 is a strong candidate).
 
 ### nl - biggest drops vs en (candidate broken translations)
 | item_uid | p_en | p_nl | delta |

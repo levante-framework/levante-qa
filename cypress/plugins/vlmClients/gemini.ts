@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import type { VLMRequest } from '../../support/tasks/types';
+import type { VLMRequest, VLMUsage } from '../../support/tasks/types';
 import { buildUserText } from './index';
 
 // Default follows Google's replacement for gemini-2.5-flash (EOL ~2026-10-16).
@@ -45,23 +45,37 @@ function isTransient(err: unknown): boolean {
   const m = String(err);
   return (
     /\b(429|500|502|503|504)\b/.test(m) ||
-    /UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|deadline|INTERNAL|ETIMEDOUT|ECONNRESET/i.test(m)
+    /UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|deadline|INTERNAL|ETIMEDOUT|ECONNRESET/i.test(
+      m,
+    )
   );
 }
 
-const MAX_ATTEMPTS = Math.max(1, Number(process.env.VLM_MAX_RETRIES ?? 8));
+function pickUsage(response: { usageMetadata?: Record<string, unknown> | null }): VLMUsage | null {
+  const u = response?.usageMetadata;
+  if (!u || typeof u !== 'object') return null;
+  const out: VLMUsage = {};
+  for (const key of [
+    'promptTokenCount',
+    'candidatesTokenCount',
+    'totalTokenCount',
+    'thoughtsTokenCount',
+  ] as const) {
+    const n = Number(u[key]);
+    if (Number.isFinite(n)) out[key] = n;
+  }
+  return Object.keys(out).length ? out : null;
+}
 
-async function generateWithRetry(
-  params: GenerateParams,
-): Promise<Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>> {
+async function generateWithRetry(params: GenerateParams) {
+  const maxAttempts = Math.max(1, Number(process.env.VLM_MAX_RETRIES) || 5);
   let lastErr: unknown;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       return await getClient().models.generateContent(params);
     } catch (err) {
       lastErr = err;
-      if (!isTransient(err) || attempt === MAX_ATTEMPTS - 1) throw err;
-      // Exponential backoff with jitter, capped at 30s.
+      if (!isTransient(err) || attempt === maxAttempts - 1) throw err;
       const backoffMs = Math.min(30000, 750 * 2 ** attempt) + Math.floor(Math.random() * 500);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
@@ -69,7 +83,9 @@ async function generateWithRetry(
   throw lastErr;
 }
 
-export async function askGemini(req: VLMRequest): Promise<string> {
+export type GeminiReply = { text: string; usage: VLMUsage | null };
+
+export async function askGemini(req: VLMRequest): Promise<GeminiReply> {
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
   const contents = [
     { text: buildUserText(req.transcript, req.userText) },
@@ -91,12 +107,15 @@ export async function askGemini(req: VLMRequest): Promise<string> {
         thinkingConfig: { thinkingBudget: 0 },
       },
     });
-    return response.text ?? '';
+    return { text: response.text ?? '', usage: pickUsage(response) };
   } catch (err) {
     const message = String(err);
     const requiresThinkingMode =
       message.includes('Budget 0 is invalid') || message.includes('only works in thinking mode');
-    if (!requiresThinkingMode) throw err;
+    const invalidArg = /INVALID_ARGUMENT|invalid argument/i.test(message);
+    // Some models reject thinkingBudget:0 with a clear error; others return a
+    // generic INVALID_ARGUMENT — retry without thinkingConfig in both cases.
+    if (!requiresThinkingMode && !invalidArg) throw err;
 
     // Some models (e.g. gemini-2.5-pro) require thinking mode; retry once
     // without forcing a zero thinking budget. Thinking tokens count against
@@ -108,6 +127,6 @@ export async function askGemini(req: VLMRequest): Promise<string> {
       contents,
       config: { ...baseConfig, maxOutputTokens: 2048 },
     });
-    return retry.text ?? '';
+    return { text: retry.text ?? '', usage: pickUsage(retry) };
   }
 }

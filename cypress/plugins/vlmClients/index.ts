@@ -1,19 +1,18 @@
 import type { Action } from '../../support/tasks/types';
-import type { VLMRequest, VLMResult } from '../../support/tasks/types';
+import type { VLMRequest, VLMResult, VLMUsage } from '../../support/tasks/types';
 import { askOpenAI } from './openai';
 import { askAnthropic } from './anthropic';
 import { askGemini } from './gemini';
 
-export type { VLMRequest, VLMResult };
+export type { VLMRequest, VLMResult, VLMUsage };
 
 /**
  * A VLM provider client: takes a screenshot + system prompt and returns the
- * RAW model text. Normalization (e.g. into a Hearts & Flowers Action, or an
- * EGMA number) is the caller's job, so the same clients serve every task.
- * Adding a new provider is a single file that exports a function of this shape,
- * plus one line in the dispatch table below.
+ * RAW model text plus optional token usage. Normalization (e.g. into a Hearts &
+ * Flowers Action, or an EGMA number) is the caller's job.
  */
-export type VLMClient = (req: VLMRequest) => Promise<string>;
+export type VLMClientReply = { text: string; usage: VLMUsage | null };
+export type VLMClient = (req: VLMRequest) => Promise<VLMClientReply>;
 
 const CLIENTS: Record<string, VLMClient> = {
   openai: askOpenAI,
@@ -49,10 +48,10 @@ export function parseAction(raw: string): Action {
 }
 
 /**
- * Dispatch a request to the configured provider, returning the raw model text.
+ * Dispatch a request to the configured provider, returning text + usage.
  * Latency is measured by the caller (the askVLM cypress task) around this call.
  */
-export async function askVLM(provider: string, req: VLMRequest): Promise<string> {
+export async function askVLM(provider: string, req: VLMRequest): Promise<VLMClientReply> {
   const client = CLIENTS[provider];
   if (!client) {
     throw new Error(

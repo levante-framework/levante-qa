@@ -50,7 +50,12 @@ tools/vlm-panel/
   run_xlang_pipeline.sh    # full EN→DE→analyze→ES→NL→analyze chain
   analyze.mjs              # build difficulty screen + human comparison + child preds
                            # + review_xlang_<lang>.csv (delta vs en)
-  calibration.mjs          # isotonic / logistic p_vlm → p_pred_child
+  calibration.mjs          # isotonic / logistic p_vlm → p_pred_child (+ vocab Zipf prior)
+  vocab_lexicon.json       # wordfreq Zipf table for vocab bank (rebuild: build_vocab_lexicon.py)
+  trog_smoke_items.json    # spatial/negation regression allowlist
+  check_trog_smoke.mjs     # smoke gate vs out/screen_en.csv
+  aggregate_usage.mjs      # sum out/usage/*.jsonl token totals
+  run_xlang_pipeline_3x.sh # force-all matched 3.x en/de/es/nl recollect
   benchHuman.mjs           # load levante-bench trials / proportions
   fit_bench_calibrator.mjs # fit on bench trials; compare to diag; write caches
   audit_residuals.mjs      # where p_vlm disagrees with humans (prompt targets)

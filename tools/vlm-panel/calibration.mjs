@@ -506,3 +506,77 @@ function fmt(x, d = 3) {
   if (x == null || Number.isNaN(x)) return '';
   return Number(x).toFixed(d);
 }
+
+// ---- vocab frequency prior (Zipf → p_lex blended into p_pred_child) ----
+
+const VOCAB_LEXICON_PATH = join(HERE, 'vocab_lexicon.json');
+
+let _vocabLexicon = undefined;
+
+/**
+ * Load committed wordfreq Zipf table (built by build_vocab_lexicon.py).
+ * Returns null if missing; caches after first load.
+ */
+export function loadVocabLexicon(path = VOCAB_LEXICON_PATH) {
+  if (_vocabLexicon !== undefined) return _vocabLexicon;
+  if (!existsSync(path)) {
+    _vocabLexicon = null;
+    return null;
+  }
+  try {
+    _vocabLexicon = JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    _vocabLexicon = null;
+  }
+  return _vocabLexicon;
+}
+
+/** Extract lemma from vocab item_uid / transcript for lexicon lookup. */
+export function vocabWordFromItem(itemUid, transcript) {
+  const uid = String(itemUid || '');
+  const m = uid.match(/^vocab_word_(.+)$/i) || uid.match(/^vocab__(.+)$/i);
+  if (m) return m[1].toLowerCase().replace(/_/g, '');
+  const t = String(transcript || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^(the|a|an)\s+/, '');
+  return t || null;
+}
+
+/**
+ * Map Zipf frequency to an expected child pass-rate prior.
+ * Midpoint ~3.5 (uncommon); rare words → near chance, common → near ceiling.
+ */
+export function zipfToPLex(zipf, chance = 0.25, mid = 3.5, scale = 1.2) {
+  if (!Number.isFinite(zipf)) return null;
+  const s = 1 / (1 + Math.exp(-scale * (zipf - mid)));
+  return clip(chance + (1 - chance) * s, chance, 0.98);
+}
+
+/**
+ * Mild Zipf shrink into calibrated vocab predictions.
+ * Empirically β≈0.1 on zipf<3 beats heavier blends (adult Zipf ≠ child AoA;
+ * marshmallow/footbath are rare in corpora but easy for kids).
+ * p_pred = p_cal + β·(p_lex − p_cal) when zipf < maxZipf; else p_cal.
+ */
+export function blendVocabPrior(pCal, { itemUid, transcript, chance = 0.25, lexicon = null } = {}) {
+  if (!Number.isFinite(pCal)) return pCal;
+  const lex = lexicon ?? loadVocabLexicon();
+  if (!lex?.words) return pCal;
+  const word = vocabWordFromItem(itemUid, transcript);
+  if (!word) return pCal;
+  const entry = lex.words[word];
+  if (!entry || !Number.isFinite(entry.zipf)) return pCal;
+  const maxZipf = Number.isFinite(lex.max_zipf) ? lex.max_zipf : 3.0;
+  if (entry.zipf >= maxZipf) return pCal;
+  const mid = Number.isFinite(lex.zipf_mid) ? lex.zipf_mid : 3.5;
+  const scale = Number.isFinite(lex.zipf_scale) ? lex.zipf_scale : 1.2;
+  const beta = Number.isFinite(lex.blend_beta)
+    ? lex.blend_beta
+    : Number.isFinite(lex.blend_alpha)
+      ? 1 - lex.blend_alpha
+      : 0.1;
+  const pLex = zipfToPLex(entry.zipf, chance, mid, scale);
+  if (!Number.isFinite(pLex)) return pCal;
+  return clip(pCal + beta * (pLex - pCal), chance, 1);
+}

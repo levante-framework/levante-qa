@@ -32,8 +32,10 @@ import { summarizeFailures, renderSummaryMarkdown } from './classify_failures.mj
 import {
   PRED_AGES,
   ageAdjustedPredictions,
+  blendVocabPrior,
   formatCalibrationReport,
   inSampleMetrics,
+  loadVocabLexicon,
   predictChild,
   resolveCalibrator,
 } from './calibration.mjs';
@@ -205,6 +207,10 @@ const ITEM_BANK = TASK.itemBank;
 const EXTERNAL_HUMAN_CSV = parseArg(process.argv, 'human-csv');
 /** `diag` (default) = pilots diag join; `bench` = levante-bench proportions image1. */
 const HUMAN_SOURCE = (parseArg(process.argv, 'human-source') || 'diag').toLowerCase();
+/** Optional runId substring/regex filter (e.g. `35flashlite|36flash` to drop 2.5 cells). */
+const RUN_ID_RE_RAW = parseArg(process.argv, 'run-id-re');
+const RUN_ID_RE = RUN_ID_RE_RAW ? new RegExp(RUN_ID_RE_RAW) : null;
+if (RUN_ID_RE) console.log(`[filter] --run-id-re=${RUN_ID_RE_RAW}`);
 // Output filename tag: trog keeps the legacy bare names; other tasks namespace
 // their outputs so panels never clobber each other.
 const TAG = TASK_NAME === 'trog' ? '' : `_${TASK_NAME}`;
@@ -371,7 +377,11 @@ function loadPanel(language) {
   const runDirs = readdirSync(RUNS_DIR)
     .filter((d) => d.startsWith('panel_'))
     .filter((d) => taskFromRunId(d) === TASK_NAME)
-    .filter((d) => langFromRunId(d, langMap) === language);
+    .filter((d) => langFromRunId(d, langMap) === language)
+    .filter((d) => (RUN_ID_RE ? RUN_ID_RE.test(d) : true));
+  if (RUN_ID_RE) {
+    console.log(`[filter] ${language}: ${runDirs.length} run dir(s) match --run-id-re`);
+  }
   const respondents = [];
   // item key -> { transcript, byResp: Map(runId -> 0/1) }
   const items = new Map();
@@ -807,9 +817,19 @@ function analyzeLanguage(language) {
     chance: defaultChance,
     cvChance: defaultChance,
   });
+  const vocabLex = TASK_NAME === 'vocab' ? loadVocabLexicon() : null;
   for (const r of rows) {
     const chance = r.chance ?? defaultChance;
-    r.p_pred_child = predictChild(cal.model, r.p_vlm, chance);
+    let pPred = predictChild(cal.model, r.p_vlm, chance);
+    if (vocabLex) {
+      pPred = blendVocabPrior(pPred, {
+        itemUid: r.item_uid,
+        transcript: r.transcript,
+        chance,
+        lexicon: vocabLex,
+      });
+    }
+    r.p_pred_child = pPred;
     r.p_pred_age = ageAdjustedPredictions(TASK_NAME, r.p_pred_child, chance, {
       itemUid: normalizeItemUid(TASK_NAME, r.item_uid),
       ageItemRates: AGE_ITEM_RATES,

@@ -1,27 +1,27 @@
 {
   "task": "vocab",
   "n": 162,
-  "maeRaw": 0.16830246913580252,
-  "biasRaw": 0.15647530864197542,
+  "maeRaw": 0.16849382716049388,
+  "biasRaw": 0.1568641975308643,
   "byTag": [
     {
       "tag": "rare_vocab",
       "n": 162,
-      "mae": 0.16830246913580252,
-      "bias": 0.15647530864197542
+      "mae": 0.16849382716049388,
+      "bias": 0.1568641975308643
     }
   ],
   "top": [
     {
       "item_uid": "vocab_word_divan",
       "transcript": "the divan",
-      "p_vlm": 0.826,
+      "p_vlm": 0.833,
       "p_human": 0.114,
-      "p_pred_child": 0.649,
-      "raw_err": 0.712,
-      "abs_raw": 0.712,
-      "cal_err": 0.535,
-      "abs_cal": 0.535,
+      "p_pred_child": 0.631,
+      "raw_err": 0.719,
+      "abs_raw": 0.719,
+      "cal_err": 0.517,
+      "abs_cal": 0.517,
       "tags": [
         "rare_vocab"
       ]
@@ -29,13 +29,13 @@
     {
       "item_uid": "vocab_word_ecstatic",
       "transcript": "ecstatic",
-      "p_vlm": 0.913,
+      "p_vlm": 0.917,
       "p_human": 0.222,
-      "p_pred_child": 0.699,
-      "raw_err": 0.6910000000000001,
-      "abs_raw": 0.6910000000000001,
-      "cal_err": 0.477,
-      "abs_cal": 0.477,
+      "p_pred_child": 0.664,
+      "raw_err": 0.6950000000000001,
+      "abs_raw": 0.6950000000000001,
+      "cal_err": 0.44200000000000006,
+      "abs_cal": 0.44200000000000006,
       "tags": [
         "rare_vocab"
       ]
@@ -43,13 +43,13 @@
     {
       "item_uid": "vocab_word_squash",
       "transcript": "the squash",
-      "p_vlm": 0.739,
+      "p_vlm": 0.76,
       "p_human": 0.084,
-      "p_pred_child": 0.513,
-      "raw_err": 0.655,
-      "abs_raw": 0.655,
-      "cal_err": 0.429,
-      "abs_cal": 0.429,
+      "p_pred_child": 0.548,
+      "raw_err": 0.676,
+      "abs_raw": 0.676,
+      "cal_err": 0.464,
+      "abs_cal": 0.464,
       "tags": [
         "rare_vocab"
       ]
@@ -59,11 +59,11 @@
       "transcript": "the kazoo",
       "p_vlm": 1,
       "p_human": 0.421,
-      "p_pred_child": 0.879,
+      "p_pred_child": 0.831,
       "raw_err": 0.579,
       "abs_raw": 0.579,
-      "cal_err": 0.458,
-      "abs_cal": 0.458,
+      "cal_err": 0.41,
+      "abs_cal": 0.41,
       "tags": [
         "rare_vocab"
       ]
@@ -71,27 +71,13 @@
     {
       "item_uid": "vocab_word_dredging",
       "transcript": "dredging",
-      "p_vlm": 0.625,
+      "p_vlm": 0.615,
       "p_human": 0.108,
-      "p_pred_child": 0.445,
-      "raw_err": 0.517,
-      "abs_raw": 0.517,
-      "cal_err": 0.337,
-      "abs_cal": 0.337,
-      "tags": [
-        "rare_vocab"
-      ]
-    },
-    {
-      "item_uid": "vocab_word_degression",
-      "transcript": "degression",
-      "p_vlm": 0.792,
-      "p_human": 0.306,
-      "p_pred_child": 0.629,
-      "raw_err": 0.48600000000000004,
-      "abs_raw": 0.48600000000000004,
-      "cal_err": 0.323,
-      "abs_cal": 0.323,
+      "p_pred_child": 0.442,
+      "raw_err": 0.507,
+      "abs_raw": 0.507,
+      "cal_err": 0.334,
+      "abs_cal": 0.334,
       "tags": [
         "rare_vocab"
       ]
@@ -101,11 +87,25 @@
       "transcript": "the sorbet",
       "p_vlm": 1,
       "p_human": 0.536,
-      "p_pred_child": 0.879,
+      "p_pred_child": 0.835,
       "raw_err": 0.46399999999999997,
       "abs_raw": 0.46399999999999997,
-      "cal_err": 0.34299999999999997,
-      "abs_cal": 0.34299999999999997,
+      "cal_err": 0.29899999999999993,
+      "abs_cal": 0.29899999999999993,
+      "tags": [
+        "rare_vocab"
+      ]
+    },
+    {
+      "item_uid": "vocab_word_degression",
+      "transcript": "degression",
+      "p_vlm": 0.76,
+      "p_human": 0.306,
+      "p_pred_child": 0.519,
+      "raw_err": 0.454,
+      "abs_raw": 0.454,
+      "cal_err": 0.21300000000000002,
+      "abs_cal": 0.21300000000000002,
       "tags": [
         "rare_vocab"
       ]
@@ -113,13 +113,13 @@
     {
       "item_uid": "vocab_word_precarious",
       "transcript": "precarious",
-      "p_vlm": 0.773,
+      "p_vlm": 0.75,
       "p_human": 0.325,
-      "p_pred_child": 0.55,
-      "raw_err": 0.448,
-      "abs_raw": 0.448,
-      "cal_err": 0.22500000000000003,
-      "abs_cal": 0.22500000000000003,
+      "p_pred_child": 0.442,
+      "raw_err": 0.425,
+      "abs_raw": 0.425,
+      "cal_err": 0.11699999999999999,
+      "abs_cal": 0.11699999999999999,
       "tags": [
         "rare_vocab"
       ]
@@ -129,11 +129,25 @@
       "transcript": "the beret",
       "p_vlm": 1,
       "p_human": 0.585,
-      "p_pred_child": 0.879,
+      "p_pred_child": 0.841,
       "raw_err": 0.41500000000000004,
       "abs_raw": 0.41500000000000004,
-      "cal_err": 0.29400000000000004,
-      "abs_cal": 0.29400000000000004,
+      "cal_err": 0.256,
+      "abs_cal": 0.256,
+      "tags": [
+        "rare_vocab"
+      ]
+    },
+    {
+      "item_uid": "vocab_word_gesticulate",
+      "transcript": "gesticulate",
+      "p_vlm": 0.955,
+      "p_human": 0.562,
+      "p_pred_child": 0.675,
+      "raw_err": 0.3929999999999999,
+      "abs_raw": 0.3929999999999999,
+      "cal_err": 0.11299999999999999,
+      "abs_cal": 0.11299999999999999,
       "tags": [
         "rare_vocab"
       ]
@@ -143,39 +157,11 @@
       "transcript": "the swordfish",
       "p_vlm": 1,
       "p_human": 0.609,
-      "p_pred_child": 0.879,
+      "p_pred_child": 0.836,
       "raw_err": 0.391,
       "abs_raw": 0.391,
-      "cal_err": 0.27,
-      "abs_cal": 0.27,
-      "tags": [
-        "rare_vocab"
-      ]
-    },
-    {
-      "item_uid": "vocab_word_gesticulate",
-      "transcript": "gesticulate",
-      "p_vlm": 0.95,
-      "p_human": 0.562,
-      "p_pred_child": 0.715,
-      "raw_err": 0.3879999999999999,
-      "abs_raw": 0.3879999999999999,
-      "cal_err": 0.1529999999999999,
-      "abs_cal": 0.1529999999999999,
-      "tags": [
-        "rare_vocab"
-      ]
-    },
-    {
-      "item_uid": "vocab_word_mischievous",
-      "transcript": "mischievous",
-      "p_vlm": 0.957,
-      "p_human": 0.591,
-      "p_pred_child": 0.715,
-      "raw_err": 0.366,
-      "abs_raw": 0.366,
-      "cal_err": 0.124,
-      "abs_cal": 0.124,
+      "cal_err": 0.22699999999999998,
+      "abs_cal": 0.22699999999999998,
       "tags": [
         "rare_vocab"
       ]
@@ -183,41 +169,13 @@
     {
       "item_uid": "vocab_word_rosette",
       "transcript": "the rosette",
-      "p_vlm": 0.875,
+      "p_vlm": 0.885,
       "p_human": 0.513,
-      "p_pred_child": 0.666,
-      "raw_err": 0.362,
-      "abs_raw": 0.362,
-      "cal_err": 0.15300000000000002,
-      "abs_cal": 0.15300000000000002,
-      "tags": [
-        "rare_vocab"
-      ]
-    },
-    {
-      "item_uid": "vocab_word_habit",
-      "transcript": "the habit",
-      "p_vlm": 0.87,
-      "p_human": 0.509,
-      "p_pred_child": 0.649,
-      "raw_err": 0.361,
-      "abs_raw": 0.361,
-      "cal_err": 0.14,
-      "abs_cal": 0.14,
-      "tags": [
-        "rare_vocab"
-      ]
-    },
-    {
-      "item_uid": "vocab_word_turnstile",
-      "transcript": "the turnstile",
-      "p_vlm": 0.917,
-      "p_human": 0.556,
-      "p_pred_child": 0.715,
-      "raw_err": 0.361,
-      "abs_raw": 0.361,
-      "cal_err": 0.15899999999999992,
-      "abs_cal": 0.15899999999999992,
+      "p_pred_child": 0.635,
+      "raw_err": 0.372,
+      "abs_raw": 0.372,
+      "cal_err": 0.122,
+      "abs_cal": 0.122,
       "tags": [
         "rare_vocab"
       ]
@@ -225,13 +183,27 @@
     {
       "item_uid": "vocab_word_percussion",
       "transcript": "the percussion",
-      "p_vlm": 0.875,
+      "p_vlm": 0.885,
       "p_human": 0.515,
-      "p_pred_child": 0.666,
-      "raw_err": 0.36,
-      "abs_raw": 0.36,
-      "cal_err": 0.15100000000000002,
-      "abs_cal": 0.15100000000000002,
+      "p_pred_child": 0.654,
+      "raw_err": 0.37,
+      "abs_raw": 0.37,
+      "cal_err": 0.139,
+      "abs_cal": 0.139,
+      "tags": [
+        "rare_vocab"
+      ]
+    },
+    {
+      "item_uid": "vocab_word_mischievous",
+      "transcript": "mischievous",
+      "p_vlm": 0.96,
+      "p_human": 0.591,
+      "p_pred_child": 0.715,
+      "raw_err": 0.369,
+      "abs_raw": 0.369,
+      "cal_err": 0.124,
+      "abs_cal": 0.124,
       "tags": [
         "rare_vocab"
       ]
@@ -239,13 +211,41 @@
     {
       "item_uid": "vocab_word_triad",
       "transcript": "the triad",
-      "p_vlm": 0.864,
+      "p_vlm": 0.875,
       "p_human": 0.507,
-      "p_pred_child": 0.649,
-      "raw_err": 0.357,
-      "abs_raw": 0.357,
-      "cal_err": 0.14200000000000002,
-      "abs_cal": 0.14200000000000002,
+      "p_pred_child": 0.654,
+      "raw_err": 0.368,
+      "abs_raw": 0.368,
+      "cal_err": 0.14700000000000002,
+      "abs_cal": 0.14700000000000002,
+      "tags": [
+        "rare_vocab"
+      ]
+    },
+    {
+      "item_uid": "vocab_word_turnstile",
+      "transcript": "the turnstile",
+      "p_vlm": 0.923,
+      "p_human": 0.556,
+      "p_pred_child": 0.684,
+      "raw_err": 0.367,
+      "abs_raw": 0.367,
+      "cal_err": 0.128,
+      "abs_cal": 0.128,
+      "tags": [
+        "rare_vocab"
+      ]
+    },
+    {
+      "item_uid": "vocab_word_habit",
+      "transcript": "the habit",
+      "p_vlm": 0.875,
+      "p_human": 0.509,
+      "p_pred_child": 0.654,
+      "raw_err": 0.366,
+      "abs_raw": 0.366,
+      "cal_err": 0.14500000000000002,
+      "abs_cal": 0.14500000000000002,
       "tags": [
         "rare_vocab"
       ]
@@ -253,13 +253,13 @@
     {
       "item_uid": "vocab_word_kimono",
       "transcript": "the kimono",
-      "p_vlm": 0.917,
+      "p_vlm": 0.923,
       "p_human": 0.564,
-      "p_pred_child": 0.715,
-      "raw_err": 0.3530000000000001,
-      "abs_raw": 0.3530000000000001,
-      "cal_err": 0.15100000000000002,
-      "abs_cal": 0.15100000000000002,
+      "p_pred_child": 0.694,
+      "raw_err": 0.3590000000000001,
+      "abs_raw": 0.3590000000000001,
+      "cal_err": 0.13,
+      "abs_cal": 0.13,
       "tags": [
         "rare_vocab"
       ]
@@ -267,11 +267,11 @@
     {
       "item_uid": "vocab_word_aloe",
       "transcript": "the aloe",
-      "p_vlm": 0.958,
+      "p_vlm": 0.962,
       "p_human": 0.607,
       "p_pred_child": 0.724,
-      "raw_err": 0.351,
-      "abs_raw": 0.351,
+      "raw_err": 0.355,
+      "abs_raw": 0.355,
       "cal_err": 0.11699999999999999,
       "abs_cal": 0.11699999999999999,
       "tags": [

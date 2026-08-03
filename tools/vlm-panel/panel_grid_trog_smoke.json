@@ -1,0 +1,15 @@
+{
+  "task": "trog",
+  "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 1,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [8],
+  "_notes": "Cheap 2-cell smoke grid after prompt changes. Still runs full TROG (no mid-run item filter); use check_trog_smoke.mjs against analyze outputs for the curated item allowlist."
+}

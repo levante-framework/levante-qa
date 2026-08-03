@@ -1,0 +1,166 @@
+=== XLANG 3.x PIPELINE START 2026-08-02T22:45:52Z ===
+grid=tools/vlm-panel/panel_grid.json (force all: en-US,de-DE,es-CO,nl-NL)
+=== run_langs_trog START 2026-08-02T22:45:52.959Z ===
+langs=en-US,de-DE,es-CO,nl-NL force-langs=en-US,de-DE,es-CO,nl-NL
+
+-------- en-US FORCE then RESUME --------
+
+$ node /home/david/levante/levante-qa/tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid.json --lang en-US --force
+Panel: 32 respondent(s) [2 models x 4 ages x 4 repeats]
+  task=trog lang=en (QA_LANGUAGE=en-US) temp=0.8 persona=irt
+  already done: 0 | to run: 32 (--force: re-run all, including successes)
+
+[1/32] 2026-08-02T22:45:53.003Z  START panel_trog_en_35flashlite_a6_r1 (model=gemini-3.5-flash-lite age=6)
+           FAILED panel_trog_en_35flashlite_a6_r1 in 0.4 min (exit 1)
+
+[2/32] 2026-08-02T22:46:19.830Z  START panel_trog_en_35flashlite_a6_r2 (model=gemini-3.5-flash-lite age=6)
+           FAILED panel_trog_en_35flashlite_a6_r2 in 0.4 min (exit 1)
+
+[3/32] 2026-08-02T22:46:45.253Z  START panel_trog_en_35flashlite_a6_r3 (model=gemini-3.5-flash-lite age=6)
+           FAILED panel_trog_en_35flashlite_a6_r3 in 0.4 min (exit 1)
+
+[4/32] 2026-08-02T22:47:10.290Z  START panel_trog_en_35flashlite_a6_r4 (model=gemini-3.5-flash-lite age=6)
+           FAILED panel_trog_en_35flashlite_a6_r4 in 0.4 min (exit 1)
+
+[5/32] 2026-08-02T22:47:35.997Z  START panel_trog_en_35flashlite_a8_r1 (model=gemini-3.5-flash-lite age=8)
+=== XLANG 3.x PIPELINE START 2026-08-02T22:52:46Z ===
+grid=tools/vlm-panel/panel_grid.json (force all: en-US,de-DE,es-CO,nl-NL)
+=== run_langs_trog START 2026-08-02T22:52:47.005Z ===
+langs=en-US,de-DE,es-CO,nl-NL force-langs=en-US,de-DE,es-CO,nl-NL
+
+-------- en-US FORCE then RESUME --------
+
+$ node /home/david/levante/levante-qa/tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid.json --lang en-US --force
+Panel: 32 respondent(s) [2 models x 4 ages x 4 repeats]
+  task=trog lang=en (QA_LANGUAGE=en-US) temp=0.8 persona=irt
+  already done: 0 | to run: 32 (--force: re-run all, including successes)
+
+[1/32] 2026-08-02T22:52:47.038Z  START panel_trog_en_35flashlite_a6_r1 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_en_35flashlite_a6_r1 in 4.7 min (exit 0)
+
+[2/32] 2026-08-02T22:57:31.743Z  START panel_trog_en_35flashlite_a6_r2 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_en_35flashlite_a6_r2 in 4.6 min (exit 0)
+
+[3/32] 2026-08-02T23:02:08.540Z  START panel_trog_en_35flashlite_a6_r3 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_en_35flashlite_a6_r3 in 4.5 min (exit 0)
+
+[4/32] 2026-08-02T23:06:40.213Z  START panel_trog_en_35flashlite_a6_r4 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_en_35flashlite_a6_r4 in 4.5 min (exit 0)
+
+[5/32] 2026-08-02T23:11:11.734Z  START panel_trog_en_35flashlite_a8_r1 (model=gemini-3.5-flash-lite age=8)
+           DONE panel_trog_en_35flashlite_a8_r1 in 4.5 min (exit 0)
+
+[6/32] 2026-08-02T23:15:43.013Z  START panel_trog_en_35flashlite_a8_r2 (model=gemini-3.5-flash-lite age=8)
+           DONE panel_trog_en_35flashlite_a8_r2 in 4.4 min (exit 0)
+
+[7/32] 2026-08-02T23:20:08.696Z  START panel_trog_en_35flashlite_a8_r3 (model=gemini-3.5-flash-lite age=8)
+           DONE panel_trog_en_35flashlite_a8_r3 in 4.4 min (exit 0)
+
+[8/32] 2026-08-02T23:24:30.294Z  START panel_trog_en_35flashlite_a8_r4 (model=gemini-3.5-flash-lite age=8)
+           DONE panel_trog_en_35flashlite_a8_r4 in 4.6 min (exit 0)
+
+[9/32] 2026-08-02T23:29:07.535Z  START panel_trog_en_35flashlite_a10_r1 (model=gemini-3.5-flash-lite age=10)
+           DONE panel_trog_en_35flashlite_a10_r1 in 4.6 min (exit 0)
+
+[10/32] 2026-08-02T23:33:40.707Z  START panel_trog_en_35flashlite_a10_r2 (model=gemini-3.5-flash-lite age=10)
+           DONE panel_trog_en_35flashlite_a10_r2 in 4.6 min (exit 0)
+
+[11/32] 2026-08-02T23:38:13.893Z  START panel_trog_en_35flashlite_a10_r3 (model=gemini-3.5-flash-lite age=10)
+           DONE panel_trog_en_35flashlite_a10_r3 in 4.5 min (exit 0)
+
+[12/32] 2026-08-02T23:42:44.414Z  START panel_trog_en_35flashlite_a10_r4 (model=gemini-3.5-flash-lite age=10)
+           DONE panel_trog_en_35flashlite_a10_r4 in 4.4 min (exit 0)
+
+[13/32] 2026-08-02T23:47:10.899Z  START panel_trog_en_35flashlite_a13_r1 (model=gemini-3.5-flash-lite age=13)
+           DONE panel_trog_en_35flashlite_a13_r1 in 4.4 min (exit 0)
+
+[14/32] 2026-08-02T23:51:37.646Z  START panel_trog_en_35flashlite_a13_r2 (model=gemini-3.5-flash-lite age=13)
+           DONE panel_trog_en_35flashlite_a13_r2 in 4.7 min (exit 0)
+
+[15/32] 2026-08-02T23:56:18.205Z  START panel_trog_en_35flashlite_a13_r3 (model=gemini-3.5-flash-lite age=13)
+           DONE panel_trog_en_35flashlite_a13_r3 in 4.6 min (exit 0)
+
+[16/32] 2026-08-03T00:00:53.688Z  START panel_trog_en_35flashlite_a13_r4 (model=gemini-3.5-flash-lite age=13)
+           DONE panel_trog_en_35flashlite_a13_r4 in 4.5 min (exit 0)
+
+[17/32] 2026-08-03T00:05:26.315Z  START panel_trog_en_36flash_a6_r1 (model=gemini-3.6-flash age=6)
+           DONE panel_trog_en_36flash_a6_r1 in 8.9 min (exit 0)
+
+[18/32] 2026-08-03T00:14:17.487Z  START panel_trog_en_36flash_a6_r2 (model=gemini-3.6-flash age=6)
+           DONE panel_trog_en_36flash_a6_r2 in 8.7 min (exit 0)
+
+[19/32] 2026-08-03T00:22:57.548Z  START panel_trog_en_36flash_a6_r3 (model=gemini-3.6-flash age=6)
+           DONE panel_trog_en_36flash_a6_r3 in 8.8 min (exit 0)
+
+[20/32] 2026-08-03T00:31:43.482Z  START panel_trog_en_36flash_a6_r4 (model=gemini-3.6-flash age=6)
+           FAILED panel_trog_en_36flash_a6_r4 in 3.5 min (exit 1)
+
+[21/32] 2026-08-03T00:35:16.219Z  START panel_trog_en_36flash_a8_r1 (model=gemini-3.6-flash age=8)
+           DONE panel_trog_en_36flash_a8_r1 in 9.1 min (exit 0)
+
+[22/32] 2026-08-03T00:44:19.265Z  START panel_trog_en_36flash_a8_r2 (model=gemini-3.6-flash age=8)
+           DONE panel_trog_en_36flash_a8_r2 in 8.4 min (exit 0)
+
+[23/32] 2026-08-03T00:52:45.925Z  START panel_trog_en_36flash_a8_r3 (model=gemini-3.6-flash age=8)
+           DONE panel_trog_en_36flash_a8_r3 in 8.0 min (exit 0)
+
+[24/32] 2026-08-03T01:00:47.994Z  START panel_trog_en_36flash_a8_r4 (model=gemini-3.6-flash age=8)
+           DONE panel_trog_en_36flash_a8_r4 in 8.7 min (exit 0)
+
+[25/32] 2026-08-03T01:09:28.594Z  START panel_trog_en_36flash_a10_r1 (model=gemini-3.6-flash age=10)
+           DONE panel_trog_en_36flash_a10_r1 in 8.0 min (exit 0)
+
+[26/32] 2026-08-03T01:17:27.442Z  START panel_trog_en_36flash_a10_r2 (model=gemini-3.6-flash age=10)
+           DONE panel_trog_en_36flash_a10_r2 in 8.0 min (exit 0)
+
+[27/32] 2026-08-03T01:25:27.582Z  START panel_trog_en_36flash_a10_r3 (model=gemini-3.6-flash age=10)
+           DONE panel_trog_en_36flash_a10_r3 in 7.8 min (exit 0)
+
+[28/32] 2026-08-03T01:33:16.503Z  START panel_trog_en_36flash_a10_r4 (model=gemini-3.6-flash age=10)
+           DONE panel_trog_en_36flash_a10_r4 in 8.1 min (exit 0)
+
+[29/32] 2026-08-03T01:41:19.639Z  START panel_trog_en_36flash_a13_r1 (model=gemini-3.6-flash age=13)
+           DONE panel_trog_en_36flash_a13_r1 in 7.8 min (exit 0)
+
+[30/32] 2026-08-03T01:49:07.506Z  START panel_trog_en_36flash_a13_r2 (model=gemini-3.6-flash age=13)
+           DONE panel_trog_en_36flash_a13_r2 in 7.9 min (exit 0)
+
+[31/32] 2026-08-03T01:57:00.204Z  START panel_trog_en_36flash_a13_r3 (model=gemini-3.6-flash age=13)
+           DONE panel_trog_en_36flash_a13_r3 in 8.1 min (exit 0)
+
+[32/32] 2026-08-03T02:05:08.301Z  START panel_trog_en_36flash_a13_r4 (model=gemini-3.6-flash age=13)
+           DONE panel_trog_en_36flash_a13_r4 in 7.7 min (exit 0)
+
+Panel finished. done=407 failed=7. Manifest: tools/vlm-panel/out/manifest.json
+Next: node tools/vlm-panel/analyze.mjs
+  exit=0 (force)
+
+$ node /home/david/levante/levante-qa/tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid.json --lang en-US
+Panel: 32 respondent(s) [2 models x 4 ages x 4 repeats]
+  task=trog lang=en (QA_LANGUAGE=en-US) temp=0.8 persona=irt
+  already done: 31 | to run: 1 (resume: pending/failed only)
+
+[1/1] 2026-08-03T02:12:53.332Z  START panel_trog_en_36flash_a6_r4 (model=gemini-3.6-flash age=6)
+           FAILED panel_trog_en_36flash_a6_r4 in 3.8 min (exit 1)
+
+Panel finished. done=407 failed=7. Manifest: tools/vlm-panel/out/manifest.json
+Next: node tools/vlm-panel/analyze.mjs
+  exit=0 (resume)
+
+-------- de-DE FORCE then RESUME --------
+
+$ node /home/david/levante/levante-qa/tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid.json --lang de-DE --force
+Panel: 32 respondent(s) [2 models x 4 ages x 4 repeats]
+  task=trog lang=de (QA_LANGUAGE=de-DE) temp=0.8 persona=irt
+  already done: 0 | to run: 32 (--force: re-run all, including successes)
+
+[1/32] 2026-08-03T02:16:42.132Z  START panel_trog_de_35flashlite_a6_r1 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_de_35flashlite_a6_r1 in 4.8 min (exit 0)
+
+[2/32] 2026-08-03T02:21:32.587Z  START panel_trog_de_35flashlite_a6_r2 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_de_35flashlite_a6_r2 in 4.9 min (exit 0)
+
+[3/32] 2026-08-03T02:26:25.246Z  START panel_trog_de_35flashlite_a6_r3 (model=gemini-3.5-flash-lite age=6)
+           DONE panel_trog_de_35flashlite_a6_r3 in 4.9 min (exit 0)
+
+[4/32] 2026-08-03T02:31:16.920Z  START panel_trog_de_35flashlite_a6_r4 (model=gemini-3.5-flash-lite age=6)

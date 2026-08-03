@@ -1,0 +1,196 @@
+{
+  "calls": 3519,
+  "byModel": {
+    "gemini-3.5-flash-lite": {
+      "calls": 1958,
+      "totalTokenCount": 3086485,
+      "promptTokenCount": 3084527,
+      "candidatesTokenCount": 1958,
+      "thoughtsTokenCount": 0
+    },
+    "gemini-3.6-flash": {
+      "calls": 1561,
+      "totalTokenCount": 2976019,
+      "promptTokenCount": 2440137,
+      "candidatesTokenCount": 1460,
+      "thoughtsTokenCount": 534422
+    }
+  },
+  "byRun": {
+    "panel_trog_de_35flashlite_a6_r1": {
+      "calls": 99,
+      "totalTokenCount": 156457,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_de_35flashlite_a6_r2": {
+      "calls": 99,
+      "totalTokenCount": 156317,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_de_35flashlite_a6_r3": {
+      "calls": 77,
+      "totalTokenCount": 121583,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a10_r1": {
+      "calls": 99,
+      "totalTokenCount": 155523,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a10_r2": {
+      "calls": 99,
+      "totalTokenCount": 155803,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a10_r3": {
+      "calls": 99,
+      "totalTokenCount": 154459,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a10_r4": {
+      "calls": 99,
+      "totalTokenCount": 156671,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a13_r1": {
+      "calls": 99,
+      "totalTokenCount": 156671,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a13_r2": {
+      "calls": 99,
+      "totalTokenCount": 156671,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a13_r3": {
+      "calls": 99,
+      "totalTokenCount": 156671,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a13_r4": {
+      "calls": 99,
+      "totalTokenCount": 156671,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a6_r1": {
+      "calls": 99,
+      "totalTokenCount": 154528,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a6_r2": {
+      "calls": 99,
+      "totalTokenCount": 156544,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a6_r3": {
+      "calls": 99,
+      "totalTokenCount": 156572,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a6_r4": {
+      "calls": 99,
+      "totalTokenCount": 156012,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a8_r1": {
+      "calls": 198,
+      "totalTokenCount": 312388,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a8_r2": {
+      "calls": 99,
+      "totalTokenCount": 156572,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a8_r3": {
+      "calls": 99,
+      "totalTokenCount": 156572,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_35flashlite_a8_r4": {
+      "calls": 99,
+      "totalTokenCount": 153800,
+      "model": "gemini-3.5-flash-lite"
+    },
+    "panel_trog_en_36flash_a10_r1": {
+      "calls": 99,
+      "totalTokenCount": 185981,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a10_r2": {
+      "calls": 99,
+      "totalTokenCount": 185523,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a10_r3": {
+      "calls": 99,
+      "totalTokenCount": 185306,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a10_r4": {
+      "calls": 99,
+      "totalTokenCount": 186560,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a13_r1": {
+      "calls": 99,
+      "totalTokenCount": 185038,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a13_r2": {
+      "calls": 99,
+      "totalTokenCount": 185402,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a13_r3": {
+      "calls": 99,
+      "totalTokenCount": 186666,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a13_r4": {
+      "calls": 99,
+      "totalTokenCount": 185764,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a6_r1": {
+      "calls": 99,
+      "totalTokenCount": 197745,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a6_r2": {
+      "calls": 99,
+      "totalTokenCount": 191972,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a6_r3": {
+      "calls": 99,
+      "totalTokenCount": 195458,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a6_r4": {
+      "calls": 76,
+      "totalTokenCount": 137601,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a8_r1": {
+      "calls": 99,
+      "totalTokenCount": 191974,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a8_r2": {
+      "calls": 99,
+      "totalTokenCount": 194220,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a8_r3": {
+      "calls": 99,
+      "totalTokenCount": 189519,
+      "model": "gemini-3.6-flash"
+    },
+    "panel_trog_en_36flash_a8_r4": {
+      "calls": 99,
+      "totalTokenCount": 191290,
+      "model": "gemini-3.6-flash"
+    }
+  }
+}
