@@ -51,8 +51,8 @@ function isTransient(err: unknown): boolean {
   );
 }
 
-function pickUsage(response: { usageMetadata?: Record<string, unknown> | null }): VLMUsage | null {
-  const u = response?.usageMetadata;
+function pickUsage(response: { usageMetadata?: object | null }): VLMUsage | null {
+  const u = response?.usageMetadata as Record<string, unknown> | null | undefined;
   if (!u || typeof u !== 'object') return null;
   const out: VLMUsage = {};
   for (const key of [
