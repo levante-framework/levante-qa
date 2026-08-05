@@ -386,6 +386,7 @@ async function screenMqm(task, locale) {
   }
   const rows = parseCsvFileSafe(outCsv);
   let skippedNoScore = 0;
+  let skippedSourceCritique = 0;
   for (const r of rows) {
     // evaluate_translations leaves mqm_score blank on judge failure (not 0).
     // Number("") === 0 in JS, so require a non-empty numeric score + ok status.
@@ -397,6 +398,12 @@ async function screenMqm(task, locale) {
     }
     const score = Number(raw);
     if (!Number.isFinite(score) || score > MQM_MAX) continue;
+    // Drop "source item is too hard for kids" false alarms when TR faithfully
+    // mirrors EN (common on en-GB number-identification: "Choose the 39.").
+    if (isSourceAgeCritiqueFalseAlarm(r, locale)) {
+      skippedSourceCritique += 1;
+      continue;
+    }
     findings.push({
       kind: 'mqm',
       task,
@@ -411,7 +418,33 @@ async function screenMqm(task, locale) {
   if (skippedNoScore) {
     log(`mqm ${task}/${locale}: skipped ${skippedNoScore} row(s) with no score (judge failure)`);
   }
+  if (skippedSourceCritique) {
+    log(
+      `mqm ${task}/${locale}: skipped ${skippedSourceCritique} row(s) ` +
+        `(source age/difficulty critique on faithful copy)`,
+    );
+  }
   return findings;
+}
+
+/** True when EN≈TR and the judge only complained that the source is "too hard" for kids. */
+function isSourceAgeCritiqueFalseAlarm(row, locale) {
+  const en = String(row.en || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  const tr = String(row[locale] || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (!en || en !== tr) return false;
+  const blob = `${row.mqm_assessment || ''} ${row.mqm_errors || ''}`.toLowerCase();
+  const ageComplaint = /age-appropriate|young child|not appropriate for (young )?child|target audience of young/.test(
+    blob,
+  );
+  if (!ageComplaint) return false;
+  // Number / stimulus / source-design critiques on identical strings.
+  return /number|numeral|digit|stimulus|source text|source contains|complexity/.test(blob);
 }
 
 async function postSlack(text) {

@@ -35,7 +35,7 @@ SEVERITY_WEIGHTS = {"minor": 1, "major": 5, "critical": 25}
 VALID_CATEGORIES = {"accuracy", "fluency", "terminology", "style"}
 
 # Bump when the prompt/contract changes so stale cache entries are bypassed.
-PROMPT_VERSION = "mqm-v2"
+PROMPT_VERSION = "mqm-v3"
 
 # data-questionnaires + caregiver/teacher surveys are adult instruments; core
 # itembank tasks (vocab, trog, …) and child-survey stay child-facing.
@@ -52,11 +52,13 @@ _AUDIENCE = {
     "child": {
         "blurb": (
             "an educational assessment used with young children (ages 3-8). "
-            "The text must be accurate, natural, and age-appropriate"
+            "Grade ONLY whether the translation is an accurate, natural rendering of "
+            "the English source"
         ),
-        "style": "style      (wrong register/tone, not age-appropriate)",
+        "style": "style      (wrong register/tone relative to the source)",
         "critical": (
-            "critical   (breaks the task, reverses meaning, or is inappropriate for children)"
+            "critical   (breaks the task, reverses meaning, or is inappropriate where "
+            "the source was not)"
         ),
     },
     "adult": {
@@ -73,8 +75,22 @@ _AUDIENCE = {
     },
 }
 
-PROMPT_TEMPLATE = """You are an expert linguist grading a translation for {audience_blurb}.
+# Shared rules: stop the judge from "psychometrically reviewing" the source item
+# (e.g. flagging 'Choose the 39.' because 39 seems hard for a 5-year-old).
+_PROMPT_RULES = """
+Important rules:
+- Judge the TRANSLATION against the SOURCE only. Do not critique source item design,
+  difficulty, pedagogy, or whether a number/word in the source is "age-appropriate".
+- Numbers, symbols, and stimuli in the source are intentional assessment content.
+  Preserving them (including large numbers like 39, 101, 617) is correct.
+- Do NOT invent errors that exist only in the source and are faithfully carried into
+  the translation. If source and translation match in meaning, prefer an empty errors list.
+- For style/register: only flag when the translation's tone diverges from the source
+  (e.g. source is simple child language, translation is stiff/formal — or the reverse).
+"""
 
+PROMPT_TEMPLATE = """You are an expert linguist grading a translation for {audience_blurb}.
+{_PROMPT_RULES}
 Evaluate the translation from English into {target_locale} using the MQM error typology. Identify every error and classify each one:
 
 category (exactly one of):
@@ -121,6 +137,7 @@ def build_prompt(target_locale: str, source: str, target: str, audience: str = "
         target_locale=target_locale,
         source=source,
         target=target,
+        _PROMPT_RULES=_PROMPT_RULES,
     )
 
 
