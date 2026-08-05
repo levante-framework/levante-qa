@@ -89,6 +89,17 @@ vague “the model got it wrong” into a diagnosable **translation** issue.
 | `results/eval/screen-mqm-<task>-<locale>.csv` | MQM scores and assessments |
 | `results/translation-screen/inventory-baseline.json` | Yesterday’s keys/hashes (why today’s run was quiet) |
 
+On GitHub Actions, that directory is uploaded as the `translation-screen-<run_id>`
+artifact on every run. Download from the run’s **Artifacts** panel, or:
+
+```bash
+gh run download <run_id> -D /tmp/translation-screen
+# then open …/translation-screen-<run_id>/<date>.json (filter findings by locale)
+```
+
+MQM rows with a blank score (judge failure) are skipped — they are not treated
+as `mqm=0` findings.
+
 ## Local usage
 
 ```bash
