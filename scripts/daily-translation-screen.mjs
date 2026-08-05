@@ -79,6 +79,7 @@ const csv = (s) =>
 const DRY_RUN = hasFlag('dry-run');
 const NO_SLACK = hasFlag('no-slack');
 const FORCE = hasFlag('force');
+const RERUN_FINDINGS = hasFlag('rerun-findings');
 const ONLY_LOCALES = new Set(csv(flagVal('locales')));
 const ONLY_TASKS = new Set(csv(flagVal('tasks')));
 const MQM_MAX = Number(process.env.TRANSLATION_SCREEN_MQM_MAX || 90);
@@ -326,7 +327,7 @@ function parseCsvFileSafe(path) {
   }
 }
 
-async function screenVision(task, locales) {
+async function screenVision(task, locales, itemIds = []) {
   const cfg = VISION[task];
   const findings = [];
   if (!cfg || !locales.length) return findings;
@@ -334,6 +335,7 @@ async function screenVision(task, locales) {
     cfg.script,
     `--locales=${locales.join(',')}`,
     `--gcs-bucket=${IMAGE_BUCKET}`,
+    ...(itemIds.length ? [`--items=${itemIds.join(',')}`] : []),
     '--no-pdf',
   ]);
   if (res.status !== 0) {
@@ -364,13 +366,14 @@ async function screenVision(task, locales) {
   return findings;
 }
 
-async function screenMqm(task, locale) {
+async function screenMqm(task, locale, itemIds = [], reportNoScore = false) {
   const findings = [];
   const outCsv = join(EVAL_OUT, `screen-mqm-${task}-${locale}.csv`);
   const res = runPython([
     'evaluate_translations.py',
     `--target-col=${locale}`,
     `--path-contains=itembank/${task}`,
+    ...(itemIds.length ? [`--ids=${itemIds.join(',')}`] : []),
     '--run-llm',
     `--output-csv=${outCsv}`,
   ]);
@@ -394,6 +397,17 @@ async function screenMqm(task, locale) {
     const status = String(r.mqm_status || '');
     if (!raw || (status && status !== 'ok')) {
       skippedNoScore += 1;
+      if (reportNoScore) {
+        findings.push({
+          kind: 'error',
+          task,
+          locale,
+          itemId: r.item_id || r.identifier || '',
+          detail: `MQM recheck returned no score (${status || 'unknown judge failure'})`,
+          en: r.en || '',
+          translation: r[locale] || '',
+        });
+      }
       continue;
     }
     const score = Number(raw);
@@ -546,6 +560,122 @@ function buildMarkdown(snapshot) {
   return lines.join('\n');
 }
 
+function findingKey(f) {
+  return [f.kind, f.task, f.locale, f.itemId || ''].join('|');
+}
+
+function cleanItemId(itemId) {
+  return String(itemId || '')
+    .trim()
+    .replace(/^vocab\.xliff::/, '');
+}
+
+async function loadHistoricalFindings() {
+  const files = (await readdir(OUT_DIR))
+    .filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f))
+    .sort();
+  const latest = new Map();
+  for (const file of files) {
+    const report = JSON.parse(await readFile(join(OUT_DIR, file), 'utf8'));
+    for (const finding of report.findings || []) {
+      const normalized = { ...finding, itemId: cleanItemId(finding.itemId), sourceReport: file };
+      latest.set(findingKey(normalized), normalized);
+    }
+  }
+  return [...latest.values()];
+}
+
+function buildRerunMarkdown({ date, requested, findings, skippedPackErrors }) {
+  const resolved = requested.length - findings.length;
+  const lines = [
+    `# Translation finding recheck ${date}`,
+    '',
+    `- Item findings rechecked: ${requested.length}`,
+    `- Resolved / no longer flagged: ${resolved}`,
+    `- Still flagged: ${findings.length}`,
+    `- Pack-level historical errors not rechecked: ${skippedPackErrors.length}`,
+    '',
+    '## Still flagged',
+    '',
+  ];
+  if (!findings.length) lines.push('_None_');
+  for (const f of findings) {
+    lines.push(`### ${f.kind} · ${f.task}/${f.locale} · ${f.itemId || '(pack)'}`, '');
+    lines.push(f.detail || '', '');
+    if (f.en) lines.push(`- EN: ${f.en}`);
+    if (f.translation) lines.push(`- TR: ${f.translation}`);
+    lines.push('');
+  }
+  if (skippedPackErrors.length) {
+    lines.push('## Pack-level errors not rechecked', '');
+    for (const f of skippedPackErrors) {
+      lines.push(`- \`${f.task}/${f.locale}\`: ${f.detail}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+async function rerunHistoricalFindings(packs, date) {
+  const historical = await loadHistoricalFindings();
+  const skippedPackErrors = historical.filter((f) => !f.itemId);
+  const requested = historical.filter((f) => f.itemId && ['mqm', 'vision'].includes(f.kind));
+  const groups = new Map();
+  for (const finding of requested) {
+    const key = `${finding.kind}|${finding.task}|${finding.locale}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(finding);
+  }
+
+  log(
+    `rechecking ${requested.length} historical item finding(s) in ${groups.size} group(s)` +
+      `; skipping ${skippedPackErrors.length} pack-level error(s)`,
+  );
+  const findings = [];
+  for (const [key, oldFindings] of groups) {
+    const [kind, task, locale] = key.split('|');
+    const ids = [...new Set(oldFindings.map((f) => cleanItemId(f.itemId)))];
+    log(`recheck ${kind} ${task}/${locale}: ${ids.length} item(s)`);
+    if (kind === 'vision') {
+      if (task !== 'vocab') {
+        findings.push(...oldFindings.map((f) => ({ ...f, detail: `not rechecked: ${f.detail}` })));
+        continue;
+      }
+      findings.push(...(await screenVision(task, [locale], ids)));
+    } else {
+      findings.push(...(await screenMqm(task, locale, ids, true)));
+    }
+  }
+
+  const requestedKeys = new Set(
+    requested.map((f) => [f.task, f.locale, cleanItemId(f.itemId)].join('|')),
+  );
+  const remaining = findings.filter((f) =>
+    requestedKeys.has([f.task, f.locale, cleanItemId(f.itemId)].join('|')),
+  );
+  const snapshot = {
+    date,
+    rerun: true,
+    bucket: GCS_BUCKET,
+    baseUrl: DEFAULT_BASE,
+    packs: packsBaselinePayload(packs, date).packs,
+    requested,
+    findings: remaining,
+    skippedPackErrors,
+  };
+  const stem = `${date}-rerun`;
+  const jsonPath = join(OUT_DIR, `${stem}.json`);
+  const mdPath = join(OUT_DIR, `${stem}.md`);
+  await saveInventoryBaseline(packs, date);
+  await writeFile(jsonPath, JSON.stringify(snapshot, null, 2));
+  await writeFile(mdPath, buildRerunMarkdown(snapshot));
+  await writeFile(join(OUT_DIR, 'latest.json'), JSON.stringify(snapshot, null, 2));
+  log(
+    `recheck complete: ${requested.length - remaining.length} resolved, ` +
+      `${remaining.length} still flagged; wrote ${jsonPath}`,
+  );
+  if (remaining.length) process.exitCode = 2;
+}
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   await mkdir(EVAL_OUT, { recursive: true });
@@ -555,6 +685,13 @@ async function main() {
   const packs = await inventory();
   const skippedPlaceholders = packs.filter((p) => p.placeholderOnly).length;
   const skippedEo = IGNORE_LOCALE_PREFIXES.join(',');
+  if (RERUN_FINDINGS) {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is required to recheck findings');
+    }
+    await rerunHistoricalFindings(packs, date);
+    return;
+  }
   const previous = await loadBaseline();
   const changed = diffPacks(packs, previous);
 

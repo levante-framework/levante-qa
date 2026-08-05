@@ -93,7 +93,7 @@ Respond with ONLY a JSON object:
 
 
 class TrogVisionEvaluator:
-    def __init__(self, model_name: str = "gemini-3.6-flash", fallback_model: str = "gemini-flash-latest",
+    def __init__(self, model_name: str = "gemini-2.5-flash", fallback_model: str = "",
                  cache_dir: str = "output/trog_vision_cache", timeout: int = 120,
                  prompt_template: str = PROMPT, prompt_version: str = PROMPT_VERSION,
                  confirm_template: str = CONFIRM_PROMPT):

@@ -51,6 +51,11 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Keep only rows whose _path contains this substring (e.g. itembank/mental-rotation).",
     )
+    p.add_argument(
+        "--ids",
+        default="",
+        help="Optional comma-separated item_id/identifier values to evaluate.",
+    )
     p.add_argument("--output-csv", default="output/eval_results.csv")
     p.add_argument("--source-col", default="en")
     p.add_argument("--target-col", required=True, help="Target column; also used as the locale label.")
@@ -65,7 +70,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=0, help="Use only the first N rows (after filtering).")
     p.add_argument("--comet-model", default="Unbabel/wmt22-cometkiwi-da")
     p.add_argument("--embed-model", default="intfloat/multilingual-e5-large")
-    p.add_argument("--llm-model", default="gemini-3.6-flash")
+    p.add_argument("--llm-model", default="gemini-2.5-flash")
     p.add_argument("--no-cache", action="store_true", help="Disable the LLM disk cache.")
     p.add_argument(
         "--audience",
@@ -113,6 +118,13 @@ def main() -> int:
         needle = args.path_contains
         all_rows = [r for r in all_rows if needle in str(r.get("_path", ""))]
         print(f"[load] path-contains={needle!r} -> {len(all_rows)} row(s).")
+    if args.ids:
+        wanted = {item.strip() for item in args.ids.split(",") if item.strip()}
+        all_rows = [
+            r for r in all_rows
+            if str(r.get("item_id") or r.get(args.id_col) or "").strip() in wanted
+        ]
+        print(f"[load] ids={len(wanted)} -> {len(all_rows)} row(s).")
     if args.target_col not in lang_columns and args.target_col != args.source_col:
         sys.exit(f"Error: target '{args.target_col}' not among languages: {lang_columns}")
     fieldnames = [*META_COLUMNS, *lang_columns]

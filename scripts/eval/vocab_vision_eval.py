@@ -81,7 +81,7 @@ object than the one shown, or is a mistranslation. Still report any such real is
 
 
 class VocabVisionEvaluator:
-    def __init__(self, model_name: str = "gemini-3.6-flash", fallback_model: str = "gemini-flash-latest",
+    def __init__(self, model_name: str = "gemini-2.5-flash", fallback_model: str = "",
                  cache_dir: str = "output/vocab_vision_cache", timeout: int = 90):
         load_env()
         import os
@@ -333,13 +333,16 @@ def run_locale(ev: "VocabVisionEvaluator", rows: List[dict], locale: str,
                resolver: "ImageResolver", limit: int,
                difficulty: Optional[Dict[str, float]] = None,
                hard_threshold: float = 1.0,
-               distractors: Optional[Dict[str, List[str]]] = None) -> List[dict]:
+               distractors: Optional[Dict[str, List[str]]] = None,
+               only_items: Optional[set[str]] = None) -> List[dict]:
     difficulty = difficulty or {}
     distractors = distractors or {}
     items = []
     for r in rows:
         vid = _vid(r.get("item_id") or r.get("identifier") or "")
         if not vid:
+            continue
+        if only_items and vid not in only_items:
             continue
         word = (r.get(locale) or "").strip()
         if not word:
@@ -571,6 +574,8 @@ def main() -> int:
                    help="Absolute locale-count override for source_image_issue tagging "
                         "(0 = use --source-frac instead).")
     p.add_argument("--limit", type=int, default=0)
+    p.add_argument("--items", default="",
+                   help="Optional comma-separated vocab-item-NNN ids to evaluate.")
     p.add_argument("--output-dir", default="output")
     p.add_argument("--no-pdf", action="store_true",
                    help="Skip rendering vocab-vision-report.pdf (needs pandoc + chrome).")
@@ -582,6 +587,7 @@ def main() -> int:
     difficulty = load_difficulty(args.corpus_csv)
     distractors = load_distractors(args.corpus_csv)
     locales = [l.strip() for l in args.locales.split(",") if l.strip()]
+    only_items = {item.strip() for item in args.items.split(",") if item.strip()}
     n_hard = sum(1 for d in difficulty.values() if d >= args.hard_difficulty)
     print(f"[vision] {len(resolver)} images indexed from {resolver.label}")
     print(f"[vision] difficulty for {len(difficulty)} items; "
@@ -593,7 +599,7 @@ def main() -> int:
     all_rows: List[dict] = []
     for loc in locales:
         res = run_locale(ev, rows, loc, resolver, args.limit, difficulty, args.hard_difficulty,
-                         distractors)
+                         distractors, only_items)
         bad = [r for r in res if r["vision_match"] == "no"]
         unc = sum(1 for r in res if r["vision_match"] == "uncertain")
         print(f"\n[{loc}] {len(res)} checked | {len(bad)} MISMATCH | {unc} uncertain")
