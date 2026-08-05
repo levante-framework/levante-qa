@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -34,9 +35,45 @@ SEVERITY_WEIGHTS = {"minor": 1, "major": 5, "critical": 25}
 VALID_CATEGORIES = {"accuracy", "fluency", "terminology", "style"}
 
 # Bump when the prompt/contract changes so stale cache entries are bypassed.
-PROMPT_VERSION = "mqm-v1"
+PROMPT_VERSION = "mqm-v2"
 
-PROMPT_TEMPLATE = """You are an expert linguist grading a translation for an educational assessment used with young children (ages 3-8). The text must be accurate, natural, and age-appropriate.
+# data-questionnaires + caregiver/teacher surveys are adult instruments; core
+# itembank tasks (vocab, trog, …) and child-survey stay child-facing.
+_ADULT_ID_RE = re.compile(
+    r"data-questionnaire|caregiver|teacher[_-]?survey|teacher-classroom|teacher-general",
+    re.I,
+)
+_ADULT_PATH_RE = re.compile(
+    r"caregiver|teacher[_-]?(?:survey|classroom|general)|data-questionnaire",
+    re.I,
+)
+
+_AUDIENCE = {
+    "child": {
+        "blurb": (
+            "an educational assessment used with young children (ages 3-8). "
+            "The text must be accurate, natural, and age-appropriate"
+        ),
+        "style": "style      (wrong register/tone, not age-appropriate)",
+        "critical": (
+            "critical   (breaks the task, reverses meaning, or is inappropriate for children)"
+        ),
+    },
+    "adult": {
+        "blurb": (
+            "an adult-facing educational instrument (caregiver survey, teacher survey, "
+            "or data questionnaire). The text must be accurate and natural for adult "
+            "respondents — do NOT penalize formal register or adult vocabulary as "
+            "\"not age-appropriate for children\""
+        ),
+        "style": "style      (wrong register/tone for adult survey respondents)",
+        "critical": (
+            "critical   (breaks the task, reverses meaning, or is inappropriate for adults)"
+        ),
+    },
+}
+
+PROMPT_TEMPLATE = """You are an expert linguist grading a translation for {audience_blurb}.
 
 Evaluate the translation from English into {target_locale} using the MQM error typology. Identify every error and classify each one:
 
@@ -44,12 +81,12 @@ category (exactly one of):
 - accuracy   (mistranslation, addition, omission, wrong meaning)
 - fluency    (grammar, spelling, punctuation, unnatural phrasing)
 - terminology(wrong domain/term for the context)
-- style      (wrong register/tone, not age-appropriate)
+- {style_line}
 
 severity (exactly one of):
 - minor      (noticeable, meaning preserved)
 - major      (meaning changed or confusing)
-- critical   (breaks the task, reverses meaning, or is inappropriate for children)
+- {critical_line}
 
 Source (English):
 {source}
@@ -65,6 +102,26 @@ Respond with ONLY a JSON object, no prose, matching exactly:
   "assessment": "one-sentence overall summary"
 }}
 If the translation is perfect, return an empty "errors" array."""
+
+
+def infer_audience(identifier: str = "", path: str = "") -> str:
+    """Return 'adult' or 'child' from Crowdin id / asset path."""
+    blob = f"{identifier} {path}"
+    if _ADULT_ID_RE.search(blob) or _ADULT_PATH_RE.search(blob):
+        return "adult"
+    return "child"
+
+
+def build_prompt(target_locale: str, source: str, target: str, audience: str = "child") -> str:
+    meta = _AUDIENCE["adult" if audience == "adult" else "child"]
+    return PROMPT_TEMPLATE.format(
+        audience_blurb=meta["blurb"],
+        style_line=meta["style"],
+        critical_line=meta["critical"],
+        target_locale=target_locale,
+        source=source,
+        target=target,
+    )
 
 
 def score_from_errors(errors: Sequence[Dict[str, Any]]) -> int:
@@ -163,18 +220,18 @@ class LlmMqmEvaluator:
         target_locale: str,
         max_retries: int = 3,
         use_cache: bool = True,
+        audience: str = "child",
     ) -> Dict[str, Any]:
+        aud = "adult" if audience == "adult" else "child"
         key = JsonDirCache.make_key(
-            PROMPT_VERSION, self.model_name, target_locale, source, target
+            PROMPT_VERSION, self.model_name, aud, target_locale, source, target
         )
         if use_cache:
             cached = self.cache.get(key)
             if cached is not None:
                 return cached
 
-        prompt = PROMPT_TEMPLATE.format(
-            target_locale=target_locale, source=source, target=target
-        )
+        prompt = build_prompt(target_locale, source, target, aud)
 
         last_err = ""
         for attempt in range(max_retries):
@@ -187,6 +244,7 @@ class LlmMqmEvaluator:
                     "score": score_from_errors(errors),
                     "errors": errors,
                     "assessment": str(parsed.get("assessment", "") or ""),
+                    "audience": aud,
                     "error": None,
                 }
                 if use_cache:
@@ -200,7 +258,14 @@ class LlmMqmEvaluator:
 
         # Exhausted retries: report failure WITHOUT a misleading score. Not
         # cached, so a later run can retry the failed item.
-        return {"ok": False, "score": None, "errors": [], "assessment": "", "error": last_err}
+        return {
+            "ok": False,
+            "score": None,
+            "errors": [],
+            "assessment": "",
+            "audience": aud,
+            "error": last_err,
+        }
 
     def evaluate_batch(
         self, sources: List[str], targets: List[str], target_locale: str

@@ -24,6 +24,8 @@ and Esperanto, and DMs findings to Slack (not `#levante-crowdin`).
      (English control vs locale; flags `translation_issue`)
    - **everything else** → Gemini MQM on that task path (`mqm_score ≤ 90`)
    - Findings are filtered to the new keys only
+   - MQM audience is **adult** for `data-questionnaire*`, caregiver, and teacher
+     survey strings; **child** (ages 3–8) for everything else
 5. Prints only the delta report; Slack DMs **only when there are findings**.
    Use `--force` to re-screen everything regardless of keys.
 

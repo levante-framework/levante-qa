@@ -67,6 +67,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--embed-model", default="intfloat/multilingual-e5-large")
     p.add_argument("--llm-model", default="gemini-3.6-flash")
     p.add_argument("--no-cache", action="store_true", help="Disable the LLM disk cache.")
+    p.add_argument(
+        "--audience",
+        default="auto",
+        choices=["auto", "child", "adult"],
+        help="MQM prompt audience. auto: adult for data-questionnaire / caregiver / teacher strings.",
+    )
     return p.parse_args()
 
 
@@ -155,16 +161,30 @@ def main() -> int:
         extra_cols.append("comet_qe")
 
     if args.run_llm:
-        from llm_mqm_eval import LlmMqmEvaluator
+        from llm_mqm_eval import LlmMqmEvaluator, infer_audience
         from tqdm import tqdm
         print("\n=== Gemini MQM judge ===")
         if not os.environ.get("GEMINI_API_KEY"):
             sys.exit("GEMINI_API_KEY not set; required for --run-llm.")
         ev = LlmMqmEvaluator(model_name=args.llm_model)
         n_fail = 0
+        n_adult = 0
         for i in tqdm(range(len(rows)), desc="MQM"):
+            if args.audience == "auto":
+                aud = infer_audience(
+                    str(rows[i].get(args.id_col, "") or rows[i].get("item_id", "") or ""),
+                    str(rows[i].get("_path", "") or ""),
+                )
+            else:
+                aud = args.audience
+            if aud == "adult":
+                n_adult += 1
             res = ev.evaluate_single(
-                sources[i], targets[i], args.target_col, use_cache=not args.no_cache
+                sources[i],
+                targets[i],
+                args.target_col,
+                use_cache=not args.no_cache,
+                audience=aud,
             )
             if res["ok"]:
                 results[i]["mqm_score"] = res["score"]
@@ -174,7 +194,10 @@ def main() -> int:
             results[i]["mqm_status"] = "ok" if res["ok"] else f"error:{res['error']}"
             results[i]["mqm_errors"] = json.dumps(res["errors"], ensure_ascii=False)
             results[i]["mqm_assessment"] = res["assessment"]
-        extra_cols += ["mqm_score", "mqm_status", "mqm_errors", "mqm_assessment"]
+            results[i]["mqm_audience"] = res.get("audience") or aud
+        extra_cols += ["mqm_score", "mqm_status", "mqm_errors", "mqm_assessment", "mqm_audience"]
+        if n_adult:
+            print(f"[llm] audience=adult for {n_adult}/{len(rows)} row(s) (rest child).")
         if n_fail:
             print(f"[llm] {n_fail} item(s) failed (left blank; re-run to retry).")
 
