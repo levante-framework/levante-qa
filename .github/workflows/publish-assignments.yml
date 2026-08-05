@@ -23,12 +23,12 @@ jobs:
       QA_GCS_PROJECT: hs-levante-admin-dev
     steps:
       - name: Checkout levante-qa
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # version comes from package.json "packageManager" (do not also set version:)
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # Pin below 20.19 to match the other QA workflows (see assignment-run.yml).
           node-version: 24

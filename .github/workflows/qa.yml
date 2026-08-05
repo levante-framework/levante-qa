@@ -9,12 +9,12 @@ jobs:
     name: Oracle regression
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # version comes from package.json "packageManager" (do not also set version:)
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # Pin below 20.19: Node >=20.19 enables require(esm) by default, which makes
           # Cypress load cypress.config.ts via the sync-ESM path and bypass its ts-node
@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload trial logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oracle-logs
           path: cypress/logs
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload screenshots on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oracle-screenshots
           path: cypress/screenshots

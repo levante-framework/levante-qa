@@ -385,8 +385,17 @@ async function screenMqm(task, locale) {
     return findings;
   }
   const rows = parseCsvFileSafe(outCsv);
+  let skippedNoScore = 0;
   for (const r of rows) {
-    const score = Number(r.mqm_score);
+    // evaluate_translations leaves mqm_score blank on judge failure (not 0).
+    // Number("") === 0 in JS, so require a non-empty numeric score + ok status.
+    const raw = String(r.mqm_score ?? '').trim();
+    const status = String(r.mqm_status || '');
+    if (!raw || (status && status !== 'ok')) {
+      skippedNoScore += 1;
+      continue;
+    }
+    const score = Number(raw);
     if (!Number.isFinite(score) || score > MQM_MAX) continue;
     findings.push({
       kind: 'mqm',
@@ -398,6 +407,9 @@ async function screenMqm(task, locale) {
       translation: r[locale] || '',
       score,
     });
+  }
+  if (skippedNoScore) {
+    log(`mqm ${task}/${locale}: skipped ${skippedNoScore} row(s) with no score (judge failure)`);
   }
   return findings;
 }
