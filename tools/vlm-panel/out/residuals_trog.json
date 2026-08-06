@@ -1,153 +1,126 @@
 {
   "task": "trog",
-  "n": 90,
-  "maeRaw": 0.16355555555555554,
-  "biasRaw": -0.03562222222222225,
+  "n": 99,
+  "maeRaw": 0.10815151515151518,
+  "biasRaw": 0.06287878787878788,
   "byTag": [
-    {
-      "tag": "passive",
-      "n": 4,
-      "mae": 0.26449999999999996,
-      "bias": -0.2075
-    },
-    {
-      "tag": "comparative",
-      "n": 3,
-      "mae": 0.25733333333333336,
-      "bias": -0.25733333333333336
-    },
-    {
-      "tag": "reverse_agent",
-      "n": 14,
-      "mae": 0.2487857142857142,
-      "bias": -0.17335714285714282
-    },
-    {
-      "tag": "disjunctive",
-      "n": 5,
-      "mae": 0.22880000000000003,
-      "bias": -0.12320000000000006
-    },
-    {
-      "tag": "adjective",
-      "n": 21,
-      "mae": 0.20457142857142863,
-      "bias": -0.02828571428571428
-    },
     {
       "tag": "relative_clause",
       "n": 13,
-      "mae": 0.2044615384615385,
-      "bias": -0.02615384615384616
+      "mae": 0.22646153846153846,
+      "bias": 0.10538461538461538
     },
     {
-      "tag": "temporal",
-      "n": 1,
-      "mae": 0.18999999999999995,
-      "bias": -0.18999999999999995
+      "tag": "passive",
+      "n": 4,
+      "mae": 0.18625000000000003,
+      "bias": 0.030749999999999944
+    },
+    {
+      "tag": "reverse_agent",
+      "n": 15,
+      "mae": 0.16566666666666663,
+      "bias": 0.020733333333333315
     },
     {
       "tag": "spatial",
       "n": 20,
-      "mae": 0.18395000000000003,
-      "bias": -0.013249999999999993
+      "mae": 0.16374999999999995,
+      "bias": 0.13084999999999997
+    },
+    {
+      "tag": "adjective",
+      "n": 22,
+      "mae": 0.12595454545454546,
+      "bias": 0.07549999999999998
+    },
+    {
+      "tag": "temporal",
+      "n": 1,
+      "mae": 0.11399999999999999,
+      "bias": 0.11399999999999999
+    },
+    {
+      "tag": "disjunctive",
+      "n": 5,
+      "mae": 0.0982,
+      "bias": 0.08220000000000001
     },
     {
       "tag": "other",
-      "n": 24,
-      "mae": 0.12141666666666663,
-      "bias": 0.026166666666666682
+      "n": 30,
+      "mae": 0.07753333333333332,
+      "bias": 0.049000000000000016
     },
     {
       "tag": "negation",
-      "n": 16,
-      "mae": 0.10774999999999998,
-      "bias": 0.026374999999999975
+      "n": 17,
+      "mae": 0.0726470588235294,
+      "bias": 0.06511764705882352
+    },
+    {
+      "tag": "comparative",
+      "n": 4,
+      "mae": 0.07125000000000001,
+      "bias": 0.005250000000000005
     }
   ],
   "top": [
     {
-      "item_uid": "trog_adjective_tall",
-      "transcript": "Choose the picture that shows tall.",
-      "p_vlm": 0.209,
-      "p_human": 0.872,
-      "p_pred_child": 0.625,
-      "raw_err": -0.663,
-      "abs_raw": 0.663,
-      "cal_err": -0.247,
-      "abs_cal": 0.247,
+      "item_uid": "trog_embedding_cat_cow_chase_black",
+      "transcript": "the cat the cow chases is black",
+      "p_vlm": 0.688,
+      "p_human": 0.238,
+      "p_pred_child": 0.704,
+      "raw_err": 0.44999999999999996,
+      "abs_raw": 0.44999999999999996,
+      "cal_err": 0.46599999999999997,
+      "abs_cal": 0.46599999999999997,
       "tags": [
-        "adjective"
+        "relative_clause",
+        "reverse_agent"
       ]
     },
     {
-      "item_uid": "trog_disjunctive_despite_noise_she_focus",
-      "transcript": "Despite the noise in the classroom, she focused on reading her notebook.",
-      "p_vlm": 0.119,
-      "p_human": 0.684,
-      "p_pred_child": 0.625,
-      "raw_err": -0.5650000000000001,
-      "abs_raw": 0.5650000000000001,
-      "cal_err": -0.05900000000000005,
-      "abs_cal": 0.05900000000000005,
+      "item_uid": "trog_embedding_boy_dog_chase_big",
+      "transcript": "the boy the dog chases is big",
+      "p_vlm": 0.688,
+      "p_human": 0.242,
+      "p_pred_child": 0.704,
+      "raw_err": 0.44599999999999995,
+      "abs_raw": 0.44599999999999995,
+      "cal_err": 0.46199999999999997,
+      "abs_cal": 0.46199999999999997,
       "tags": [
-        "disjunctive"
-      ]
-    },
-    {
-      "item_uid": "trog_additive_hose_drink_sheep_eat",
-      "transcript": "the horse drank water by the barn and the sheep ate grass by the fence",
-      "p_vlm": 0.405,
-      "p_human": 0.893,
-      "p_pred_child": 0.625,
-      "raw_err": -0.488,
-      "abs_raw": 0.488,
-      "cal_err": -0.268,
-      "abs_cal": 0.268,
-      "tags": [
-        "other"
-      ]
-    },
-    {
-      "item_uid": "trog_comparative_horse_taller_wall",
-      "transcript": "the horse is taller than the wall",
-      "p_vlm": 0.488,
-      "p_human": 0.965,
-      "p_pred_child": 0.782,
-      "raw_err": -0.477,
-      "abs_raw": 0.477,
-      "cal_err": -0.18299999999999994,
-      "abs_cal": 0.18299999999999994,
-      "tags": [
-        "comparative",
-        "adjective"
-      ]
-    },
-    {
-      "item_uid": "trog_revpassive_girl_chased_horse",
-      "transcript": "the girl is chased by the horse",
-      "p_vlm": 0.5,
-      "p_human": 0.947,
-      "p_pred_child": 0.782,
-      "raw_err": -0.44699999999999995,
-      "abs_raw": 0.44699999999999995,
-      "cal_err": -0.16499999999999992,
-      "abs_cal": 0.16499999999999992,
-      "tags": [
+        "relative_clause",
         "reverse_agent",
-        "passive"
+        "adjective"
+      ]
+    },
+    {
+      "item_uid": "trog_compprepcond_instead_homework_she_do_puzzle",
+      "transcript": "Instead of doing homework she did a puzzle in her room.",
+      "p_vlm": 1,
+      "p_human": 0.618,
+      "p_pred_child": 0.909,
+      "raw_err": 0.382,
+      "abs_raw": 0.382,
+      "cal_err": 0.29100000000000004,
+      "abs_cal": 0.29100000000000004,
+      "tags": [
+        "spatial"
       ]
     },
     {
       "item_uid": "trog_embedding_circle_star_in_red",
       "transcript": "the circle the star is in is red",
-      "p_vlm": 0.93,
-      "p_human": 0.5,
-      "p_pred_child": 0.85,
-      "raw_err": 0.43000000000000005,
-      "abs_raw": 0.43000000000000005,
-      "cal_err": 0.35,
-      "abs_cal": 0.35,
+      "p_vlm": 1,
+      "p_human": 0.649,
+      "p_pred_child": 0.909,
+      "raw_err": 0.351,
+      "abs_raw": 0.351,
+      "cal_err": 0.26,
+      "abs_cal": 0.26,
       "tags": [
         "relative_clause",
         "spatial",
@@ -155,212 +128,239 @@
       ]
     },
     {
-      "item_uid": "trog_relclause_girl_chase_dog_that_big",
-      "transcript": "the girl chases the dog that is big",
-      "p_vlm": 0.429,
-      "p_human": 0.824,
-      "p_pred_child": 0.625,
-      "raw_err": -0.39499999999999996,
-      "abs_raw": 0.39499999999999996,
-      "cal_err": -0.19899999999999995,
-      "abs_cal": 0.19899999999999995,
+      "item_uid": "trog_embedding_book_pencil_on_red",
+      "transcript": "the book the pencil is on is red",
+      "p_vlm": 1,
+      "p_human": 0.682,
+      "p_pred_child": 0.909,
+      "raw_err": 0.31799999999999995,
+      "abs_raw": 0.31799999999999995,
+      "cal_err": 0.22699999999999998,
+      "abs_cal": 0.22699999999999998,
       "tags": [
-        "reverse_agent",
+        "relative_clause",
+        "spatial",
         "adjective"
       ]
     },
     {
-      "item_uid": "trog_preploc_car_truck_follow_drive",
-      "transcript": "The car that the truck followed is driving toward the tunnel.",
-      "p_vlm": 0.238,
-      "p_human": 0.611,
-      "p_pred_child": 0.625,
-      "raw_err": -0.373,
-      "abs_raw": 0.373,
-      "cal_err": 0.014000000000000012,
-      "abs_cal": 0.014000000000000012,
+      "item_uid": "trog_postmod_duck_following_turtle_walking",
+      "transcript": "The duck following the turtle is walking across the bridge.",
+      "p_vlm": 0.188,
+      "p_human": 0.487,
+      "p_pred_child": 0.41,
+      "raw_err": -0.299,
+      "abs_raw": 0.299,
+      "cal_err": -0.07700000000000001,
+      "abs_cal": 0.07700000000000001,
       "tags": [
         "relative_clause",
-        "reverse_agent",
-        "spatial"
-      ]
-    },
-    {
-      "item_uid": "trog_postmod_boy_chasing_horse_tall",
-      "transcript": "the boy chasing the horse is tall",
-      "p_vlm": 0.488,
-      "p_human": 0.861,
-      "p_pred_child": 0.782,
-      "raw_err": -0.373,
-      "abs_raw": 0.373,
-      "cal_err": -0.07899999999999996,
-      "abs_cal": 0.07899999999999996,
-      "tags": [
-        "relative_clause",
-        "adjective"
-      ]
-    },
-    {
-      "item_uid": "trog_embedding_boy_dog_chase_big",
-      "transcript": "the boy the dog chases is big",
-      "p_vlm": 0.457,
-      "p_human": 0.089,
-      "p_pred_child": 0.625,
-      "raw_err": 0.368,
-      "abs_raw": 0.368,
-      "cal_err": 0.536,
-      "abs_cal": 0.536,
-      "tags": [
-        "relative_clause",
-        "reverse_agent",
-        "adjective"
-      ]
-    },
-    {
-      "item_uid": "trog_xnoty_horse_not_boy_stand",
-      "transcript": "the horse but not the boy is standing",
-      "p_vlm": 0.419,
-      "p_human": 0.776,
-      "p_pred_child": 0.625,
-      "raw_err": -0.35700000000000004,
-      "abs_raw": 0.35700000000000004,
-      "cal_err": -0.15100000000000002,
-      "abs_cal": 0.15100000000000002,
-      "tags": [
-        "negation"
-      ]
-    },
-    {
-      "item_uid": "trog_revactive_boy_chase_sheep",
-      "transcript": "the boy is chasing the sheep",
-      "p_vlm": 0.581,
-      "p_human": 0.897,
-      "p_pred_child": 0.782,
-      "raw_err": -0.31600000000000006,
-      "abs_raw": 0.31600000000000006,
-      "cal_err": -0.11499999999999999,
-      "abs_cal": 0.11499999999999999,
-      "tags": [
         "reverse_agent"
       ]
     },
     {
       "item_uid": "trog_relclause_square_in_star_that_blue",
       "transcript": "the square is in the star that is blue",
-      "p_vlm": 0.791,
-      "p_human": 0.482,
-      "p_pred_child": 0.782,
-      "raw_err": 0.30900000000000005,
-      "abs_raw": 0.30900000000000005,
-      "cal_err": 0.30000000000000004,
-      "abs_cal": 0.30000000000000004,
+      "p_vlm": 1,
+      "p_human": 0.724,
+      "p_pred_child": 0.909,
+      "raw_err": 0.276,
+      "abs_raw": 0.276,
+      "cal_err": 0.18500000000000005,
+      "abs_cal": 0.18500000000000005,
       "tags": [
         "spatial",
         "adjective"
       ]
     },
     {
-      "item_uid": "trog_preploc_plane_gray_above_cloud",
-      "transcript": "The plane that is gray is above the clouds.",
-      "p_vlm": 0.581,
-      "p_human": 0.889,
-      "p_pred_child": 0.782,
-      "raw_err": -0.30800000000000005,
-      "abs_raw": 0.30800000000000005,
-      "cal_err": -0.10699999999999998,
-      "abs_cal": 0.10699999999999998,
+      "item_uid": "trog_additive_hose_drink_sheep_eat",
+      "transcript": "the horse drank water by the barn and the sheep ate grass by the fence",
+      "p_vlm": 0.688,
+      "p_human": 0.941,
+      "p_pred_child": 0.704,
+      "raw_err": -0.253,
+      "abs_raw": 0.253,
+      "cal_err": -0.237,
+      "abs_cal": 0.237,
+      "tags": [
+        "other"
+      ]
+    },
+    {
+      "item_uid": "trog_adjective_tall",
+      "transcript": "Choose the picture that shows tall.",
+      "p_vlm": 0.688,
+      "p_human": 0.932,
+      "p_pred_child": 0.704,
+      "raw_err": -0.2440000000000001,
+      "abs_raw": 0.2440000000000001,
+      "cal_err": -0.2280000000000001,
+      "abs_cal": 0.2280000000000001,
+      "tags": [
+        "adjective"
+      ]
+    },
+    {
+      "item_uid": "trog_preploc_car_truck_follow_drive",
+      "transcript": "The car that the truck followed is driving toward the tunnel.",
+      "p_vlm": 0.375,
+      "p_human": 0.617,
+      "p_pred_child": 0.41,
+      "raw_err": -0.242,
+      "abs_raw": 0.242,
+      "cal_err": -0.20700000000000002,
+      "abs_cal": 0.20700000000000002,
       "tags": [
         "relative_clause",
-        "spatial"
-      ]
-    },
-    {
-      "item_uid": "trog_neither_pencil_long_nor_red",
-      "transcript": "the pencil is neither long nor red",
-      "p_vlm": 0.738,
-      "p_human": 0.457,
-      "p_pred_child": 0.782,
-      "raw_err": 0.28099999999999997,
-      "abs_raw": 0.28099999999999997,
-      "cal_err": 0.325,
-      "abs_cal": 0.325,
-      "tags": [
-        "negation",
-        "adjective"
-      ]
-    },
-    {
-      "item_uid": "trog_relclause_person_chase_dog_that_big",
-      "transcript": "The person chases the dog that is big.",
-      "p_vlm": 0.674,
-      "p_human": 0.944,
-      "p_pred_child": 0.782,
-      "raw_err": -0.2699999999999999,
-      "abs_raw": 0.2699999999999999,
-      "cal_err": -0.16199999999999992,
-      "abs_cal": 0.16199999999999992,
-      "tags": [
         "reverse_agent",
-        "spatial",
-        "adjective"
-      ]
-    },
-    {
-      "item_uid": "trog_inon_fork_on_shoe",
-      "transcript": "the fork is on the shoe",
-      "p_vlm": 0.698,
-      "p_human": 0.966,
-      "p_pred_child": 0.782,
-      "raw_err": -0.268,
-      "abs_raw": 0.268,
-      "cal_err": -0.18399999999999994,
-      "abs_cal": 0.18399999999999994,
-      "tags": [
         "spatial"
       ]
     },
     {
-      "item_uid": "trog_disjunctive_he_like_however_choose",
-      "transcript": "He likes swimming. However, he chose to play soccer with his friends.",
-      "p_vlm": 0.814,
-      "p_human": 0.55,
-      "p_pred_child": 0.782,
-      "raw_err": 0.2639999999999999,
-      "abs_raw": 0.2639999999999999,
-      "cal_err": 0.23199999999999998,
-      "abs_cal": 0.23199999999999998,
-      "tags": [
-        "disjunctive"
-      ]
-    },
-    {
-      "item_uid": "trog_revpassive_horse_chased_man",
-      "transcript": "the horse is chased by the man",
-      "p_vlm": 0.442,
-      "p_human": 0.705,
-      "p_pred_child": 0.625,
-      "raw_err": -0.26299999999999996,
-      "abs_raw": 0.26299999999999996,
-      "cal_err": -0.07999999999999996,
-      "abs_cal": 0.07999999999999996,
+      "item_uid": "trog_revpassive_elephant_pushed_boy",
+      "transcript": "the elephant is pushed by the boy",
+      "p_vlm": 1,
+      "p_human": 0.761,
+      "p_pred_child": 0.909,
+      "raw_err": 0.239,
+      "abs_raw": 0.239,
+      "cal_err": 0.14800000000000002,
+      "abs_cal": 0.14800000000000002,
       "tags": [
         "reverse_agent",
         "passive"
       ]
     },
     {
-      "item_uid": "trog_postmod_duck_following_turtle_walking",
-      "transcript": "The duck following the turtle is walking across the bridge.",
-      "p_vlm": 0.116,
-      "p_human": 0.368,
-      "p_pred_child": 0.368,
-      "raw_err": -0.252,
-      "abs_raw": 0.252,
-      "cal_err": 0,
-      "abs_cal": 0,
+      "item_uid": "trog_prepphrase_he_find_under_couch",
+      "transcript": "he found his keys under the couch with the pillows",
+      "p_vlm": 0.938,
+      "p_human": 0.724,
+      "p_pred_child": 0.839,
+      "raw_err": 0.21399999999999997,
+      "abs_raw": 0.21399999999999997,
+      "cal_err": 0.11499999999999999,
+      "abs_cal": 0.11499999999999999,
+      "tags": [
+        "spatial"
+      ]
+    },
+    {
+      "item_uid": "trog_revpassive_girl_chased_horse",
+      "transcript": "the girl is chased by the horse",
+      "p_vlm": 0.688,
+      "p_human": 0.889,
+      "p_pred_child": 0.704,
+      "raw_err": -0.20100000000000007,
+      "abs_raw": 0.20100000000000007,
+      "cal_err": -0.18500000000000005,
+      "abs_cal": 0.18500000000000005,
+      "tags": [
+        "reverse_agent",
+        "passive"
+      ]
+    },
+    {
+      "item_uid": "trog_inon_circle_in_star",
+      "transcript": "the circle is in the star",
+      "p_vlm": 1,
+      "p_human": 0.801,
+      "p_pred_child": 0.909,
+      "raw_err": 0.19899999999999995,
+      "abs_raw": 0.19899999999999995,
+      "cal_err": 0.10799999999999998,
+      "abs_cal": 0.10799999999999998,
+      "tags": [
+        "spatial"
+      ]
+    },
+    {
+      "item_uid": "trog_neither_pencil_long_nor_red",
+      "transcript": "the pencil is neither long nor red",
+      "p_vlm": 0.938,
+      "p_human": 0.741,
+      "p_pred_child": 0.839,
+      "raw_err": 0.19699999999999995,
+      "abs_raw": 0.19699999999999995,
+      "cal_err": 0.09799999999999998,
+      "abs_cal": 0.09799999999999998,
+      "tags": [
+        "negation",
+        "adjective"
+      ]
+    },
+    {
+      "item_uid": "trog_revpassive_cow_pushed_man",
+      "transcript": "the cow is pushed by the man",
+      "p_vlm": 1,
+      "p_human": 0.805,
+      "p_pred_child": 0.909,
+      "raw_err": 0.19499999999999995,
+      "abs_raw": 0.19499999999999995,
+      "cal_err": 0.10399999999999998,
+      "abs_cal": 0.10399999999999998,
+      "tags": [
+        "reverse_agent",
+        "passive"
+      ]
+    },
+    {
+      "item_uid": "trog_postmod_circle_in_star_yellow",
+      "transcript": "the circle in the star is yellow",
+      "p_vlm": 0.938,
+      "p_human": 0.746,
+      "p_pred_child": 0.839,
+      "raw_err": 0.19199999999999995,
+      "abs_raw": 0.19199999999999995,
+      "cal_err": 0.09299999999999997,
+      "abs_cal": 0.09299999999999997,
       "tags": [
         "relative_clause",
-        "reverse_agent"
+        "spatial"
+      ]
+    },
+    {
+      "item_uid": "trog_neither_dog_nor_ball_brown",
+      "transcript": "neither the dog nor the ball is brown",
+      "p_vlm": 1,
+      "p_human": 0.827,
+      "p_pred_child": 0.909,
+      "raw_err": 0.17300000000000004,
+      "abs_raw": 0.17300000000000004,
+      "cal_err": 0.08200000000000007,
+      "abs_cal": 0.08200000000000007,
+      "tags": [
+        "negation"
+      ]
+    },
+    {
+      "item_uid": "trog_preploc_fish_swim_beneath_whale",
+      "transcript": "The fish swim beneath a whale and a sea turtle.",
+      "p_vlm": 0.625,
+      "p_human": 0.455,
+      "p_pred_child": 0.41,
+      "raw_err": 0.16999999999999998,
+      "abs_raw": 0.16999999999999998,
+      "cal_err": -0.04500000000000004,
+      "abs_cal": 0.04500000000000004,
+      "tags": [
+        "relative_clause",
+        "spatial"
+      ]
+    },
+    {
+      "item_uid": "trog_abovebelow_square_below_star",
+      "transcript": "the square is below the star",
+      "p_vlm": 1,
+      "p_human": 0.836,
+      "p_pred_child": 0.909,
+      "raw_err": 0.16400000000000003,
+      "abs_raw": 0.16400000000000003,
+      "cal_err": 0.07300000000000006,
+      "abs_cal": 0.07300000000000006,
+      "tags": [
+        "spatial"
       ]
     }
   ]

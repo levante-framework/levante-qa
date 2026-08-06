@@ -1,6 +1,6 @@
 # Residual audit — vocab / en
 
-Generated: 2026-08-02T22:47:44.900Z
+Generated: 2026-08-05T23:19:42.910Z
 Source: `/home/david/levante/levante-qa/tools/vlm-panel/out/screen_vocab_en.csv`
 
 ## Summary

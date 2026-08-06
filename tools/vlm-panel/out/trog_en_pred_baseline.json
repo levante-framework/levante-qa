@@ -1,0 +1,8 @@
+{
+  "generated": "2026-08-06T00:51:11.394Z",
+  "label": "pre_full_en_recollect",
+  "n_items_pv_ph": 99,
+  "mae_p_vlm_vs_human": 0.10815151515151514,
+  "mae_p_pred_vs_human": 0.07608080808080807,
+  "screen_rows": 99
+}

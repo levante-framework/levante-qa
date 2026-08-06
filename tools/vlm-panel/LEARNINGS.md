@@ -67,8 +67,8 @@ used new ones. Do not trust cross-lang deltas until de/es are force-refreshed
 
 ## Where we landed (EN, after recollect)
 
-- **TROG:** Prompt + calibration improvements are real (better absolute error and ranking vs kids).
-- **Vocab:** Calibration helps; rare-word residual is adult lexical knowledge. Analyze applies a mild wordfreq Zipf shrink into `p_pred_child` for zipf<3 (`vocab_lexicon.json`, β≈0.1) — not more prompting. Heavier blends hurt MAE (Zipf ≠ child AoA).
+- **TROG:** Prompt + calibration improvements are real (better absolute error and ranking vs kids). Hybrid `d_est` (panel `z` + construction tags, Huber/ridge) can beat the p-only Spearman ceiling on bank `d` (~0.53 vs ~0.28 on EN anchors). Prompt checklist covers passive / comparative / despite / embeddings; changes need a panel recollect to move raw `p_vlm`.
+- **Vocab:** Calibration helps; rare-word residual is adult lexical knowledge. Analyze applies a mild wordfreq Zipf shrink into `p_pred_child` for zipf<3 (`vocab_lexicon.json`, β≈0.1) — not more prompting. Heavier blends hurt MAE (Zipf ≠ child AoA). Zipf as a `d_est` feature helps absolute MAE more than ranking.
 
 ## Operator extras (7–10)
 
@@ -76,6 +76,13 @@ used new ones. Do not trust cross-lang deltas until de/es are force-refreshed
 # Rebuild Zipf lexicon (needs wordfreq once): python3 tools/vlm-panel/build_vocab_lexicon.py
 # Spatial/negation smoke vs out/screen_en.csv:
 node tools/vlm-panel/check_trog_smoke.mjs
+# Bank-scale hybrid d_est (z + TROG tags / vocab Zipf; needs screen + bank cache):
+node tools/vlm-panel/estimate_difficulty.mjs --task trog
+node tools/vlm-panel/estimate_difficulty.mjs --task vocab
+# After TROG prompt edits — limited EN force recollect, then re-analyze/eval:
+#   node tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid_trog_prompt_eval.json --force
+#   node tools/vlm-panel/analyze.mjs --task trog --human-source=bench --run-id-re 'panel_trog_en_.*_a(8|10)_r[12]$'
+#   node tools/vlm-panel/estimate_difficulty.mjs --task trog --baseline tools/vlm-panel/out/d_est_trog_en_baseline.json
 # Matched 3.x xlang force-all (long):
 bash tools/vlm-panel/run_xlang_pipeline_3x.sh
 # Limited 3.x check (EN+DE, 2 repeats) + compare to frozen 2.5 triage:
@@ -95,4 +102,6 @@ node tools/vlm-panel/analyze.mjs --task trog --human-source=bench
 node tools/vlm-panel/analyze.mjs --task vocab --human-source=bench
 node tools/vlm-panel/fit_bench_calibrator.mjs
 node tools/vlm-panel/audit_residuals.mjs
+node tools/vlm-panel/estimate_difficulty.mjs --task trog
+node tools/vlm-panel/estimate_difficulty.mjs --task vocab
 ```

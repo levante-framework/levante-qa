@@ -1,0 +1,100 @@
+item_uid,bank_uid,p_vlm,p_pred_child,p_human,d_bank,d_bench,d_est,d_est_cv,d_est_p_only_cv,chance,anchor,tags,zipf,flag,transcript
+trog_postmod_duck_following_turtle_walking,trog_postmod_duck_following_turtle_walking,0.0000,0.2500,0.4870,,-0.478788,3.042379,,,0.2500,false,relative_clause+reverse_agent,,BROKEN,The duck following the turtle is walking across the bridge.
+trog_conjcoord_say_sunny_however_rain,trog_conjcoord_say_sunny_however_rain,0.0000,0.2500,0.0400,,,3.172589,,,0.2500,false,disjunctive,,BROKEN,"Her mom said it would be sunny. However, it rained heavily."
+trog_postmod_boy_chasing_horse_tall,trog_postmod_boy_chasing_horse_tall,0.5000,0.4700,0.8500,-2.846164,2.506962,-1.000182,-0.123169,-0.466409,0.2500,true,relative_clause+adjective,,HARD,the boy chasing the horse is tall
+trog_embedding_cat_cow_chase_black,trog_embedding_cat_cow_chase_black,0.5000,0.4700,0.2380,-1.059207,-5.742784,-1.281012,-1.262399,-0.942197,0.2500,true,relative_clause+reverse_agent,,HARD,the cat the cow chases is black
+trog_embedding_boy_dog_chase_big,trog_embedding_boy_dog_chase_big,0.5000,0.4700,0.2420,-1.325587,-2.542442,-1.281012,-1.682792,-1.020803,0.2500,true,relative_clause+reverse_agent+adjective,,HARD,the boy the dog chases is big
+trog_preploc_fish_swim_beneath_whale,trog_preploc_fish_swim_beneath_whale,0.5000,0.4700,0.4550,,-0.506892,0.219738,,,0.2500,false,relative_clause+spatial,,HARD,The fish swim beneath a whale and a sea turtle.
+trog_preploc_car_truck_follow_drive,trog_preploc_car_truck_follow_drive,0.5000,0.4700,0.6170,,0.815940,-0.061092,,,0.2500,false,relative_clause+reverse_agent+spatial,,HARD,The car that the truck followed is driving toward the tunnel.
+trog_adjective_tall,trog_adjective_tall,0.6250,0.7510,0.9320,-2.735786,3.917617,-2.322697,-2.464866,-1.928516,0.2500,true,adjective,,HARD,Choose the picture that shows tall.
+trog_xnoty_horse_not_boy_stand,trog_xnoty_horse_not_boy_stand,0.6250,0.7510,0.7520,-0.227662,1.466058,-1.264135,-1.696706,-1.787287,0.2500,true,negation,,HARD,the horse but not the boy is standing
+trog_neither_boy_hat_nor_shoe,trog_neither_boy_hat_nor_shoe,0.6250,0.7510,0.8680,-1.442102,2.434138,-1.264135,-0.999475,-1.440573,0.2500,true,negation,,HARD,the boy has neither hat nor shoes
+trog_disjunctive_despite_noise_she_focus,trog_disjunctive_despite_noise_she_focus,0.6250,0.7510,0.4190,,-1.096691,-1.969919,,,0.2500,false,disjunctive,,HARD,"Despite the noise in the classroom, she focused on reading her notebook."
+trog_disjunctive_he_wear_despite_size,trog_disjunctive_he_wear_despite_size,0.6250,0.7510,0.7240,,1.170543,-1.969919,,,0.2500,false,disjunctive,,HARD,He wore the clown's hat despite its large size.
+trog_revactive_boy_chase_sheep,trog_revactive_boy_chase_sheep,0.7500,0.8210,0.9540,-2.903149,4.236373,-2.842686,-2.724268,-1.839948,0.2500,true,reverse_agent,,HARD,the boy is chasing the sheep
+trog_revactive_man_chase_dog,trog_revactive_man_chase_dog,0.7500,0.8210,0.9510,-2.986863,,-2.842686,-2.820321,-1.881402,0.2500,true,reverse_agent,,HARD,the man is chasing the dog
+trog_revpassive_girl_chased_horse,trog_revpassive_girl_chased_horse,0.7500,0.8210,0.8890,-2.369474,2.880845,-2.634762,-2.821317,-2.061300,0.2500,true,reverse_agent+passive,,HARD,the girl is chased by the horse
+trog_revpassive_horse_chased_man,trog_revpassive_horse_chased_man,0.7500,0.8210,0.7980,-2.629851,2.168557,-2.634762,-2.633535,-1.958994,0.2500,true,reverse_agent+passive,,HARD,the horse is chased by the man
+trog_conditional_teacher_give_if_stand_line,trog_conditional_teacher_give_if_stand_line,0.7500,0.8210,0.8690,,2.498041,-2.561856,,,0.2500,false,other,,HARD,The teacher will give the students cake if they stand in a line.
+trog_conditional_we_dance_if_music_play,trog_conditional_we_dance_if_music_play,0.7500,0.8210,0.7700,-1.281514,1.427474,-2.561856,-2.291049,-1.725002,0.2500,true,other,,HARD,We will dance together if there is music playing.
+trog_revactive_cow_push_lady,trog_revactive_cow_push_lady,0.8750,0.8210,0.9590,-3.573687,4.467780,-2.842686,-2.724268,-1.839948,0.2500,true,reverse_agent,,OK,the cow is pushing the lady
+trog_pluralmorph_cats_look_ball,trog_pluralmorph_cats_look_ball,0.8750,0.8210,0.8990,-2.212058,3.097286,-2.561856,-2.728496,-1.881402,0.2500,true,other,,OK,the cats look at the ball
+trog_inon_fork_on_shoe,trog_inon_fork_on_shoe,0.8750,0.8210,0.9150,-0.737077,3.153513,-1.341936,-1.767137,-2.061300,0.2500,true,spatial,,OK,the fork is on the shoe
+trog_abovebelow_comb_below_spoon,trog_abovebelow_comb_below_spoon,0.8750,0.8210,0.8340,-1.998080,2.117565,-1.341936,-1.273518,-1.958994,0.2500,true,spatial,,OK,the comb is below the spoon
+trog_abovebelow_square_below_star,trog_abovebelow_square_below_star,0.8750,0.8210,0.8360,-3.230933,2.255957,-1.341936,-1.150113,-1.725002,0.2500,true,spatial,,OK,the square is below the star
+trog_notonly_notonly_girl_cat_sit,trog_notonly_notonly_girl_cat_sit,0.8750,0.8210,0.9170,-2.196203,3.122348,-1.503295,-1.586292,-1.839948,0.2500,true,negation,,OK,not only the girl but also the cat is sitting
+trog_relclause_girl_chase_dog_that_big,trog_relclause_girl_chase_dog_that_big,0.8750,0.8210,0.9230,-2.414530,3.241984,-2.842686,-2.820321,-1.881402,0.2500,true,reverse_agent+adjective,,OK,the girl chases the dog that is big
+trog_relclause_dog_chase_horse_that_brown,trog_relclause_dog_chase_horse_that_brown,0.8750,0.8210,0.7920,-2.750605,1.961337,-2.842686,-2.832081,-2.061300,0.2500,true,reverse_agent,,OK,the dog chases the horse that is brown
+trog_neither_dog_nor_ball_brown,trog_neither_dog_nor_ball_brown,0.8750,0.8210,0.8270,-1.286685,2.095465,-1.503295,-1.938427,-1.958994,0.2500,true,negation,,OK,neither the dog nor the ball is brown
+trog_neither_pencil_long_nor_red,trog_neither_pencil_long_nor_red,0.8750,0.8210,0.7410,-2.973695,1.589241,-1.503295,-1.367815,-1.725002,0.2500,true,negation+adjective,,OK,the pencil is neither long nor red
+trog_additive_hose_drink_sheep_eat,trog_additive_hose_drink_sheep_eat,0.8750,0.8210,0.9410,-0.920034,3.318926,-2.561856,-2.682780,-1.839948,0.2500,true,other,,OK,the horse drank water by the barn and the sheep ate grass by the fence
+trog_conditional_we_picnic_if_park_sunny,trog_conditional_we_picnic_if_park_sunny,0.8750,0.8210,0.9200,0.425471,3.026081,-2.561856,-2.728496,-1.881402,0.2500,true,other,,OK,we will have a picnic in the park if it is sunny
+trog_prepphrase_he_find_under_couch,trog_prepphrase_he_find_under_couch,0.8750,0.8210,0.7240,7.658442,1.096936,-1.341936,-1.767137,-2.061300,0.2500,true,spatial,,OK,he found his keys under the couch with the pillows
+trog_depclause_she_gardener_wear_hat_flower,trog_depclause_she_gardener_wear_hat_flower,0.8750,0.8210,0.8120,-1.280546,1.726082,-2.058458,-2.259048,-1.958994,0.2500,true,relative_clause,,OK,she is the gardener who wears the hat that has a flower
+trog_revpassrelclause_girl_wearing_backpack_shown_flower,trog_revpassrelclause_girl_wearing_backpack_shown_flower,0.8750,0.8210,0.6500,,1.044893,-2.561856,,,0.2500,false,other,,OK,The girl wearing a backpack was shown a flower by her friend.
+trog_conjcoord_kid_clean_but_forget,trog_conjcoord_kid_clean_but_forget,0.8750,0.8210,0.8370,,,-2.561856,,,0.2500,false,other,,OK,"The kids cleaned the room, but forgot to put away the train."
+trog_preploc_plane_gray_above_cloud,trog_preploc_plane_gray_above_cloud,0.8750,0.8210,0.8200,,2.443948,-0.838538,,,0.2500,false,relative_clause+spatial,,OK,The plane that is gray is above the clouds.
+trog_noun_shoe,trog_noun_shoe,1.0000,0.9050,0.9470,,,-2.961841,,,0.2500,false,other,,CEILING,Choose the picture of the shoe.
+trog_noun_bird,trog_noun_bird,1.0000,0.9050,0.9530,,,-2.961841,,,0.2500,false,other,,CEILING,Choose the picture of the bird.
+trog_noun_comb,trog_noun_comb,1.0000,0.9050,0.9300,,,-2.961841,,,0.2500,false,other,,CEILING,Choose the picture of the comb.
+trog_noun_apple,trog_noun_apple,1.0000,0.9050,0.9780,,,-2.961841,,,0.2500,false,other,,CEILING,Choose the picture of the apple.
+trog_verb_eating,trog_verb_eating,1.0000,0.9050,0.9450,-3.675354,4.388161,-2.961841,-2.907084,-2.200699,0.2500,true,other,,CEILING,Choose the picture that shows eating.
+trog_verb_picking,trog_verb_picking,1.0000,0.9050,0.9120,-2.965304,3.661984,-2.961841,-3.005739,-2.179262,0.2500,true,other,,CEILING,Choose the picture that shows picking.
+trog_verb_sitting,trog_verb_sitting,1.0000,0.9050,0.9480,-3.732536,,-2.961841,-3.055842,-2.206673,0.2500,true,other,,CEILING,Choose the picture that shows sitting.
+trog_verb_running,trog_verb_running,1.0000,0.9050,0.9260,-3.499904,3.883618,-2.961841,-2.868739,-2.283377,0.2500,true,other,,CEILING,Choose the picture that shows running.
+trog_adjective_long,trog_adjective_long,1.0000,0.9050,0.9720,-4.231416,5.099315,-2.961841,-3.002198,-2.246168,0.2500,true,adjective,,CEILING,Choose the picture that shows long.
+trog_adjective_red,trog_adjective_red,1.0000,0.9050,0.9520,-4.495436,4.398847,-2.961841,-2.907084,-2.200699,0.2500,true,adjective,,CEILING,Choose the picture that shows red.
+trog_adjective_black,trog_adjective_black,1.0000,0.9050,0.9730,-4.052847,5.069045,-2.961841,-3.005739,-2.179262,0.2500,true,adjective,,CEILING,Choose the picture that shows black.
+trog_2combo_boy_run,trog_2combo_boy_run,1.0000,0.9050,0.9880,-3.625431,,-2.961841,-3.055842,-2.206673,0.2500,true,other,,CEILING,the boy is running
+trog_2combo_big_cup,trog_2combo_big_cup,1.0000,0.9050,0.9120,-3.357089,3.546260,-2.961841,-2.868739,-2.283377,0.2500,true,adjective,,CEILING,the big cup
+trog_2combo_dog_sit,trog_2combo_dog_sit,1.0000,0.9050,0.9590,-3.546467,4.542009,-2.961841,-3.002198,-2.246168,0.2500,true,other,,CEILING,the dog is sitting
+trog_2combo_red_ball,trog_2combo_red_ball,1.0000,0.9050,0.9820,-4.087228,5.623718,-2.961841,-2.907084,-2.200699,0.2500,true,adjective,,CEILING,the red ball
+trog_negative_boy_not_run,trog_negative_boy_not_run,1.0000,0.9050,0.9140,-2.863393,3.533487,-1.903280,-1.909251,-2.179262,0.2500,true,negation,,CEILING,the boy is not running
+trog_negative_dog_not_drink,trog_negative_dog_not_drink,1.0000,0.9050,0.9240,-3.320136,3.773203,-1.903280,-1.744885,-2.206673,0.2500,true,negation,,CEILING,the dog is not drinking
+trog_negative_girl_not_jump,trog_negative_girl_not_jump,1.0000,0.9050,0.9580,-3.190307,4.543553,-1.903280,-1.733706,-2.283377,0.2500,true,negation,,CEILING,the girl is not jumping
+trog_negative_dog_not_sit,trog_negative_dog_not_sit,1.0000,0.9050,0.9490,-3.107114,4.290194,-1.903280,-2.342697,-2.246168,0.2500,true,negation,,CEILING,the dog is not sitting
+trog_3combo_boy_jump_box,trog_3combo_boy_jump_box,1.0000,0.9050,0.9260,-3.437028,3.755276,-2.961841,-2.907084,-2.200699,0.2500,true,other,,CEILING,the boy is jumping over the box
+trog_3combo_girl_sit_table,trog_3combo_girl_sit_table,1.0000,0.9050,0.9240,-3.312828,3.758081,-2.961841,-3.005739,-2.179262,0.2500,true,other,,CEILING,the girl is sitting on the table
+trog_3combo_man_eat_apple,trog_3combo_man_eat_apple,1.0000,0.9050,0.9720,-3.438150,5.034814,-2.961841,-3.055842,-2.206673,0.2500,true,other,,CEILING,the man is eating the apple
+trog_3combo_woman_carry_bag,trog_3combo_woman_carry_bag,1.0000,0.9050,0.9200,-2.892621,3.682185,-2.961841,-2.868739,-2.283377,0.2500,true,other,,CEILING,the lady is carrying the bag
+trog_pluralpronoun_they_sit_table,trog_pluralpronoun_they_sit_table,1.0000,0.9050,0.9310,-3.035293,3.899647,-2.961841,-3.002198,-2.246168,0.2500,true,other,,CEILING,they are sitting on the table
+trog_pluralpronoun_cow_look_them,trog_pluralpronoun_cow_look_them,1.0000,0.9050,0.8830,-2.511346,3.037037,-2.961841,-2.907084,-2.200699,0.2500,true,other,,CEILING,the cow is looking at them
+trog_pluralpronoun_they_jump_wall,trog_pluralpronoun_they_jump_wall,1.0000,0.9050,0.8660,-2.837303,2.892400,-2.961841,-3.005739,-2.179262,0.2500,true,other,,CEILING,they are jumping over the wall
+trog_pluralpronoun_elephant_carry_them,trog_pluralpronoun_elephant_carry_them,1.0000,0.9050,0.9400,-2.663359,3.995384,-2.961841,-3.055842,-2.206673,0.2500,true,other,,CEILING,the elephant is carrying them
+trog_revactive_girl_push_horse,trog_revactive_girl_push_horse,1.0000,0.9050,0.9470,-3.004953,4.100267,-3.242671,-3.084830,-2.283377,0.2500,true,reverse_agent,,CEILING,the girl is pushing the horse
+trog_pluralmorph_boy_stand_chairs,trog_pluralmorph_boy_stand_chairs,1.0000,0.9050,0.8410,-1.372561,2.333650,-2.961841,-3.002198,-2.246168,0.2500,true,other,,CEILING,the boy stands on the chairs
+trog_pluralmorph_boys_pick_apples,trog_pluralmorph_boys_pick_apples,1.0000,0.9050,0.8970,-1.618470,3.060976,-2.961841,-2.907084,-2.200699,0.2500,true,other,,CEILING,the boys pick the apples
+trog_pluralmorph_girl_drop_cups,trog_pluralmorph_girl_drop_cups,1.0000,0.9050,0.9100,-1.991912,3.206937,-2.961841,-3.005739,-2.179262,0.2500,true,other,,CEILING,the girl drops the cups
+trog_comparative_fork_longer_pencil,trog_comparative_fork_longer_pencil,1.0000,0.9050,0.8910,-2.212058,2.987381,-1.798888,-1.661189,-2.206673,0.2500,true,comparative,,CEILING,the fork is longer than the pencil
+trog_comparative_box_bigger_cup,trog_comparative_box_bigger_cup,1.0000,0.9050,0.9560,-1.372561,4.060950,-1.798888,-1.940951,-2.283377,0.2500,true,comparative+adjective,,CEILING,the box is bigger than the cup
+trog_comparative_shoe_bigger_bird,trog_comparative_shoe_bigger_bird,1.0000,0.9050,0.8800,-1.618470,2.735978,-1.798888,-1.859014,-2.246168,0.2500,true,comparative+adjective,,CEILING,the shoe is bigger than the bird
+trog_comparative_horse_taller_wall,trog_comparative_horse_taller_wall,1.0000,0.9050,0.9400,-1.991912,3.739999,-1.798888,-1.734538,-2.200699,0.2500,true,comparative+adjective,,CEILING,the horse is taller than the wall
+trog_revpassive_elephant_pushed_boy,trog_revpassive_elephant_pushed_boy,1.0000,0.9050,0.7610,-3.270285,1.855701,-3.034747,-2.904871,-2.179262,0.2500,true,reverse_agent+passive,,CEILING,the elephant is pushed by the boy
+trog_revpassive_cow_pushed_man,trog_revpassive_cow_pushed_man,1.0000,0.9050,0.8050,-3.069308,2.283145,-3.034747,-2.974793,-2.206673,0.2500,true,reverse_agent+passive,,CEILING,the cow is pushed by the man
+trog_inon_cup_in_box,trog_inon_cup_in_box,1.0000,0.9050,0.8940,-2.643545,2.983490,-1.741922,-2.019886,-2.283377,0.2500,true,spatial,,CEILING,the cup is in the box
+trog_inon_pencil_on_box,trog_inon_pencil_on_box,1.0000,0.9050,0.9310,-1.190335,3.378429,-1.741922,-1.677787,-2.246168,0.2500,true,spatial,,CEILING,the pencil is on the box
+trog_inon_circle_in_star,trog_inon_circle_in_star,1.0000,0.9050,0.8010,-0.452474,1.879691,-1.741922,-1.766148,-2.200699,0.2500,true,spatial,,CEILING,the circle is in the star
+trog_postmod_pencil_on_shoe_blue,trog_postmod_pencil_on_shoe_blue,1.0000,0.9050,0.8960,-1.270790,2.751883,-1.238523,-1.100840,-2.179262,0.2500,true,relative_clause+spatial+adjective,,CEILING,the pencil on the shoe is blue
+trog_postmod_cow_chasing_cat_brown,trog_postmod_cow_chasing_cat_brown,1.0000,0.9050,0.7640,-1.506044,1.648340,-2.458443,-2.784399,-2.206673,0.2500,true,relative_clause,,CEILING,the cow chasing the cat is brown
+trog_postmod_circle_in_star_yellow,trog_postmod_circle_in_star_yellow,1.0000,0.9050,0.7460,-1.264434,1.437357,-1.238523,-1.323739,-2.283377,0.2500,true,relative_clause+spatial,,CEILING,the circle in the star is yellow
+trog_xnoty_box_not_chair_red,trog_xnoty_box_not_chair_red,1.0000,0.9050,0.9040,-1.765367,3.014142,-1.903280,-2.342697,-2.246168,0.2500,true,negation+adjective,,CEILING,the box but not the chair is red
+trog_xnoty_cat_big_not_black,trog_xnoty_cat_big_not_black,1.0000,0.9050,0.9240,-1.940383,3.160058,-1.903280,-1.983850,-2.200699,0.2500,true,negation+adjective,,CEILING,the cat is big but not black
+trog_xnoty_boy_sit_not_eat,trog_xnoty_boy_sit_not_eat,1.0000,0.9050,0.9650,-0.312857,,-1.903280,-1.909251,-2.179262,0.2500,true,negation,,CEILING,the boy is sitting but not eating
+trog_abovebelow_pencil_above_flower,trog_abovebelow_pencil_above_flower,1.0000,0.9050,0.8900,-1.385052,2.671566,-1.741922,-1.555916,-2.206673,0.2500,true,spatial,,CEILING,the pencil is above the flower
+trog_abovebelow_star_above_circle,trog_abovebelow_star_above_circle,1.0000,0.9050,0.9250,0.039041,3.152003,-1.741922,-2.019886,-2.283377,0.2500,true,spatial,,CEILING,the star is above the circle
+trog_notonly_notonly_bird_flower_blue,trog_notonly_notonly_bird_flower_blue,1.0000,0.9050,0.9160,-1.238294,3.107704,-1.903280,-2.342697,-2.246168,0.2500,true,negation+adjective,,CEILING,not only the bird but also the flower is blue
+trog_notonly_box_notonly_big_blue,trog_notonly_box_notonly_big_blue,1.0000,0.9050,0.9380,-0.742966,3.519051,-1.903280,-1.983850,-2.200699,0.2500,true,negation+adjective,,CEILING,the box is not only big but also blue
+trog_notonly_girl_notonly_food_drink,trog_notonly_girl_notonly_food_drink,1.0000,0.9050,0.9490,-0.989561,3.764549,-1.903280,-1.909251,-2.179262,0.2500,true,negation,,CEILING,the girl has not only food but also a drink
+trog_relclause_pencil_on_book_that_yellow,trog_relclause_pencil_on_book_that_yellow,1.0000,0.9050,0.8480,-2.726741,2.392566,-1.741922,-1.555916,-2.206673,0.2500,true,spatial,,CEILING,the pencil is on the book that is yellow
+trog_relclause_square_in_star_that_blue,trog_relclause_square_in_star_that_blue,1.0000,0.9050,0.7240,-2.103510,1.232187,-1.741922,-2.019886,-2.283377,0.2500,true,spatial+adjective,,CEILING,the square is in the star that is blue
+trog_neither_boy_nor_horse_run,trog_neither_boy_nor_horse_run,1.0000,0.9050,0.8950,0.025909,2.706827,-1.903280,-2.342697,-2.246168,0.2500,true,negation,,CEILING,neither the boy nor the horse is running
+trog_embedding_book_pencil_on_red,trog_embedding_book_pencil_on_red,1.0000,0.9050,0.6820,-1.527960,0.862321,-1.238523,-1.228166,-2.200699,0.2500,true,relative_clause+spatial+adjective,,CEILING,the book the pencil is on is red
+trog_embedding_circle_star_in_red,trog_embedding_circle_star_in_red,1.0000,0.9050,0.6490,-1.698029,0.744461,-1.238523,-1.100840,-2.179262,0.2500,true,relative_clause+spatial+adjective,,CEILING,the circle the star is in is red
+trog_temporal_student_open_notebook_draw_tree,trog_temporal_student_open_notebook_draw_tree,1.0000,0.9050,0.8860,2.109663,2.515974,-2.961841,-3.055842,-2.206673,0.2500,true,temporal,,CEILING,the student opened the notebook and drew a tree
+trog_causal_she_trip_rock_drop_book,trog_causal_she_trip_rock_drop_book,1.0000,0.9050,0.8780,,2.635791,-2.961841,,,0.2500,false,other,,CEILING,She tripped on a rock and dropped her books.
+trog_disjunctive_although_hot_i_wear,trog_disjunctive_although_hot_i_wear,1.0000,0.9050,0.8440,,2.251368,-2.609064,,,0.2500,false,disjunctive,,CEILING,"Although it is hot outside, I am wearing a jacket with a hood."
+trog_disjunctive_he_like_however_choose,trog_disjunctive_he_like_however_choose,1.0000,0.9050,0.8130,-2.609020,2.013822,-2.609064,-2.868739,-2.283377,0.2500,true,disjunctive,,CEILING,"He likes swimming. However, he chose to play soccer with his friends."
+trog_gerund_bump_table_case_book_fall,trog_gerund_bump_table_case_book_fall,1.0000,0.9050,0.8360,-2.609020,2.187817,-2.961841,-3.002198,-2.246168,0.2500,true,other,,CEILING,Bumping the table with my foot caused a book to fall.
+trog_relclause_person_chase_dog_that_big,trog_relclause_person_chase_dog_that_big,1.0000,0.9050,0.8920,,3.229960,-2.022752,,,0.2500,false,reverse_agent+spatial+adjective,,CEILING,The person chases the dog that is big.
+trog_conjcoord_monkey_eat_nor_swing,trog_conjcoord_monkey_eat_nor_swing,1.0000,0.9050,0.8660,,2.798320,-1.903280,,,0.2500,false,negation,,CEILING,The monkey neither ate the banana nor swung on the vine.
+trog_compprepcond_instead_homework_she_do_puzzle,trog_compprepcond_instead_homework_she_do_puzzle,1.0000,0.9050,0.6180,,0.536202,-1.741922,,,0.2500,false,spatial,,CEILING,Instead of doing homework she did a puzzle in her room.

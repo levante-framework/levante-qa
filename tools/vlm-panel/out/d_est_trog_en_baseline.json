@@ -1,0 +1,23 @@
+{
+  "task": "trog",
+  "lang": "en",
+  "generated": "2026-08-05T23:19:42.872Z",
+  "n_anchors": 80,
+  "spearman_multivar": 0.5319566468076351,
+  "spearman_p_only": 0.2346290205708121,
+  "spearman_neg_p_pred": 0.2841958094791931,
+  "mae_multivar": 0.8855509798238984,
+  "mae_p_only": 1.095034996414347,
+  "mae_mean": 1.107330832497313,
+  "coefficients": {
+    "intercept": -1.3448337305963063,
+    "z": -0.9066635905400341,
+    "passive": -0.17726064152501278,
+    "comparative": 1.0173874463449157,
+    "reverse_agent": -0.22117169696613045,
+    "disjunctive": -0.0882129214996946,
+    "negation": 1.1786093697254967,
+    "spatial": 1.3881285200475122,
+    "relative_clause": 0.39823571915549316
+  }
+}

@@ -59,6 +59,7 @@ tools/vlm-panel/
   benchHuman.mjs           # load levante-bench trials / proportions
   fit_bench_calibrator.mjs # fit on bench trials; compare to diag; write caches
   audit_residuals.mjs      # where p_vlm disagrees with humans (prompt targets)
+  estimate_difficulty.mjs  # map p_pred_child → bank-scale d_est; held-out eval
   calibration/             # saved calibrators + item_pass_rates_* + age_item_rates_*
   panel_grid.json          # TROG grid (models × ages × repeats)
   panel_grid_stories.json  # Stories (Theory of Mind) grid
@@ -400,6 +401,40 @@ held-out CV MAE (calibrated should beat raw `|p_vlm − p_human|`) plus Spearman
 
 Do **not** use `QA_PERSONA_GATE=irt` for this workflow: unscored items collapse to
 the same age-mean `fallbackP` and cannot differentiate new content.
+
+### Bank-scale `d` estimates (eval)
+
+Hybrid model maps panel predictions (+ item features) onto the **deployed
+item-bank** difficulty scale and scores held-out recovery:
+
+```bash
+node tools/vlm-panel/estimate_difficulty.mjs --task trog --lang en
+node tools/vlm-panel/estimate_difficulty.mjs --task vocab --lang en
+# -> out/d_est_<task>_en.csv
+# -> out/d_est_<task>_en_report.md
+# -> out/d_est_<task>_en_metrics.json
+```
+
+**Features:** `z = logit((p_pred−c)/(1−c))`; TROG construction tags (passive,
+comparative, reverse_agent, …); vocab Zipf + rare flag from `vocab_lexicon.json`.
+**Fit:** standardized ridge + Huber IRLS. Reports compare multivar vs p-only
+affine CV and the `−p_pred_child` ranking ceiling.
+
+Prompt changes only move that ceiling after an ungated recollect. Limited EN
+TROG prompt-eval grid:
+
+```bash
+node tools/vlm-panel/run_panel.mjs \
+  --grid tools/vlm-panel/panel_grid_trog_prompt_eval.json --force
+# grid.language is en-US (required — audio/en/ 404s; use --lang en-US if overriding)
+node tools/vlm-panel/analyze.mjs --task trog --human-source=bench \
+  --run-id-re 'panel_trog_en_.*_a(8|10)_r[12]$'
+node tools/vlm-panel/estimate_difficulty.mjs --task trog \
+  --baseline tools/vlm-panel/out/d_est_trog_en_baseline.json
+```
+
+Requires cached banks (`cypress/cache/sim-item-bank-*.csv`). Bench
+`irt_models/*_item_params.csv` is report-only `d_bench` (different scale).
 
 ### Improving raw `p_vlm` (prompts / panel quality)
 

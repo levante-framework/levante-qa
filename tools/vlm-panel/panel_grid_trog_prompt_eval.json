@@ -1,0 +1,15 @@
+{
+  "task": "trog",
+  "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en-US",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 2,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [8, 10],
+  "_notes": "Limited EN force-recollect after trogVlmAgent prompt changes (2×2×2=8 cells). language MUST be en-US (audio lives under audio/en-US/; bare 'en' 404s and stalls jsPsych preload). Analyze with --run-id-re 'panel_trog_en_.*_a(8|10)_r[12]$'."
+}

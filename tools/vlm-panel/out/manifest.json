@@ -4874,11 +4874,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:29:07.535Z",
+    "startedAt": "2026-08-06T01:30:29.067Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a10_r1.log",
-    "finishedAt": "2026-08-02T23:33:40.705Z",
+    "finishedAt": "2026-08-06T01:35:15.107Z",
     "exitCode": 0,
-    "elapsedMs": 273169
+    "elapsedMs": 286039
   },
   {
     "runId": "panel_trog_en_35flashlite_a10_r2",
@@ -4894,11 +4894,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:33:40.707Z",
+    "startedAt": "2026-08-06T01:35:15.111Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a10_r2.log",
-    "finishedAt": "2026-08-02T23:38:13.892Z",
+    "finishedAt": "2026-08-06T01:39:57.062Z",
     "exitCode": 0,
-    "elapsedMs": 273183
+    "elapsedMs": 281950
   },
   {
     "runId": "panel_trog_en_35flashlite_a10_r3",
@@ -4914,11 +4914,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:38:13.894Z",
+    "startedAt": "2026-08-06T01:39:57.066Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a10_r3.log",
-    "finishedAt": "2026-08-02T23:42:44.412Z",
+    "finishedAt": "2026-08-06T01:44:29.493Z",
     "exitCode": 0,
-    "elapsedMs": 270517
+    "elapsedMs": 272425
   },
   {
     "runId": "panel_trog_en_35flashlite_a10_r4",
@@ -4934,11 +4934,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:42:44.414Z",
+    "startedAt": "2026-08-06T01:44:29.497Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a10_r4.log",
-    "finishedAt": "2026-08-02T23:47:10.898Z",
+    "finishedAt": "2026-08-06T01:49:06.138Z",
     "exitCode": 0,
-    "elapsedMs": 266482
+    "elapsedMs": 276640
   },
   {
     "runId": "panel_trog_en_35flashlite_a13_r1",
@@ -4954,11 +4954,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:47:10.900Z",
+    "startedAt": "2026-08-06T01:49:06.141Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a13_r1.log",
-    "finishedAt": "2026-08-02T23:51:37.644Z",
+    "finishedAt": "2026-08-06T01:53:51.304Z",
     "exitCode": 0,
-    "elapsedMs": 266743
+    "elapsedMs": 285162
   },
   {
     "runId": "panel_trog_en_35flashlite_a13_r2",
@@ -4974,11 +4974,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:51:37.647Z",
+    "startedAt": "2026-08-06T01:53:51.306Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a13_r2.log",
-    "finishedAt": "2026-08-02T23:56:18.203Z",
+    "finishedAt": "2026-08-06T01:58:29.786Z",
     "exitCode": 0,
-    "elapsedMs": 280555
+    "elapsedMs": 278479
   },
   {
     "runId": "panel_trog_en_35flashlite_a13_r3",
@@ -4994,11 +4994,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:56:18.205Z",
+    "startedAt": "2026-08-06T01:58:29.789Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a13_r3.log",
-    "finishedAt": "2026-08-03T00:00:53.686Z",
+    "finishedAt": "2026-08-06T04:39:03.416Z",
     "exitCode": 0,
-    "elapsedMs": 275479
+    "elapsedMs": 9633625
   },
   {
     "runId": "panel_trog_en_35flashlite_a13_r4",
@@ -5014,11 +5014,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:00:53.688Z",
+    "startedAt": "2026-08-06T04:39:03.434Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a13_r4.log",
-    "finishedAt": "2026-08-03T00:05:26.313Z",
+    "finishedAt": "2026-08-06T04:43:52.372Z",
     "exitCode": 0,
-    "elapsedMs": 272623
+    "elapsedMs": 288935
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r1",
@@ -5034,11 +5034,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T22:52:47.039Z",
+    "startedAt": "2026-08-06T00:51:17.383Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a6_r1.log",
-    "finishedAt": "2026-08-02T22:57:31.741Z",
+    "finishedAt": "2026-08-06T00:56:15.143Z",
     "exitCode": 0,
-    "elapsedMs": 284695
+    "elapsedMs": 297752
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r2",
@@ -5054,11 +5054,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T22:57:31.744Z",
+    "startedAt": "2026-08-06T00:56:15.152Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a6_r2.log",
-    "finishedAt": "2026-08-02T23:02:08.538Z",
+    "finishedAt": "2026-08-06T01:01:36.903Z",
     "exitCode": 0,
-    "elapsedMs": 276793
+    "elapsedMs": 321749
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r3",
@@ -5074,11 +5074,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:02:08.541Z",
+    "startedAt": "2026-08-06T01:01:36.907Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a6_r3.log",
-    "finishedAt": "2026-08-02T23:06:40.212Z",
+    "finishedAt": "2026-08-06T01:06:37.192Z",
     "exitCode": 0,
-    "elapsedMs": 271670
+    "elapsedMs": 300284
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r4",
@@ -5094,11 +5094,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:06:40.214Z",
+    "startedAt": "2026-08-06T01:06:37.195Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a6_r4.log",
-    "finishedAt": "2026-08-02T23:11:11.732Z",
+    "finishedAt": "2026-08-06T01:11:25.711Z",
     "exitCode": 0,
-    "elapsedMs": 271517
+    "elapsedMs": 288515
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r1",
@@ -5114,11 +5114,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:11:11.734Z",
+    "startedAt": "2026-08-06T01:11:25.715Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a8_r1.log",
-    "finishedAt": "2026-08-02T23:15:43.012Z",
+    "finishedAt": "2026-08-06T01:16:14.345Z",
     "exitCode": 0,
-    "elapsedMs": 271276
+    "elapsedMs": 288629
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r2",
@@ -5134,11 +5134,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:15:43.014Z",
+    "startedAt": "2026-08-06T01:16:14.348Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a8_r2.log",
-    "finishedAt": "2026-08-02T23:20:08.695Z",
+    "finishedAt": "2026-08-06T01:20:54.379Z",
     "exitCode": 0,
-    "elapsedMs": 265680
+    "elapsedMs": 280030
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r3",
@@ -5154,11 +5154,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:20:08.697Z",
+    "startedAt": "2026-08-06T01:20:54.382Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a8_r3.log",
-    "finishedAt": "2026-08-02T23:24:30.292Z",
+    "finishedAt": "2026-08-06T01:25:40.939Z",
     "exitCode": 0,
-    "elapsedMs": 261594
+    "elapsedMs": 286556
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r4",
@@ -5174,11 +5174,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-02T23:24:30.294Z",
+    "startedAt": "2026-08-06T01:25:40.944Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a8_r4.log",
-    "finishedAt": "2026-08-02T23:29:07.533Z",
+    "finishedAt": "2026-08-06T01:30:29.063Z",
     "exitCode": 0,
-    "elapsedMs": 277237
+    "elapsedMs": 288118
   },
   {
     "runId": "panel_trog_en_36flash_a10_r1",
@@ -5194,11 +5194,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:09:28.594Z",
+    "startedAt": "2026-08-06T05:52:31.702Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a10_r1.log",
-    "finishedAt": "2026-08-03T01:17:27.441Z",
+    "finishedAt": "2026-08-06T06:00:14.777Z",
     "exitCode": 0,
-    "elapsedMs": 478845
+    "elapsedMs": 463074
   },
   {
     "runId": "panel_trog_en_36flash_a10_r2",
@@ -5214,11 +5214,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:17:27.442Z",
+    "startedAt": "2026-08-06T06:00:14.780Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a10_r2.log",
-    "finishedAt": "2026-08-03T01:25:27.580Z",
+    "finishedAt": "2026-08-06T06:08:10.514Z",
     "exitCode": 0,
-    "elapsedMs": 480136
+    "elapsedMs": 475733
   },
   {
     "runId": "panel_trog_en_36flash_a10_r3",
@@ -5234,11 +5234,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:25:27.583Z",
+    "startedAt": "2026-08-06T06:08:10.518Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a10_r3.log",
-    "finishedAt": "2026-08-03T01:33:16.502Z",
+    "finishedAt": "2026-08-06T06:15:50.415Z",
     "exitCode": 0,
-    "elapsedMs": 468918
+    "elapsedMs": 459896
   },
   {
     "runId": "panel_trog_en_36flash_a10_r4",
@@ -5254,11 +5254,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:33:16.504Z",
+    "startedAt": "2026-08-06T06:15:50.419Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a10_r4.log",
-    "finishedAt": "2026-08-03T01:41:19.636Z",
+    "finishedAt": "2026-08-06T06:23:27.039Z",
     "exitCode": 0,
-    "elapsedMs": 483131
+    "elapsedMs": 456619
   },
   {
     "runId": "panel_trog_en_36flash_a13_r1",
@@ -5274,11 +5274,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:41:19.639Z",
+    "startedAt": "2026-08-06T06:23:27.043Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a13_r1.log",
-    "finishedAt": "2026-08-03T01:49:07.504Z",
+    "finishedAt": "2026-08-06T06:31:08.419Z",
     "exitCode": 0,
-    "elapsedMs": 467861
+    "elapsedMs": 461375
   },
   {
     "runId": "panel_trog_en_36flash_a13_r2",
@@ -5294,11 +5294,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:49:07.506Z",
+    "startedAt": "2026-08-06T06:31:08.423Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a13_r2.log",
-    "finishedAt": "2026-08-03T01:57:00.203Z",
+    "finishedAt": "2026-08-06T06:39:12.143Z",
     "exitCode": 0,
-    "elapsedMs": 472695
+    "elapsedMs": 483720
   },
   {
     "runId": "panel_trog_en_36flash_a13_r3",
@@ -5314,11 +5314,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:57:00.205Z",
+    "startedAt": "2026-08-06T06:39:12.147Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a13_r3.log",
-    "finishedAt": "2026-08-03T02:05:08.299Z",
+    "finishedAt": "2026-08-06T06:47:02.665Z",
     "exitCode": 0,
-    "elapsedMs": 488093
+    "elapsedMs": 470517
   },
   {
     "runId": "panel_trog_en_36flash_a13_r4",
@@ -5334,11 +5334,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T02:05:08.301Z",
+    "startedAt": "2026-08-06T06:47:02.668Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a13_r4.log",
-    "finishedAt": "2026-08-03T02:12:53.253Z",
+    "finishedAt": "2026-08-06T06:54:38.963Z",
     "exitCode": 0,
-    "elapsedMs": 464951
+    "elapsedMs": 456294
   },
   {
     "runId": "panel_trog_en_36flash_a6_r1",
@@ -5354,11 +5354,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:05:26.315Z",
+    "startedAt": "2026-08-06T04:43:52.380Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a6_r1.log",
-    "finishedAt": "2026-08-03T00:14:17.486Z",
+    "finishedAt": "2026-08-06T04:52:47.969Z",
     "exitCode": 0,
-    "elapsedMs": 531169
+    "elapsedMs": 535588
   },
   {
     "runId": "panel_trog_en_36flash_a6_r2",
@@ -5374,11 +5374,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:14:17.487Z",
+    "startedAt": "2026-08-06T04:52:47.973Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a6_r2.log",
-    "finishedAt": "2026-08-03T00:22:57.545Z",
+    "finishedAt": "2026-08-06T05:01:38.253Z",
     "exitCode": 0,
-    "elapsedMs": 520056
+    "elapsedMs": 530279
   },
   {
     "runId": "panel_trog_en_36flash_a6_r3",
@@ -5394,11 +5394,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:22:57.548Z",
+    "startedAt": "2026-08-06T05:01:38.257Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a6_r3.log",
-    "finishedAt": "2026-08-03T00:31:43.479Z",
+    "finishedAt": "2026-08-06T05:10:40.793Z",
     "exitCode": 0,
-    "elapsedMs": 525928
+    "elapsedMs": 542535
   },
   {
     "runId": "panel_trog_en_36flash_a6_r4",
@@ -5413,12 +5413,12 @@
     "temperature": 0.8,
     "personaAbility": "irt",
     "country": null,
-    "status": "failed",
-    "startedAt": "2026-08-03T02:12:53.334Z",
+    "status": "done",
+    "startedAt": "2026-08-06T05:10:40.800Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a6_r4.log",
-    "finishedAt": "2026-08-03T02:16:42.090Z",
-    "exitCode": 1,
-    "elapsedMs": 228747
+    "finishedAt": "2026-08-06T05:19:35.666Z",
+    "exitCode": 0,
+    "elapsedMs": 534865
   },
   {
     "runId": "panel_trog_en_36flash_a8_r1",
@@ -5434,11 +5434,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:35:16.219Z",
+    "startedAt": "2026-08-06T05:19:35.670Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a8_r1.log",
-    "finishedAt": "2026-08-03T00:44:19.264Z",
+    "finishedAt": "2026-08-06T05:27:52.772Z",
     "exitCode": 0,
-    "elapsedMs": 543043
+    "elapsedMs": 497101
   },
   {
     "runId": "panel_trog_en_36flash_a8_r2",
@@ -5454,11 +5454,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:44:19.266Z",
+    "startedAt": "2026-08-06T05:27:52.776Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a8_r2.log",
-    "finishedAt": "2026-08-03T00:52:45.923Z",
+    "finishedAt": "2026-08-06T05:36:04.590Z",
     "exitCode": 0,
-    "elapsedMs": 506656
+    "elapsedMs": 491813
   },
   {
     "runId": "panel_trog_en_36flash_a8_r3",
@@ -5474,11 +5474,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T00:52:45.925Z",
+    "startedAt": "2026-08-06T05:36:04.595Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a8_r3.log",
-    "finishedAt": "2026-08-03T01:00:47.993Z",
+    "finishedAt": "2026-08-06T05:44:28.080Z",
     "exitCode": 0,
-    "elapsedMs": 482066
+    "elapsedMs": 503484
   },
   {
     "runId": "panel_trog_en_36flash_a8_r4",
@@ -5494,11 +5494,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-03T01:00:47.994Z",
+    "startedAt": "2026-08-06T05:44:28.083Z",
     "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a8_r4.log",
-    "finishedAt": "2026-08-03T01:09:28.592Z",
+    "finishedAt": "2026-08-06T05:52:31.698Z",
     "exitCode": 0,
-    "elapsedMs": 520596
+    "elapsedMs": 483614
   },
   {
     "runId": "panel_trog_es_25flash_a10_r1",

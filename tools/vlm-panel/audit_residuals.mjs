@@ -9,7 +9,7 @@
  *   node tools/vlm-panel/audit_residuals.mjs --task trog --top 20
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -228,4 +228,7 @@ function main() {
   console.error(`Wrote ${outMd}`);
 }
 
-main();
+const isMain =
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (isMain) main();
