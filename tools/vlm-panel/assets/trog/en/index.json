@@ -1,0 +1,1392 @@
+{
+  "locale": "en-US",
+  "capturedAt": "2026-08-07T02:27:55.516Z",
+  "items": [
+    {
+      "assetId": "0079",
+      "step": 79,
+      "transcript": "Choose the picture of the shoe.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "1-shoe",
+        "1-tree",
+        "1-boy",
+        "1-fork"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0082",
+      "step": 82,
+      "transcript": "Choose the picture of the bird.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "2-chair",
+        "2-hat",
+        "2-woman",
+        "2-bird"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0085",
+      "step": 85,
+      "transcript": "Choose the picture of the comb.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "3-man",
+        "3-comb",
+        "3-wall",
+        "3-table"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0088",
+      "step": 88,
+      "transcript": "Choose the picture of the apple.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "4-elephant",
+        "4-fence",
+        "4-grass",
+        "4-apple"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0091",
+      "step": 91,
+      "transcript": "Choose the picture that shows eating.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "5-eating",
+        "5-dropping",
+        "5-riding",
+        "5-kicking"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0094",
+      "step": 94,
+      "transcript": "Choose the picture that shows picking.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "6-standing",
+        "6-picking",
+        "6-running",
+        "6-climbing"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0097",
+      "step": 97,
+      "transcript": "Choose the picture that shows sitting.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "7-holding",
+        "7-sitting",
+        "7-pushing",
+        "7-jumping"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0100",
+      "step": 100,
+      "transcript": "Choose the picture that shows running.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "8-reading",
+        "8-running",
+        "8-drinking",
+        "8-dancing"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0103",
+      "step": 103,
+      "transcript": "Choose the picture that shows long.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "9-short2",
+        "9-short1",
+        "9-short3",
+        "9-long"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0106",
+      "step": 106,
+      "transcript": "Choose the picture that shows tall.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "10-tall",
+        "10-girl2",
+        "10-girl1",
+        "10-boy1"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0109",
+      "step": 109,
+      "transcript": "Choose the picture that shows red.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "11-pink",
+        "11-red",
+        "11-blue",
+        "11-yellow"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0112",
+      "step": 112,
+      "transcript": "Choose the picture that shows black.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "12-brown-horse",
+        "12-black-horse",
+        "12-grey-dog",
+        "12-yellow-dog"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0115",
+      "step": 115,
+      "transcript": "the boy is running",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "13-cat-sitting",
+        "13-cow-walking",
+        "13-boy-running",
+        "13-person-sitting"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0118",
+      "step": 118,
+      "transcript": "the big cup",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "14-pink-cup",
+        "14-blue-box",
+        "14-big-cup",
+        "14-purple-box"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0121",
+      "step": 121,
+      "transcript": "the dog is sitting",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "15-dog-sitting",
+        "15-girl-skipping",
+        "15-dog-eating",
+        "15-girl-sitting"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0124",
+      "step": 124,
+      "transcript": "the red ball",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "16-green-comb",
+        "16-purple-ball",
+        "16-red-comb",
+        "16-red-ball"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0127",
+      "step": 127,
+      "transcript": "the boy is not running",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "17-horse-standing",
+        "17-boy-sitting",
+        "17-cat-napping",
+        "17-boy-running"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0130",
+      "step": 130,
+      "transcript": "the dog is not drinking",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "18-baby-sitting",
+        "18-dog-drinking",
+        "18-girl-standing",
+        "18-dog-not-drinking"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0133",
+      "step": 133,
+      "transcript": "the girl is not jumping",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "19-girl-not-jumping",
+        "19-girl-jumping",
+        "19-horse-standing",
+        "19-cat-sitting"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0136",
+      "step": 136,
+      "transcript": "the dog is not sitting",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "20-dog-sitting",
+        "20-girl-standing",
+        "20-man-standing",
+        "20-dog-standing"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0139",
+      "step": 139,
+      "transcript": "the boy is jumping over the box",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "21-boy-hold-box",
+        "21-horse-jump-box",
+        "21-boy-run",
+        "21-boy-jump-box"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0142",
+      "step": 142,
+      "transcript": "the girl is sitting on the table",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "22-girl-on-table",
+        "22-cat-on-table",
+        "22-girl-at-table",
+        "22-girl-squatting"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0145",
+      "step": 145,
+      "transcript": "the man is eating the apple",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "23-woman-eat-dinner",
+        "23-horse-eat-apple",
+        "23-man-eat-apple",
+        "23-girl-kick-apple"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0148",
+      "step": 148,
+      "transcript": "the lady is carrying the bag",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "24-woman-carry-bag",
+        "24-woman-carry-chair",
+        "24-woman-drop-bag",
+        "24-dog-carry-bag"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0161",
+      "step": 161,
+      "transcript": "they are sitting on the table",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "25-2-people-on-carpet",
+        "25-boy-on-table",
+        "25-2-girls-on-table",
+        "25-2-people-draw-on-table"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0164",
+      "step": 164,
+      "transcript": "the cow is looking at them",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "26-girl-faces-cow",
+        "26-two-people-look-at-butterfly",
+        "26-two-boys-ride-cow",
+        "26-2-girls-face-cow"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0167",
+      "step": 167,
+      "transcript": "they are jumping over the wall",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "27-girl-jump-wall",
+        "27-girls-behind-wall",
+        "27-people-jump-wall",
+        "27-boys-jump-grass"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0170",
+      "step": 170,
+      "transcript": "the elephant is carrying them",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "28-boy-rides-elephant",
+        "28-woman-carries-babies",
+        "28-elephant-carries-them",
+        "28-run-from-elephant"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0173",
+      "step": 173,
+      "transcript": "the girl is pushing the horse",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "29-girl-pushes-horse",
+        "29-girl-pushes-man",
+        "29-horse-pushes-girl",
+        "29-boy-rides-horse"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0176",
+      "step": 176,
+      "transcript": "the boy is chasing the sheep",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "30-boy-chases-sheep",
+        "30-boy-chases-ball",
+        "30-sheep-chases-man",
+        "30-dog-chases-sheep"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0179",
+      "step": 179,
+      "transcript": "the man is chasing the dog",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "31-dog-chases-boy",
+        "31-man-chases-dog",
+        "31-man-chases-cart",
+        "31-girl-pets-dog"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0182",
+      "step": 182,
+      "transcript": "the cow is pushing the lady",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "32-girl-pushes-cow",
+        "32-cow-pushes-woman",
+        "32-girl-feeds-cow",
+        "32-girl-pushes-woman"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0185",
+      "step": 185,
+      "transcript": "the cats look at the ball",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "37-cat-look-ball",
+        "37-cats-look-ball",
+        "37-cats-look-butterfly",
+        "37-kids-play-ball"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0188",
+      "step": 188,
+      "transcript": "the boy stands on the chairs",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "38-guy-on-chair",
+        "38-guy-lay-on-chairs",
+        "38-dog-on-chairs",
+        "38-guy-on-chairs"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0191",
+      "step": 191,
+      "transcript": "the boys pick the apples",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "39-they-pick-flowers",
+        "39-they-eat-apples",
+        "39-boy-picks-apples",
+        "39-boys-pick-apples"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0194",
+      "step": 194,
+      "transcript": "the girl drops the cups",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "40-girl-drops-cup",
+        "40-girl-bounces-balls",
+        "40-girl-drops-cups",
+        "40-girl-hold-cup"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0197",
+      "step": 197,
+      "transcript": "the fork is longer than the pencil",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "41-fork-spoon",
+        "41-fork-short-pencil",
+        "41-fork-long-pencil",
+        "41-flower-short-pencil"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0200",
+      "step": 200,
+      "transcript": "the box is bigger than the cup",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "42-box-bigger-ball",
+        "42-box-bigger-cup",
+        "42-apple-cup-same",
+        "42-box-cup-same"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0203",
+      "step": 203,
+      "transcript": "the shoe is bigger than the bird",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "43-shoe-bigger-cup",
+        "43-shoe-bigger-bird",
+        "43-bird-box-same",
+        "43-bird-shoe-same"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0206",
+      "step": 206,
+      "transcript": "the horse is taller than the wall",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "44-horse-small-wall",
+        "44-feed-horse-apple",
+        "44-tree-wall",
+        "44-horse-large-wall"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0209",
+      "step": 209,
+      "transcript": "the girl is chased by the horse",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "45-girl-chase-horse",
+        "45-horse-chase-dog",
+        "45-horse-chase-girl",
+        "45-girl-ride-horse"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0212",
+      "step": 212,
+      "transcript": "the elephant is pushed by the boy",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "46-elephant-push-boy",
+        "46-boy-push-truck",
+        "46-boy-push-elephant",
+        "46-man-feed-elephant"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0215",
+      "step": 215,
+      "transcript": "the horse is chased by the man",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "47-dog-chases-horse",
+        "47-boy-chases-horse",
+        "47-horse-chases-boy",
+        "47-girl-rides-horse"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0218",
+      "step": 218,
+      "transcript": "the cow is pushed by the man",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "48-man-pushes-pram",
+        "48-man-pushes-cow",
+        "48-sheep-pushes-cow",
+        "48-cow-pushes-man"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0221",
+      "step": 221,
+      "transcript": "the cup is in the box",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "49-cup-on-box",
+        "49-cup-in-box",
+        "49-box-in-cup",
+        "49-cup-beside-box"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0224",
+      "step": 224,
+      "transcript": "the pencil is on the box",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "50-pencil-on-box",
+        "50-pencil-in-box",
+        "50-pencil-under-box",
+        "50-pencil-beside-box"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0227",
+      "step": 227,
+      "transcript": "the circle is in the star",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "51-circle-beside-star",
+        "51-star-in-circle",
+        "51-star-below-circle",
+        "51-circle-in-star"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0230",
+      "step": 230,
+      "transcript": "the fork is on the shoe",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "52-fork-in-boot",
+        "52-fork-on-boot",
+        "52-fork-beside-boot",
+        "52-fork-under-boot"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0233",
+      "step": 233,
+      "transcript": "the boy chasing the horse is tall",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "53-tall-boy-chases-horse",
+        "53-boy-chases-horse",
+        "53-horse-chases-tall-boy",
+        "53-horse-chases-boy"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0244",
+      "step": 244,
+      "transcript": "the pencil on the shoe is blue",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "54-blue-pencil-on-boot",
+        "54-boot-on-blue-pencil",
+        "54-boot-on-yellow-pencil",
+        "54-yellow-pencil-on-boot"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0247",
+      "step": 247,
+      "transcript": "the cow chasing the cat is brown",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "55-brown-cow-chase-white-cat",
+        "55-white-cow-chase-brown-cat",
+        "55-brown-cat-chase-white-cow",
+        "55-white-cat-chase-brown-cow"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0250",
+      "step": 250,
+      "transcript": "the circle in the star is yellow",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "56-green-star-below-circle",
+        "56-yellow-star-in-circle",
+        "56-star-beside-circle",
+        "56-yellow-circle-in-star"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0253",
+      "step": 253,
+      "transcript": "the box but not the chair is red",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "57-yellow-chair-red-box",
+        "57-yellow-chair-yellow-box",
+        "57-red-chair-yellow-box",
+        "57-red-chair-red-box"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0256",
+      "step": 256,
+      "transcript": "the cat is big but not black",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "58-little-white-cat",
+        "58-big-white-cat",
+        "58-big-black-cat",
+        "58-little-black-cat"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0259",
+      "step": 259,
+      "transcript": "the horse but not the boy is standing",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "59-horse-and-boy-stand",
+        "59-boy-jumps-horse-stands",
+        "59-horse-and-boy-jump",
+        "59-horse-jumps-boy-stands"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0262",
+      "step": 262,
+      "transcript": "the boy is sitting but not eating",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "60-sitting-person-banana",
+        "60-sitting-boy",
+        "60-standing-woman",
+        "60-standing-man-banana"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0265",
+      "step": 265,
+      "transcript": "the pencil is above the flower",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "61-flower-behind-pencil",
+        "61-pencil-above-flower",
+        "61-pencil-beside-flower",
+        "61-flower-above-pencil"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0268",
+      "step": 268,
+      "transcript": "the comb is below the spoon",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "62-yellow-comb-beside-spoon",
+        "62-yellow-comb-above-spoon",
+        "62-red-comb-beside-spoon",
+        "62-green-comb-below-spoon"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0271",
+      "step": 271,
+      "transcript": "the star is above the circle",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "63-small-star-beside-circle",
+        "63-star-above-circle",
+        "63-star-below-circle",
+        "63-purple-star-beside-circle"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0274",
+      "step": 274,
+      "transcript": "the square is below the star",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "64-square-above-star",
+        "64-square-beside-star",
+        "64-square-below-star",
+        "64-square-beside-star2"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0277",
+      "step": 277,
+      "transcript": "not only the bird but also the flower is blue",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "65-bird-blue-flower-white",
+        "65-bird-blue-flower-blue",
+        "65-bird-white-flower-blue",
+        "65-bird-white-flower-white"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0280",
+      "step": 280,
+      "transcript": "the box is not only big but also blue",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "66-small-blue-box",
+        "66-small-pink-box",
+        "66-big-pink-box",
+        "66-big-blue-box"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0283",
+      "step": 283,
+      "transcript": "not only the girl but also the cat is sitting",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "67-girl-sit-cat-stand",
+        "67-girl-cat-sitting",
+        "67-girl-point-cat",
+        "67-girl-cat-stand"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0286",
+      "step": 286,
+      "transcript": "the girl has not only food but also a drink",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "68-eat-banana",
+        "68-banana-and-juice",
+        "68-drink-juice",
+        "68-hands-in-pockets"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0289",
+      "step": 289,
+      "transcript": "the pencil is on the book that is yellow",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "69-red-book-on-pencil",
+        "69-yellow-book-on-pencil",
+        "69-pencil-on-yellow-book",
+        "69-pencil-on-red-book"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0292",
+      "step": 292,
+      "transcript": "the girl chases the dog that is big",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "70-dog-chases-girl",
+        "70-girl-chases-big-dog",
+        "70-girl-chases-small-dog",
+        "70-girl-chases-small-dog2"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0295",
+      "step": 295,
+      "transcript": "the square is in the star that is blue",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "71-yellow-square-in-star",
+        "71-star-in-blue-square",
+        "71-blue-square-in-star",
+        "71-blue-star-in-square"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0298",
+      "step": 298,
+      "transcript": "the dog chases the horse that is brown",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "72-brown-dog-chase-white-horse",
+        "72-white-horse-chase-brown-dog",
+        "72-brown-horse-chase-white-dog",
+        "72-white-dog-chase-brown-horse"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0301",
+      "step": 301,
+      "transcript": "neither the dog nor the ball is brown",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "73-white-dog-white-ball",
+        "73-brown-ball-brown-dog",
+        "73-white-dog-brown-ball",
+        "73-brown-dog-white-ball"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0304",
+      "step": 304,
+      "transcript": "the pencil is neither long nor red",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "74-short-green-pencil",
+        "74-short-red-pencil",
+        "74-long-green-pencil",
+        "74-long-red-pencil"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0307",
+      "step": 307,
+      "transcript": "neither the boy nor the horse is running",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "75-boy-before-horse",
+        "75-boy-behind-horse",
+        "75-boy-chases-horse",
+        "75-girl-chases-horse"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0310",
+      "step": 310,
+      "transcript": "the boy has neither hat nor shoes",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "76-no-hat-no-shoes",
+        "76-hat-no-shoes",
+        "76-shoes-no-hat",
+        "76-hat-and-shoes"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0313",
+      "step": 313,
+      "transcript": "the book the pencil is on is red",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "77-yellow-book-on-pencil",
+        "77-pencil-on-red-book",
+        "77-pencil-on-yellow-book",
+        "77-red-book-on-pencil"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0316",
+      "step": 316,
+      "transcript": "the cat the cow chases is black",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "78-white-cat-chase-black-cow",
+        "78-white-cow-chase-black-cat",
+        "78-black-cow-chase-white-cat",
+        "78-black-cat-chase-white-cow"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0328",
+      "step": 328,
+      "transcript": "the circle the star is in is red",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "79-star-beside-circle",
+        "79-star-in-red-circle",
+        "79-red-circle-in-star",
+        "79-star-below-red-circle"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0330",
+      "step": 330,
+      "transcript": "the boy the dog chases is big",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "80-small-boy-chases-dog",
+        "80-tall-boy-chases-dog",
+        "80-dog-chases-small-boy",
+        "80-dog-chases-tall-boy"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0333",
+      "step": 333,
+      "transcript": "the horse drank water by the barn and the sheep ate grass by the fence",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "81-sheep-water",
+        "81-horse-sheep-grass",
+        "81-horse-water-barn-sheep-grass",
+        "81-horse-sheep-water-barn"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0335",
+      "step": 335,
+      "transcript": "the student opened the notebook and drew a tree",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "82-desk",
+        "82-notebook-tree",
+        "82-paper-tree",
+        "82-notebook-writing"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0338",
+      "step": 338,
+      "transcript": "we will have a picnic in the park if it is sunny",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "83-picnic-park-rainy",
+        "83-picnic-island-sunny",
+        "83-picnic-island-rainy",
+        "83-picnic-sunny-park"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0341",
+      "step": 341,
+      "transcript": "he found his keys under the couch with the pillows",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "84-keys-under-couch-no-pillows",
+        "84-keys-under-couch-pillows",
+        "84-keys-on-couch-pillows",
+        "84-keys-on-couch"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0343",
+      "step": 343,
+      "transcript": "she is the gardener who wears the hat that has a flower",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "85-gardener-flower-hat-off",
+        "85-gardener-hat",
+        "85-gardener-flower-hat-on",
+        "85-gardener-flower-hat-off2"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0346",
+      "step": 346,
+      "transcript": "She tripped on a rock and dropped her books.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "86-no-trip",
+        "86-drop-books",
+        "86-trip-drop-books",
+        "86-trip-rock"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0348",
+      "step": 348,
+      "transcript": "The teacher will give the students cake if they stand in a line.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "87-girl-serves-woman-cake",
+        "87-woman-serves-girl-cake-no-line",
+        "87-girl-serves-woman-cake-no-line",
+        "87-woman-serves-girl-cake"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0350",
+      "step": 350,
+      "transcript": "We will dance together if there is music playing.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "88-play-guitars-dance",
+        "88-carry-guitar-guy-dances",
+        "88-carry-guitar-dance",
+        "88-play-guitar-dance"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0353",
+      "step": 353,
+      "transcript": "Although it is hot outside, I am wearing a jacket with a hood.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "89-hoodie-island",
+        "89-island",
+        "89-hoodie-snow",
+        "89-snow"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0356",
+      "step": 356,
+      "transcript": "He likes swimming. However, he chose to play soccer with his friends.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "90-they-swim",
+        "90-they-play-soccer",
+        "90-he-plays-soccer",
+        "90-he-swims"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0359",
+      "step": 359,
+      "transcript": "Despite the noise in the classroom, she focused on reading her notebook.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "91-read-write",
+        "91-throws-plane-writes",
+        "91-they-write",
+        "91-throws-plane-reads"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0362",
+      "step": 362,
+      "transcript": "He wore the clown's hat despite its large size.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "92-kid-small-hat",
+        "92-clown-small-hat",
+        "92-kid-large-hat",
+        "92-clown-large-hat"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0364",
+      "step": 364,
+      "transcript": "The duck following the turtle is walking across the bridge.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "93-turtle-behind-duck",
+        "93-duck-on-bridge",
+        "93-duck-turtle-on-bridge",
+        "93-duck-behind-turtle"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0366",
+      "step": 366,
+      "transcript": "Bumping the table with my foot caused a book to fall.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "94-book-falls",
+        "94-trip-rock",
+        "94-stub-toe",
+        "94-stub-toe-book-falls"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0368",
+      "step": 368,
+      "transcript": "The person chases the dog that is big.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "95-boy-chase-large-dog",
+        "95-large-dog-chase-boy",
+        "95-small-dog-chase-boy",
+        "95-boy-chase-small-dog"
+      ],
+      "keyedIndex": 0,
+      "promptText": null
+    },
+    {
+      "assetId": "0371",
+      "step": 371,
+      "transcript": "The girl wearing a backpack was shown a flower by her friend.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "96-tall-girl-holds-flower-wears-backpack",
+        "96-tall-girl-holds-backpack-and-flower",
+        "96-short-girl-wear-backpack",
+        "96-both-girls-hold-backpacks"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0374",
+      "step": 374,
+      "transcript": "The kids cleaned the room, but forgot to put away the train.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "97-train-on-shelf",
+        "97-empty-shelf",
+        "97-train-on-rug",
+        "97-empty-rug"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    },
+    {
+      "assetId": "0377",
+      "step": 377,
+      "transcript": "The monkey neither ate the banana nor swung on the vine.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "98-swing-not-eat",
+        "98-eat-not-swing",
+        "98-eat-and-swing",
+        "98-not-eat-not-swing"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0379",
+      "step": 379,
+      "transcript": "Her mom said it would be sunny. However, it rained heavily.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "99-stormy",
+        "99-rainy",
+        "99-sunny",
+        "99-rainy-sun"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0381",
+      "step": 381,
+      "transcript": "The plane that is gray is above the clouds.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "100-white-plane-over-clouds",
+        "100-gray-plane-under-clouds",
+        "100-white-plane-under-clouds",
+        "100-gray-plane-over-clouds"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0384",
+      "step": 384,
+      "transcript": "The fish swim beneath a whale and a sea turtle.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "101-whale-below-fish-turtle",
+        "101-whale-between-fish-turtle",
+        "101-whale-above-fish-turtle",
+        "101-whale-behind-fish-turtle"
+      ],
+      "keyedIndex": 1,
+      "promptText": null
+    },
+    {
+      "assetId": "0386",
+      "step": 386,
+      "transcript": "The car that the truck followed is driving toward the tunnel.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "102-car-into-tunnel",
+        "102-car-truck-out-of-tunnel",
+        "102-car-out-of-tunnel",
+        "102-car-truck-into-tunnel"
+      ],
+      "keyedIndex": 3,
+      "promptText": null
+    },
+    {
+      "assetId": "0388",
+      "step": 388,
+      "transcript": "Instead of doing homework she did a puzzle in her room.",
+      "audioSource": "id3:original_translation_text",
+      "choices": [
+        "103-homework-desk-puzzle",
+        "103-puzzle-desk",
+        "103-puzzle-floor",
+        "103-homework-desk"
+      ],
+      "keyedIndex": 2,
+      "promptText": null
+    }
+  ]
+}

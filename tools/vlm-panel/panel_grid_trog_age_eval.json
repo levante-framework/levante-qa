@@ -10,6 +10,6 @@
     "gemini-3.5-flash-lite",
     "gemini-3.6-flash"
   ],
-  "ages": [6, 13],
-  "_notes": "Age-gradient eval after age-conditional TROG prompts (2 models × ages 6/13 × 2 reps = 8 cells). language MUST be en-US. Analyze with --run-id-re 'panel_trog_en_(35flashlite|36flash)_a(6|13)_r[12]$'."
+  "ages": [6, 12],
+  "_notes": "Age-gradient eval after age-conditional TROG prompts (2 models × ages 6/12 × 2 reps = 8 cells). language MUST be en-US. Analyze with --run-id-re 'panel_trog_en_(35flashlite|36flash)_a(6|12)_r[12]$'."
 }

@@ -4,6 +4,7 @@ import {
   SYSTEM_PROMPT_CHECKLIST,
   SYSTEM_PROMPT_YOUNG,
   TROG_YOUNG_AGE_MAX,
+  parseChoiceIndex,
   resolvePersonaAgeYears,
   trogSystemPrompt,
   trogUserText,
@@ -22,6 +23,7 @@ export {
   SYSTEM_PROMPT_CHECKLIST,
   SYSTEM_PROMPT_YOUNG,
   TROG_YOUNG_AGE_MAX,
+  parseChoiceIndex,
   resolvePersonaAgeYears,
   trogSystemPrompt,
   trogUserText,
@@ -34,13 +36,6 @@ export interface TrogVlmDecision {
   /** The raw model text, kept for logging/debugging. */
   raw: string;
   latencyMs: number;
-}
-
-/** Parse the model's 1-4 position reply into a zero-based choice index, or
- * null if no valid position is present. */
-export function parseChoiceIndex(raw: string): number | null {
-  const m = raw.match(/[1-4]/);
-  return m ? Number(m[0]) - 1 : null;
 }
 
 /**

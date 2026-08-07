@@ -29,6 +29,9 @@ const TIMEOUT_MS = 10000;
 
 const LIVE_LOG = 'cypress/logs/_trog_vlm_live.jsonl';
 const provider = String(Cypress.expose('provider') ?? 'gemini');
+/** Capture PNGs + index for offline replay (oracle advance, no Gemini). */
+const CAPTURE_ASSETS = /^(1|true|yes)$/i.test(String(Cypress.expose('QA_PANEL_CAPTURE') ?? ''));
+const ASSET_DIR = String(Cypress.expose('QA_PANEL_ASSET_DIR') ?? '').trim();
 
 describe(`TROG — VLM agent (${provider})`, () => {
   const records: TrogTrialRecord[] = [];
@@ -80,11 +83,24 @@ describe(`TROG — VLM agent (${provider})`, () => {
   }
 
   function finalize(): void {
+    if (CAPTURE_ASSETS && ASSET_DIR) {
+      cy.task(
+        'finalizePanelAssets',
+        { dir: ASSET_DIR, locale: String(Cypress.expose('QA_LANGUAGE') ?? '') },
+        { log: false },
+      ).then((res: { n: number }) => {
+        cy.log(`panel assets finalized: ${res?.n ?? 0} items → ${ASSET_DIR}`);
+      });
+    }
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/vlm_trog_${provider}_${ts}.jsonl`, records });
     const scored = records.filter((r) => r.itemType === 'item' && typeof r.correct === 'boolean');
     const correct = scored.filter((r) => r.correct === true).length;
     cy.wrap(null).then(() => {
+      if (CAPTURE_ASSETS) {
+        cy.log(`capture mode complete (assets under ${ASSET_DIR})`);
+        return;
+      }
       expect(records.length, 'recorded at least one item').to.be.greaterThan(0);
       cy.log(`task completed: ${taskComplete}`);
       cy.log(`VLM (${provider}) accuracy: ${correct}/${scored.length}`);
@@ -114,7 +130,44 @@ describe(`TROG — VLM agent (${provider})`, () => {
       answeredItems.add(key);
 
       const name = `vlm_trog_step_${String(i).padStart(4, '0')}`;
-      cy.captureViewportBase64(name).then((pngBase64: string) => {
+      const assetId = String(i).padStart(4, '0');
+
+      // Capture-only: save viewport + metadata, click keyed answer, skip Gemini.
+      if (CAPTURE_ASSETS && ASSET_DIR) {
+        if (!hasKey) {
+          cy.log(`capture: no keyed answer at step ${i}; clicking 0`);
+        }
+        cy.captureViewportBase64(name).then((pngBase64: string) => {
+          cy.task(
+            'savePanelAsset',
+            {
+              dir: ASSET_DIR,
+              assetId,
+              step: i,
+              pngBase64,
+              transcript: sentence,
+              audioSource: audio.source,
+              choices,
+              keyedIndex: hasKey ? keyedIndex : 0,
+              promptText: promptText || null,
+            },
+            { log: false },
+          );
+          cy.get('body', { log: false }).then(($b) => {
+            const idx = hasKey ? keyedIndex : 0;
+            if ($b.find(CHOICE_BUTTON).length > idx) cy.chooseTrogOption(idx);
+          });
+          waitChangedThenStep(i, sig);
+        });
+        return;
+      }
+
+      const useCached =
+        !!ASSET_DIR &&
+        !CAPTURE_ASSETS &&
+        /^(1|true|yes)$/i.test(String(Cypress.expose('QA_PANEL_USE_ASSETS') ?? ''));
+
+      const decideFromPng = (pngBase64: string) => {
         trogVlmAgent.decide(pngBase64, sentence).then((decision) => {
           const itemKey = choices[keyedIndex] ?? `step-${i}`;
           const resolved = resolveVlmChoice({
@@ -132,7 +185,6 @@ describe(`TROG — VLM agent (${provider})`, () => {
             itemType: 'item',
             promptText: promptText || null,
             choices,
-            // Gated: log final click (age-matched). Ungated: log raw VLM only.
             chosenIndex: resolved.gate ? resolved.actIndex : resolved.vlmIndex,
             chosenValue: resolved.gate
               ? (choices[resolved.actIndex] ?? null)
@@ -159,7 +211,21 @@ describe(`TROG — VLM agent (${provider})`, () => {
           });
           waitChangedThenStep(i, sig);
         });
-      });
+      };
+
+      if (useCached) {
+        cy.task<{ pngBase64: string | null }>('readPanelAsset', { dir: ASSET_DIR, assetId }, { log: false }).then(
+          (asset) => {
+            if (asset?.pngBase64) {
+              decideFromPng(asset.pngBase64);
+            } else {
+              cy.captureViewportBase64(name).then(decideFromPng);
+            }
+          },
+        );
+      } else {
+        cy.captureViewportBase64(name).then(decideFromPng);
+      }
     });
   }
 

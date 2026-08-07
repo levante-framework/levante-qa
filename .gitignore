@@ -19,6 +19,10 @@ cypress/downloads/
 # Scoring output
 results/
 
+# VLM panel captured screenshots (large; regenerate via --capture-assets)
+tools/vlm-panel/assets/**/*.png
+tools/vlm-panel/assets/**/_items.jsonl
+
 # Translation-eval pipeline (scripts/eval): venv + generated artifacts
 scripts/eval/.venv/
 scripts/eval/output/

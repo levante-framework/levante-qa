@@ -123,3 +123,9 @@ export function trogUserText(
   if (!hints.length) return base;
   return `${base} ${hints.join(' ')}`;
 }
+
+/** Parse the model's 1-4 position reply into a zero-based choice index, or null. */
+export function parseChoiceIndex(raw: string): number | null {
+  const m = String(raw ?? '').match(/[1-4]/);
+  return m ? Number(m[0]) - 1 : null;
+}

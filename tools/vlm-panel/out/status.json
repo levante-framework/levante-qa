@@ -1,0 +1,18 @@
+{
+  "phase": "replay",
+  "runId": "panel_trog_en_35flashlite_a6_r1",
+  "message": "scoring item",
+  "itemsCaptured": 99,
+  "lastTranscript": "Choose the picture that shows tall.",
+  "lastAssetId": "0388",
+  "status": "running",
+  "logFile": "tools/vlm-panel/out/logs/panel_trog_en_capture.log",
+  "logMtime": "135s ago",
+  "updatedAt": "2026-08-07T02:34:19.043Z",
+  "cell": 1,
+  "cellsTotal": 9,
+  "itemsTotal": 99,
+  "item": 10,
+  "accuracy": "10/10",
+  "elapsedSec": 16
+}

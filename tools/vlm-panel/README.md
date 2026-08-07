@@ -45,7 +45,9 @@ difficulty shift** with no human data at all.
 
 ```
 tools/vlm-panel/
-  run_panel.mjs            # collect a panel: one Cypress run per "respondent"
+  run_panel.mjs            # collect a panel (live Cypress, or replay from assets)
+  replay_panel_main.ts     # offline Gemini replay of captured TROG PNGs
+  panelAssets.mjs          # asset dir helpers (tools/vlm-panel/assets/trog/<lang>/)
   run_langs_trog.mjs       # multi-locale TROG: force stale langs, resume others
   run_xlang_pipeline.sh    # full EN→DE→analyze→ES→NL→analyze chain
   analyze.mjs              # build difficulty screen + human comparison + child preds
@@ -61,6 +63,7 @@ tools/vlm-panel/
   audit_residuals.mjs      # where p_vlm disagrees with humans (prompt targets)
   estimate_difficulty.mjs  # map p_pred_child → bank-scale d_est; held-out eval
   calibration/             # saved calibrators + item_pass_rates_* + age_item_rates_*
+  assets/trog/<lang>/      # captured PNGs + index.json (gitignored PNGs)
   panel_grid.json          # TROG grid (models × ages × repeats)
   panel_grid_stories.json  # Stories (Theory of Mind) grid
   README.md                # this file
@@ -87,8 +90,26 @@ Prerequisites:
 
 - A working LEVANTE QA Cypress setup (this repo) able to run the VLM-agent specs
   against `https://levante-tasks-demo.web.app/`.
-- `GEMINI_API_KEY` exported (the panels here use Gemini). The runner runs Cypress
-  headless via WSLg/Electron.
+- `GEMINI_API_KEY` exported (the panels here use Gemini). Under WSLg,
+  `DISPLAY=:0` makes Electron paint on the Windows desktop even for
+  `cypress run`. The panel runner wraps Cypress in `xvfb-run` by default so
+  it stays off-screen. Pass `--headed` only when debugging the UI yourself.
+
+### Capture once, replay cells (TROG — preferred)
+
+Screenshots are identical across panel cells; only the persona/model changes.
+Capture the viewport PNGs once, then replay Gemini offline (no Cypress UI):
+
+```bash
+# One headless Cypress walk: oracle-advance, save PNGs + index (no Gemini)
+node tools/vlm-panel/run_panel.mjs --capture-assets --lang en-US
+# Watch progress: cat tools/vlm-panel/out/status.json
+#               tail -f tools/vlm-panel/out/status.log
+
+# Then all grid cells: Gemini only (auto if assets exist; or force --replay)
+node tools/vlm-panel/run_panel.mjs --lang en-US
+# node tools/vlm-panel/run_panel.mjs --live --lang en-US   # old full-Cypress path
+```
 
 ### Cross-language TROG (recommended for translation QA)
 
@@ -131,13 +152,14 @@ respondents — a smoke test).
 
 ## How the runner works (`run_panel.mjs`)
 
-Expands a grid into one **respondent** per `(model × age × repeat)` cell and runs
-the task's VLM-agent spec once per respondent, **sequentially**. Each respondent
-gets a unique `QA_RUN_ID` so its trial log is isolated. **Resume is the default:**
-respondents with a finalized `vlm_*.jsonl` (>64 bytes) are skipped; failed /
-stub / missing cells are retried and stubs are cleared automatically. Pass
-`--force` only to re-run successes too (expensive; use after intentional prompt
-changes on already-finished cells).
+Expands a grid into one **respondent** per `(model × age × repeat)` cell.
+**Modes:** `--capture-assets` (one Cypress walk → PNGs); default/`--replay`
+(Gemini from assets when present); `--live` (full Cypress per cell, as before).
+Each respondent gets a unique `QA_RUN_ID` so its trial log is isolated.
+**Resume is the default:** respondents with a finalized `vlm_*.jsonl` (>64 bytes)
+are skipped; failed / stub / missing cells are retried and stubs are cleared
+automatically. Pass `--force` only to re-run successes too (expensive; use after
+intentional prompt changes on already-finished cells).
 
 Ability is varied only on the responder side, via environment variables the spec
 and persona layer read:
@@ -151,6 +173,8 @@ and persona layer read:
 | `VLM_TEMPERATURE` | grid `temperature` | within-cell variance across repeats |
 | `QA_LANGUAGE` | `--lang` | the run language (e.g. `en-US`, `de-DE`, `es-CO`) |
 | `QA_RUN_ID` | derived | isolates this respondent's logs |
+| `QA_PANEL_CAPTURE` / `QA_PANEL_ASSET_DIR` | `--capture-assets` | save PNGs + index |
+| `QA_PANEL_USE_ASSETS` | `--live` when assets exist | reuse PNGs inside Cypress |
 
 Run id format: `panel_<task>_<lang>_<model>_a<age>_r<rep>`
 (e.g. `panel_trog_de_25pro_a8_r2`). `analyze.mjs` parses task and language back
@@ -172,13 +196,14 @@ sandbox contexts: a sandboxed `CYPRESS_CACHE_FOLDER`, and `ELECTRON_RUN_AS_NODE`
   "personaAbility": "irt",
   "repeats": 4,
   "models": ["gemini-3.5-flash-lite", "gemini-3.6-flash"],
-  "ages": [6, 8, 10, 13]
+  "ages": [6, 8, 10, 12]
 }
 ```
 
 `ages` should be the ages for which the task has a real per-age IRT θ (see
-`cypress/support/persona/age_task_ability.json`). TROG uses `[6,8,10,13]`;
-Theory of Mind only has θ for `[6,8,11]`.
+`cypress/support/persona/age_task_ability.json`). TROG uses `[6,8,10,12]`
+(θ₁₂ ≈ −0.22, n=104; denser than age 13); Theory of Mind only has θ for
+`[6,8,11]`.
 
 ---
 

@@ -3,8 +3,8 @@
  * Measure TROG panel age gradient from run logs (respondent totals + item spreads).
  *
  * Usage:
- *   node tools/vlm-panel/eval_age_gradient.mjs --lang en --ages 6,13 \
- *     --run-id-re 'panel_trog_en_(35flashlite|36flash)_a(6|13)_r[12]$'
+ *   node tools/vlm-panel/eval_age_gradient.mjs --lang en --ages 6,12 \
+ *     --run-id-re 'panel_trog_en_(35flashlite|36flash)_a(6|12)_r[12]$'
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -50,7 +50,7 @@ function pickVlmLog(runDir) {
 
 function main() {
   const lang = (parseArg(process.argv, 'lang', 'en') || 'en').toLowerCase();
-  const ages = String(parseArg(process.argv, 'ages', '6,13') || '6,13')
+  const ages = String(parseArg(process.argv, 'ages', '6,12') || '6,12')
     .split(',')
     .map((x) => Number(x.trim()))
     .filter((n) => Number.isFinite(n));

@@ -11,6 +11,6 @@
     "gemini-2.5-flash",
     "gemini-2.5-pro"
   ],
-  "ages": [6, 8, 10, 13],
+  "ages": [6, 8, 10, 12],
   "_notes": "Snapshot of the Aug 2026 cross-lang TROG grid (2.5 models, 48 cells). Use for resume mop of that panel; default panel_grid.json now targets 3.x."
 }

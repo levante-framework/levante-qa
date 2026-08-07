@@ -1,8 +1,38 @@
 import { defineConfig } from 'cypress';
-import { existsSync, mkdirSync, appendFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, mkdirSync, appendFileSync, writeFileSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import * as dotenv from 'dotenv';
 
+const PANEL_STATUS_PATH = join(process.cwd(), 'tools', 'vlm-panel', 'out', 'status.json');
+const PANEL_STATUS_LOG = join(process.cwd(), 'tools', 'vlm-panel', 'out', 'status.log');
+
+function writePanelStatus(patch: Record<string, unknown>): void {
+  try {
+    mkdirSync(dirname(PANEL_STATUS_PATH), { recursive: true });
+    let prev: Record<string, unknown> = {};
+    if (existsSync(PANEL_STATUS_PATH)) {
+      try {
+        prev = JSON.parse(readFileSync(PANEL_STATUS_PATH, 'utf-8'));
+      } catch {
+        /* ignore */
+      }
+    }
+    const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
+    writeFileSync(PANEL_STATUS_PATH, JSON.stringify(next, null, 2) + '\n');
+    const line = [
+      next.updatedAt,
+      next.phase && `[${next.phase}]`,
+      next.message,
+      next.itemsCaptured != null && `captured=${next.itemsCaptured}`,
+      next.lastTranscript && `"${String(next.lastTranscript).slice(0, 60)}"`,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    appendFileSync(PANEL_STATUS_LOG, line + '\n');
+  } catch {
+    /* status is best-effort; never fail the run */
+  }
+}
 /**
  * When the dashboard launches a run it sets QA_RUN_ID so each run's logs land in
  * their own subdir. Specs use fixed log filenames (e.g.
@@ -287,6 +317,96 @@ export default defineConfig({
           appendFileSync(path, body + '\n', 'utf-8');
           return null;
         },
+
+        /**
+         * Panel asset capture: write PNG + append item metadata for offline replay.
+         */
+        savePanelAsset(req: {
+          dir: string;
+          assetId: string;
+          step: number;
+          pngBase64: string;
+          transcript?: string | null;
+          audioSource?: string | null;
+          choices: string[];
+          keyedIndex: number;
+          promptText?: string | null;
+        }): null {
+          const dir = req.dir;
+          if (!dir) throw new Error('savePanelAsset: dir required');
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, `${req.assetId}.png`), Buffer.from(req.pngBase64, 'base64'));
+          appendFileSync(
+            join(dir, '_items.jsonl'),
+            JSON.stringify({
+              assetId: req.assetId,
+              step: req.step,
+              transcript: req.transcript ?? null,
+              audioSource: req.audioSource ?? null,
+              choices: req.choices,
+              keyedIndex: req.keyedIndex,
+              promptText: req.promptText ?? null,
+            }) + '\n',
+            'utf-8',
+          );
+          let n = 0;
+          try {
+            n = readFileSync(join(dir, '_items.jsonl'), 'utf-8')
+              .split(/\r?\n/)
+              .filter(Boolean).length;
+          } catch {
+            n = 0;
+          }
+          writePanelStatus({
+            phase: 'capture',
+            runId: process.env.QA_RUN_ID ?? null,
+            message: 'saving item',
+            itemsCaptured: n,
+            lastAssetId: req.assetId,
+            lastTranscript: req.transcript ?? null,
+            lastStep: req.step,
+          });
+          return null;
+        },
+
+        readPanelAsset({ dir, assetId }: { dir: string; assetId: string }): {
+          pngBase64: string | null;
+        } {
+          const p = join(dir, `${assetId}.png`);
+          if (!existsSync(p)) return { pngBase64: null };
+          return { pngBase64: readFileSync(p).toString('base64') };
+        },
+
+        finalizePanelAssets({ dir, locale }: { dir: string; locale?: string }): {
+          n: number;
+        } {
+          const staging = join(dir, '_items.jsonl');
+          if (!existsSync(staging)) return { n: 0 };
+          const items = readFileSync(staging, 'utf-8')
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .map((line) => JSON.parse(line));
+          writeFileSync(
+            join(dir, 'index.json'),
+            JSON.stringify(
+              {
+                locale: locale ?? process.env.QA_LANGUAGE ?? null,
+                capturedAt: new Date().toISOString(),
+                items,
+              },
+              null,
+              2,
+            ) + '\n',
+          );
+          writePanelStatus({
+            phase: 'capture',
+            runId: process.env.QA_RUN_ID ?? null,
+            message: 'finalized',
+            itemsCaptured: items.length,
+            status: 'done',
+          });
+          return { n: items.length };
+        },
       });
 
       // Surface the resolved provider to specs via Cypress.expose('provider').
@@ -328,6 +448,9 @@ export default defineConfig({
         'QA_PERSONA_COUNTRY',
         'QA_PERSONA_GATE',
         'QA_PERSONA_SEED',
+        'QA_PANEL_CAPTURE',
+        'QA_PANEL_ASSET_DIR',
+        'QA_PANEL_USE_ASSETS',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];

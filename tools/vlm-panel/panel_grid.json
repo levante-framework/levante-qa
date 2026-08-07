@@ -10,6 +10,6 @@
     "gemini-3.5-flash-lite",
     "gemini-3.6-flash"
   ],
-  "ages": [6, 8, 10, 13],
-  "_notes": "Each respondent = one full TROG run = one cell (model x age x repeat). Default 2 x 4 x 4 = 32 respondents (flash-lite + flash only). Pro is off by default — expensive thinking tokens and flaky for panels; add e.g. gemini-2.5-pro or a 3.x pro id only when you intentionally want that tier. Models: Gemini 2.5 Flash/Flash-Lite shut down ~2026-10-16 (ai.google.dev deprecations); defaults follow Google replacements (3.6-flash, 3.5-flash-lite). Ability is varied only on the responder side; stimulus never altered."
+  "ages": [6, 8, 10, 12],
+  "_notes": "Each respondent = one full TROG run = one cell (model x age x repeat). Default 2 x 4 x 4 = 32 respondents (flash-lite + flash only). Ages end at 12 (was 13) to match denser ability n in age_task_ability.json. Pro off by default. Prefer: capture assets once (--capture-assets) then --replay (no Cypress UI). Stimulus never altered."
 }
