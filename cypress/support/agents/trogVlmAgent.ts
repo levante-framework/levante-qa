@@ -5,15 +5,14 @@ import type { VLMResult } from '../tasks/types';
  * the node-side provider clients reuse the exact same instruction text, keeping
  * comparisons fair across providers.
  *
- * The model hears a sentence (given as the narration transcript) and sees four
- * pictures in a 2x2 grid. It must pick the picture whose scene matches the
- * sentence's meaning — the discrimination is grammatical (word order, negation,
- * who-does-what-to-whom, prepositions, relative clauses), so the distractors
- * usually depict the same objects in a different relationship. We number the
- * choices by grid position (1 = top-left ... 4 = bottom-right) — the order the
- * spec clicks.
+ * Age-conditional: young personas (QA_PERSONA_AGE_YEARS ≤ 8) get a light
+ * “pick the matching picture” prompt without the adult grammar checklist, so
+ * panel age/θ gradients are not flattened. Older / non-persona runs keep the
+ * structure checklist that fixed negation / reverse-agent / etc. misses.
  */
-export const SYSTEM_PROMPT = [
+
+/** Adult grammar checklist (ages ≥ 10, and default when age unset). */
+export const SYSTEM_PROMPT_CHECKLIST = [
   'You are taking a grammar-comprehension test, one item at a time.',
   'You hear a sentence (given to you as text) and see four pictures arranged',
   'in a 2x2 grid. Choose the ONE picture whose scene matches the meaning of the',
@@ -40,9 +39,68 @@ export const SYSTEM_PROMPT = [
   'Do not add words, punctuation, or explanation.',
 ].join('\n');
 
-/** Extra user-text emphasis when the transcript looks structure-sensitive. */
-export function trogUserText(transcript: string | null): string {
+/** Light prompt for young child personas (age ≤ 8): no silent grammar checklist. */
+export const SYSTEM_PROMPT_YOUNG = [
+  'You are taking a grammar-comprehension test, one item at a time.',
+  'You hear a sentence (given to you as text) and see four pictures arranged',
+  'in a 2x2 grid. Choose the ONE picture whose scene matches the meaning of the',
+  'sentence. Distractors usually show the same objects in a different relationship.',
+  '',
+  'Listen to the sentence and pick the picture that matches what you understood.',
+  'Do not run an adult grammar checklist — answer as this age would after hearing',
+  'the sentence once.',
+  '',
+  'The pictures are numbered by position:',
+  '  1 = top-left      2 = top-right',
+  '  3 = bottom-left   4 = bottom-right',
+  '',
+  'Respond with ONLY the single digit (1, 2, 3, or 4) of the matching picture.',
+  'Do not add words, punctuation, or explanation.',
+].join('\n');
+
+/** Default export for non-persona / older runs (preserves prior checklist behavior). */
+export const SYSTEM_PROMPT = SYSTEM_PROMPT_CHECKLIST;
+
+/** Ages ≤ this get the young (no-checklist) prompt. */
+export const TROG_YOUNG_AGE_MAX = 8;
+
+export function resolvePersonaAgeYears(): number | null {
+  let raw: unknown;
+  try {
+    // Browser specs: allowCypressEnv is false — use Cypress.expose.
+    if (typeof Cypress !== 'undefined' && typeof Cypress.expose === 'function') {
+      raw = Cypress.expose('QA_PERSONA_AGE_YEARS');
+    }
+  } catch {
+    /* not in Cypress */
+  }
+  if (raw == null || raw === '') {
+    raw = typeof process !== 'undefined' ? process.env.QA_PERSONA_AGE_YEARS : undefined;
+  }
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function useYoungTrogPrompt(ageYears: number | null = resolvePersonaAgeYears()): boolean {
+  return ageYears != null && ageYears <= TROG_YOUNG_AGE_MAX;
+}
+
+export function trogSystemPrompt(ageYears: number | null = resolvePersonaAgeYears()): string {
+  return useYoungTrogPrompt(ageYears) ? SYSTEM_PROMPT_YOUNG : SYSTEM_PROMPT_CHECKLIST;
+}
+
+/**
+ * Extra user-text emphasis when the transcript looks structure-sensitive.
+ * Young personas get no structure hints (base digit instruction only).
+ */
+export function trogUserText(
+  transcript: string | null,
+  ageYears: number | null = resolvePersonaAgeYears(),
+): string {
   const base = 'Reply with ONLY the digit (1-4) of the picture that matches the sentence.';
+  if (useYoungTrogPrompt(ageYears)) return base;
+
   const t = String(transcript ?? '').toLowerCase();
   const hints: string[] = [];
   if (/\bbut not\b|\bnot\b|\bneither\b|\bno (one|body)\b/.test(t)) {
@@ -98,13 +156,14 @@ export const trogVlmAgent = {
     transcript: string | null = null,
     userText?: string,
   ): Cypress.Chainable<TrogVlmDecision> {
+    const ageYears = resolvePersonaAgeYears();
     return cy
       .task<VLMResult>('askVLM', {
         pngBase64,
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: trogSystemPrompt(ageYears),
         taskId: 'trog',
         transcript,
-        userText: userText ?? trogUserText(transcript),
+        userText: userText ?? trogUserText(transcript, ageYears),
       })
       .then((result: VLMResult): TrogVlmDecision => ({
         index: parseChoiceIndex(result.raw),

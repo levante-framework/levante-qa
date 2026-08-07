@@ -252,8 +252,37 @@ export function makeChildPersonaPrompt(
     }
   }
 
+  // Operational mastery cues for TROG (age-band), not soft roleplay.
+  if (taskId === 'trog') {
+    abilityBlock += `\n\n${trogMasteryCue(ageDecimal)}`;
+  }
+
   return template
     .replace('{age_phrase}', phrase)
     .replace('{difficulty_block}', difficultyBlock)
     .replace('{ability_block}', abilityBlock);
+}
+
+/** Mastery-based TROG guidance by age band (construction difficulty kids typically face). */
+function trogMasteryCue(ageYears: number): string {
+  if (ageYears <= 8) {
+    return (
+      'Grammar mastery at this age: simple verbs and basic scenes are usually fine. ' +
+      'Complex passives, agent/patient reversals, embeddings ("the X the Y chases"), ' +
+      'and despite/although contrasts are often beyond this age — when unsure, prefer a ' +
+      'salient but incorrect scene rather than adult grammar analysis.'
+    );
+  }
+  if (ageYears <= 10) {
+    return (
+      'Grammar mastery at this age: you can usually handle negation and who-did-what on ' +
+      'simpler items. Passives, embeddings, and despite/although still trip children this ' +
+      'age fairly often — do not over-analyze; miss items that feel beyond typical mastery.'
+    );
+  }
+  return (
+    'Grammar mastery at this age: you can usually resolve who-did-what, negation, and ' +
+    'spatial relations. You may still miss the hardest embeddings and rare contrast ' +
+    'constructions sometimes — answer those as a typical child this age would, not as an adult parser.'
+  );
 }

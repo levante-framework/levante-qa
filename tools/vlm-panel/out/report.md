@@ -1,36 +1,37 @@
 # TROG VLM difficulty screen
 
-Generated: 2026-08-06T06:54:59.843Z
+Generated: 2026-08-07T01:38:53.487Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
 
 ## Run reliability (failure triage)
 
-241 runs for trog/de+en+es+nl: **241 done**, **0 failed**.
-Failures by cause: TOOL/Google **0** · `-dev`/app **0** · unknown **0**
+241 runs for trog/de+en+es+nl: **240 done**, **1 failed**.
+Failures by cause: TOOL/Google **1** · `-dev`/app **0** · unknown **0**
 - ✅ No `-dev`/app failures — launch + audio looked healthy in this panel.
+- TOOL-failure rate 0.4% (within tolerance) — those are Google, not `-dev`.
 
 ## EN
-- Respondents: **80** | common items (coverage >= 48): **99** | matched to human: **99**
+- Respondents: **79** | common items (coverage >= 48): **99** | matched to human: **99**
 - Non-response: **0.6%** of scored encounters had no parseable VLM choice (excluded, not scored wrong)
-- Spread: min 0.52, median 0.85, max 0.99, SD 0.13 -> OK
+- Spread: min 0.52, median 0.84, max 0.98, SD 0.13 -> OK
 
 ### Screen flags
 - BROKEN (below chance): **3** | HARD: **12** | CEILING: **14** | OK: 70
 - Review list: `out/review_en.csv` | full screen: `out/screen_en.csv`
 
 ### Validation vs human labels (matched items)
-- Spearman rho difficulty (p_vlm vs human p_correct), n=99: **0.636**
-- Spearman rho discrimination (rpb_vlm vs human point_biserial), n=80: **-0.148**
+- Spearman rho difficulty (p_vlm vs human p_correct), n=99: **0.642**
+- Spearman rho discrimination (rpb_vlm vs human point_biserial), n=80: **-0.166**
 - BROKEN catch: of 3 human below-chance item(s), VLM flagged **3** as BROKEN/HARD
 - BROKEN/HARD precision: of 15 VLM-flagged item(s), **6** are human-hard (p_correct < 0.5)
 - CEILING catch: of 15 human-ceiling item(s) (p>0.95), VLM flagged **7**
 
 ### Child performance prediction (calibrated p_vlm → p_pred_child)
 - Calibrator: fitted on en matched items (n=99); saved `vlm-panel/calibration/trog_en_bench.json`
-- In-sample (n=99): MAE calibrated **0.063** vs raw **0.104**; Spearman calibrated **0.690** vs raw **0.636**
-- Held-out CV (5, n=99): MAE calibrated **0.078** vs raw **0.104**; bias 0.002
-- Held-out CV Spearman: calibrated **0.575** vs raw **0.636**
+- In-sample (n=99): MAE calibrated **0.059** vs raw **0.106**; Spearman calibrated **0.707** vs raw **0.642**
+- Held-out CV (5, n=99): MAE calibrated **0.075** vs raw **0.106**; bias 0.001
+- Held-out CV Spearman: calibrated **0.539** vs raw **0.642**
 - Age columns `p_pred_age_*`: empirical age×item rates from levante-bench trials when available; otherwise task-norm scaling of `p_pred_child` (approximate).
 
 ## DE
@@ -110,41 +111,41 @@ Spreadsheet triage: `out/review_xlang_<lang>.csv` (all items sorted by delta; |d
 | item_uid | p_en | p_de | delta |
 |---|---|---|---|
 | trog_abovebelow_square_below_star | 0.91 | 0.66 | -0.25 |
-| trog_abovebelow_comb_below_spoon | 0.79 | 0.58 | -0.20 |
-| trog_embedding_cat_cow_chase_black | 0.51 | 0.32 | -0.18 |
-| trog_relclause_person_chase_dog_that_big | 0.77 | 0.62 | -0.16 |
-| trog_preploc_car_truck_follow_drive | 0.36 | 0.21 | -0.15 |
+| trog_abovebelow_comb_below_spoon | 0.78 | 0.58 | -0.20 |
+| trog_embedding_cat_cow_chase_black | 0.49 | 0.32 | -0.16 |
+| trog_postmod_boy_chasing_horse_tall | 0.51 | 0.36 | -0.15 |
 | trog_compprepcond_instead_homework_she_do_puzzle | 0.88 | 0.75 | -0.13 |
+| trog_relclause_person_chase_dog_that_big | 0.74 | 0.62 | -0.13 |
 | trog_pluralpronoun_elephant_carry_them | 0.99 | 0.86 | -0.13 |
-| trog_pluralpronoun_they_jump_wall | 0.93 | 0.80 | -0.13 |
-| trog_revactive_boy_chase_sheep | 0.69 | 0.57 | -0.12 |
-| trog_revpassrelclause_girl_wearing_backpack_shown_flower | 0.66 | 0.55 | -0.12 |
+| trog_pluralpronoun_they_jump_wall | 0.92 | 0.80 | -0.12 |
+| trog_preploc_car_truck_follow_drive | 0.32 | 0.21 | -0.11 |
+| trog_revpassrelclause_girl_wearing_backpack_shown_flower | 0.66 | 0.55 | -0.11 |
 
 ### es - biggest drops vs en (candidate broken translations)
 | item_uid | p_en | p_es | delta |
 |---|---|---|---|
 | trog_conditional_teacher_give_if_stand_line | 0.66 | 0.34 | -0.32 |
-| trog_adjective_tall | 0.47 | 0.17 | -0.31 |
-| trog_inon_circle_in_star | 0.78 | 0.48 | -0.30 |
-| trog_revactive_boy_chase_sheep | 0.69 | 0.42 | -0.27 |
-| trog_postmod_boy_chasing_horse_tall | 0.47 | 0.22 | -0.25 |
+| trog_adjective_tall | 0.47 | 0.17 | -0.30 |
+| trog_inon_circle_in_star | 0.77 | 0.48 | -0.29 |
+| trog_postmod_boy_chasing_horse_tall | 0.51 | 0.22 | -0.28 |
+| trog_revactive_boy_chase_sheep | 0.67 | 0.42 | -0.25 |
 | trog_postmod_cow_chasing_cat_brown | 0.75 | 0.52 | -0.23 |
 | trog_revactive_girl_push_horse | 0.95 | 0.72 | -0.23 |
-| trog_inon_fork_on_shoe | 0.78 | 0.56 | -0.21 |
+| trog_additive_hose_drink_sheep_eat | 0.62 | 0.40 | -0.22 |
+| trog_inon_fork_on_shoe | 0.77 | 0.56 | -0.21 |
 | trog_temporal_student_open_notebook_draw_tree | 0.82 | 0.63 | -0.20 |
-| trog_preploc_plane_gray_above_cloud | 0.66 | 0.46 | -0.20 |
 
 ### nl - biggest drops vs en (candidate broken translations)
 | item_uid | p_en | p_nl | delta |
 |---|---|---|---|
-| trog_conditional_teacher_give_if_stand_line | 0.66 | 0.32 | -0.34 |
-| trog_disjunctive_he_wear_despite_size | 0.65 | 0.33 | -0.31 |
-| trog_preploc_plane_gray_above_cloud | 0.66 | 0.35 | -0.30 |
+| trog_conditional_teacher_give_if_stand_line | 0.66 | 0.32 | -0.33 |
+| trog_disjunctive_he_wear_despite_size | 0.65 | 0.33 | -0.32 |
+| trog_preploc_plane_gray_above_cloud | 0.65 | 0.35 | -0.30 |
 | trog_temporal_student_open_notebook_draw_tree | 0.82 | 0.57 | -0.26 |
-| trog_embedding_book_pencil_on_red | 0.75 | 0.49 | -0.26 |
-| trog_pluralpronoun_cow_look_them | 0.84 | 0.58 | -0.25 |
+| trog_embedding_book_pencil_on_red | 0.73 | 0.49 | -0.24 |
+| trog_pluralpronoun_cow_look_them | 0.82 | 0.58 | -0.24 |
 | trog_conjcoord_kid_clean_but_forget | 0.72 | 0.48 | -0.24 |
-| trog_revactive_cow_push_lady | 0.78 | 0.55 | -0.23 |
-| trog_inon_fork_on_shoe | 0.78 | 0.54 | -0.23 |
+| trog_inon_fork_on_shoe | 0.77 | 0.54 | -0.23 |
 | trog_gerund_bump_table_case_book_fall | 0.85 | 0.62 | -0.23 |
+| trog_abovebelow_square_below_star | 0.91 | 0.69 | -0.22 |
 
