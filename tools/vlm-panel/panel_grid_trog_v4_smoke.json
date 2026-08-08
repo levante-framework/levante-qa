@@ -1,0 +1,15 @@
+{
+  "task": "trog",
+  "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 2,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [6, 8, 10, 12],
+  "_notes": "Prompt v4 smoke: 2 models × 4 ages × 2 repeats = 16 cells. Force-replay from assets after head-noun / contrast connective prompt changes. Full grid stays panel_grid.json (repeats=4)."
+}

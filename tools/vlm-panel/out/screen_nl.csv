@@ -1,8 +1,8 @@
 item_uid,flag,reason,n_resp,p_vlm,rpb_vlm,p_human,pb_human,p_pred_child,p_pred_age_6,p_pred_age_8,p_pred_age_10,transcript
-trog_conjcoord_say_sunny_however_rain,BROKEN,"p_vlm 0.00 < chance 0.25",48,0.000,,0.040,,0.250,0.250,0.250,0.250,"Haar moeder zei dat het zonnig zou zijn. Het regende echter hevig."
+trog_conjcoord_say_sunny_however_rain,BROKEN,"KNOWN: Known broken EN item (human p≈0.04); not an actionable VLM-panel finding | p_vlm 0.00 < chance 0.25",48,0.000,,0.040,,0.250,0.250,0.250,0.250,"Haar moeder zei dat het zonnig zou zijn. Het regende echter hevig."
 trog_disjunctive_despite_noise_she_focus,BROKEN,"p_vlm 0.06 < chance 0.25",48,0.063,-0.154,0.419,,0.419,0.250,0.355,0.351,"Ondanks het lawaai in het klaslokaal concentreerde ze zich op het lezen van haar schrift."
 trog_postmod_duck_following_turtle_walking,BROKEN,"p_vlm 0.19 < chance 0.25",48,0.188,-0.337,0.487,,0.487,0.250,0.581,0.515,"De eend die de schildpad volgt, loopt over de brug."
-trog_preploc_car_truck_follow_drive,HARD,"bottom of panel (p_vlm 0.28)",46,0.283,0.103,0.617,,0.536,0.474,0.636,0.750,"De auto die door de vrachtwagen werd gevolgd, rijdt richting de tunnel."
+trog_preploc_car_truck_follow_drive,HARD,"KNOWN: VLM systematically drops the relative-clause truck (picks car-only tunnel); prompt v4–v4.2 failed to fix without trading duck. Triage-suppressed until a non-prompt lever; still on screen_*.csv | bottom of panel (p_vlm 0.28)",46,0.283,0.103,0.617,,0.536,0.474,0.636,0.750,"De auto die door de vrachtwagen werd gevolgd, rijdt richting de tunnel."
 trog_preploc_fish_swim_beneath_whale,HARD,"bottom of panel (p_vlm 0.29)",45,0.289,-0.007,0.455,,0.536,0.263,0.462,0.462,"De vissen zwemmen onder een walvis en een zeeschildpad."
 trog_conditional_teacher_give_if_stand_line,HARD,"bottom of panel (p_vlm 0.32)",37,0.324,-0.013,0.869,,0.611,0.800,0.892,0.923,"De leraar zal de leerlingen taart geven, als ze in de rij gaan staan."
 trog_disjunctive_he_wear_despite_size,HARD,"bottom of panel (p_vlm 0.33)",42,0.333,0.398,0.724,,0.611,0.828,0.735,0.722,"Hij droeg de clownshoed, ondanks de grote omvang."

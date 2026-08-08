@@ -1,6 +1,6 @@
 # Bank-scale difficulty estimates — trog / en
 
-Generated: 2026-08-06T06:55:00.414Z
+Generated: 2026-08-07T20:42:33.718Z
 
 ## Inputs
 
@@ -18,15 +18,15 @@ Coefficients (raw / unstandardized):
 
 | feature | coef |
 |---------|------|
-| intercept | -1.0065 |
-| z | -0.9105 |
-| passive | 0.0426 |
-| comparative | 0.4907 |
-| reverse_agent | -0.7006 |
-| disjunctive | -0.4429 |
-| negation | 0.6973 |
-| spatial | 0.8283 |
-| relative_clause | 0.2744 |
+| intercept | -1.7103 |
+| z | -0.5948 |
+| passive | -0.2670 |
+| comparative | 1.0816 |
+| reverse_agent | -0.4464 |
+| disjunctive | 0.2714 |
+| negation | 0.9299 |
+| spatial | 1.0373 |
+| relative_clause | 0.4071 |
 
 Anchors: **80** / 99. Held-out: **5-fold**.
 
@@ -36,64 +36,54 @@ Bank `d` is difficulty-coded (higher = harder). `−p_*` columns are the p-only 
 
 | Metric | multivar d_est_cv | p-only affine CV | mean baseline | −p_vlm | −p_pred_child |
 |--------|-------------------|------------------|---------------|--------|---------------|
-| Spearman vs d_bank | **0.637** | 0.411 | — | 0.435 | 0.471 |
-| Pearson vs d_bank | 0.471 | 0.291 | — | 0.167 | 0.270 |
-| MAE | **0.822** | 1.000 | 1.107 | — | — |
-| RMSE | 1.438 | 1.554 | 1.620 | — | — |
-| Bias (est − bank) | -0.158 | 0.000 | 0.000 | — | — |
+| Spearman vs d_bank | **0.499** | 0.119 | — | 0.236 | 0.234 |
+| Pearson vs d_bank | 0.334 | -0.006 | — | 0.099 | 0.107 |
+| MAE | **0.915** | 1.106 | 1.107 | — | — |
+| RMSE | 1.546 | 1.634 | 1.620 | — | — |
+| Bias (est − bank) | -0.191 | 0.001 | 0.000 | — | — |
 
-**Multivar beats p-only ceiling** (Δ Spearman = 0.166).
+**Multivar beats p-only ceiling** (Δ Spearman = 0.265).
 
 ### Per-fold
 
 | Fold | n_train | n_test | ρ multivar | MAE | ρ p-only |
 |------|---------|--------|------------|-----|----------|
-| 1 | 64 | 16 | 0.826 | 0.634 | 0.478 |
-| 2 | 64 | 16 | 0.554 | 0.739 | 0.513 |
-| 3 | 64 | 16 | 0.798 | 0.748 | 0.530 |
-| 4 | 64 | 16 | 0.582 | 0.570 | 0.392 |
-| 5 | 64 | 16 | 0.377 | 1.421 | 0.436 |
-
-## Before / after (baseline snapshot)
-
-Baseline from 2026-08-06T00:51:17.328Z:
-
-| Metric | baseline | current | Δ |
-|--------|----------|---------|---|
-| Spearman multivar | 0.532 | 0.637 | 0.105 |
-| Spearman −p_pred (ceiling) | 0.284 | 0.471 | 0.187 |
-| MAE multivar | 0.886 | 0.822 | -0.063 |
+| 1 | 64 | 16 | 0.570 | 0.844 | 0.273 |
+| 2 | 64 | 16 | 0.459 | 1.231 | 0.032 |
+| 3 | 64 | 16 | 0.288 | 0.916 | 0.567 |
+| 4 | 64 | 16 | 0.572 | 0.629 | 0.261 |
+| 5 | 64 | 16 | 0.594 | 0.952 | 0.169 |
 
 ## Sanity vs human pass rates
 
 n = 80
 
-- Spearman(d_est_cv, −p_human): **0.573**
+- Spearman(d_est_cv, −p_human): **0.366**
 - Spearman(d_bank, −p_human): 0.432
 
 ## Cross-check vs bench `item_params` (report-only)
 
-n = 76. Spearman(d_est_cv, d_bench)=-0.615; Spearman(d_bank, d_bench)=-0.554.
+n = 76. Spearman(d_est_cv, d_bench)=-0.438; Spearman(d_bank, d_bench)=-0.554.
 
 ## Largest |residuals| (held-out)
 
 | item_uid | d_bank | d_est_cv | resid | p_pred | p_human | tags |
 |----------|--------|----------|-------|--------|---------|------|
-| trog_prepphrase_he_find_under_couch | 7.658 | -1.452 | -9.111 | 0.836 | 0.724 | spatial |
-| trog_temporal_student_open_notebook_draw_tree | 2.110 | -2.120 | -4.229 | 0.836 | 0.886 | temporal |
-| trog_conditional_we_picnic_if_park_sunny | 0.425 | -2.691 | -3.116 | 0.891 | 0.920 | other |
-| trog_postmod_boy_chasing_horse_tall | -2.846 | -0.336 | 2.510 | 0.603 | 0.850 | relative_clause+adjective |
-| trog_xnoty_boy_sit_not_eat | -0.313 | -2.476 | -2.163 | 0.931 | 0.965 | negation |
-| trog_adjective_tall | -2.736 | -0.841 | 1.895 | 0.603 | 0.932 | adjective |
-| trog_neither_boy_nor_horse_run | 0.026 | -1.819 | -1.845 | 0.891 | 0.895 | negation |
-| trog_abovebelow_star_above_circle | 0.039 | -1.800 | -1.839 | 0.884 | 0.925 | spatial |
-| trog_abovebelow_square_below_star | -3.231 | -1.532 | 1.699 | 0.884 | 0.836 | spatial |
-| trog_neither_pencil_long_nor_red | -2.974 | -1.415 | 1.559 | 0.836 | 0.741 | negation+adjective |
-| trog_relclause_pencil_on_book_that_yellow | -2.727 | -1.169 | 1.557 | 0.836 | 0.848 | spatial |
-| trog_pluralmorph_boys_pick_apples | -1.618 | -3.130 | -1.511 | 0.931 | 0.897 | other |
-| trog_comparative_box_bigger_cup | -1.373 | -2.870 | -1.497 | 0.936 | 0.956 | comparative+adjective |
-| trog_additive_hose_drink_sheep_eat | -0.920 | -2.287 | -1.367 | 0.836 | 0.941 | other |
-| trog_depclause_she_gardener_wear_hat_flower | -1.281 | -2.431 | -1.150 | 0.891 | 0.812 | relative_clause |
+| trog_prepphrase_he_find_under_couch | 7.658 | -2.025 | -9.684 | 0.908 | 0.724 | spatial |
+| trog_temporal_student_open_notebook_draw_tree | 2.110 | -2.835 | -4.944 | 0.908 | 0.886 | temporal |
+| trog_conditional_we_picnic_if_park_sunny | 0.425 | -2.919 | -3.345 | 0.908 | 0.920 | other |
+| trog_abovebelow_star_above_circle | 0.039 | -2.025 | -2.064 | 0.908 | 0.925 | spatial |
+| trog_embedding_book_pencil_on_red | -1.528 | 0.473 | 2.001 | 0.537 | 0.682 | relative_clause+spatial+adjective |
+| trog_abovebelow_square_below_star | -3.231 | -1.478 | 1.753 | 0.908 | 0.836 | spatial |
+| trog_neither_boy_nor_horse_run | 0.026 | -1.658 | -1.684 | 0.810 | 0.895 | negation |
+| trog_adjective_red | -4.495 | -2.835 | 1.661 | 0.908 | 0.952 | adjective |
+| trog_xnoty_boy_sit_not_eat | -0.313 | -1.896 | -1.583 | 0.908 | 0.965 | negation |
+| trog_neither_pencil_long_nor_red | -2.974 | -1.392 | 1.582 | 0.810 | 0.741 | negation+adjective |
+| trog_negative_dog_not_drink | -3.320 | -1.759 | 1.561 | 0.908 | 0.924 | negation |
+| trog_pluralmorph_boy_stand_chairs | -1.373 | -2.919 | -1.547 | 0.908 | 0.841 | other |
+| trog_additive_hose_drink_sheep_eat | -0.920 | -2.414 | -1.494 | 0.810 | 0.941 | other |
+| trog_notonly_box_notonly_big_blue | -0.743 | -2.177 | -1.434 | 0.908 | 0.938 | negation+adjective |
+| trog_negative_girl_not_jump | -3.190 | -1.818 | 1.372 | 0.908 | 0.958 | negation |
 
 ## Outputs
 

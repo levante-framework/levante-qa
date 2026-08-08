@@ -49,6 +49,7 @@ const REPO = join(HERE, '..', '..');
 const RUNS_DIR = join(REPO, 'cypress', 'logs', 'runs');
 const OUT_DIR = join(HERE, 'out');
 const CORPORA = join(REPO, '..', 'crowdin-projects', 'corpora');
+const KNOWN_ISSUES_PATH = join(HERE, 'known_issues.json');
 const DIAG_CSV = join(
   REPO,
   '..',
@@ -58,6 +59,19 @@ const DIAG_CSV = join(
   'diag_items_allstats_selected.csv',
 );
 
+/** item_uid -> note; suppressed from review_*.csv triage. */
+function loadKnownIssues(task) {
+  if (!existsSync(KNOWN_ISSUES_PATH)) return new Map();
+  try {
+    const raw = JSON.parse(readFileSync(KNOWN_ISSUES_PATH, 'utf-8'));
+    const block = raw?.[task] ?? {};
+    return new Map(
+      Object.entries(block).filter(([k]) => !k.startsWith('_') && typeof block[k] === 'string'),
+    );
+  } catch {
+    return new Map();
+  }
+}
 // ---------- translation-string source ----------
 // The bridge from the VLM's spoken text to the item bank is
 // normText(approved string) -> item_id. Those strings ALWAYS come from a live
@@ -781,10 +795,15 @@ function analyzeLanguage(language) {
   const pSorted = [...rows.map((r) => r.p_vlm)].sort((a, b) => a - b);
   const hardCut = quantile(pSorted, 0.15);
   const ceilCut = quantile(pSorted, 0.9);
+  const knownIssues = loadKnownIssues(TASK_NAME);
   for (const r of rows) {
     const c = classify(r.p_vlm, r.chance, hardCut, ceilCut);
     r.flag = c.flag;
     r.reason = c.reason;
+    if (r.item_uid && knownIssues.has(r.item_uid)) {
+      r.knownIssue = knownIssues.get(r.item_uid);
+      r.reason = `KNOWN: ${r.knownIssue}` + (r.reason ? ` | ${r.reason}` : '');
+    }
   }
   const flagCounts = rows.reduce((a, r) => ((a[r.flag] = (a[r.flag] ?? 0) + 1), a), {});
 
@@ -872,10 +891,13 @@ function analyzeLanguage(language) {
   writeFileSync(join(OUT_DIR, `screen${TAG}_${language}.csv`), scr.join('\n') + '\n', 'utf-8');
 
   // ---- write review_<lang>.csv (only items needing review, prioritized) ----
+  // known_issues.json entries are suppressed from triage (still on screen_*.csv).
   const order = { BROKEN: 0, HARD: 1, CEILING: 2 };
   const review = rows
     .filter((r) => r.flag !== 'OK')
+    .filter((r) => !r.knownIssue)
     .sort((a, b) => (order[a.flag] - order[b.flag]) || a.p_vlm - b.p_vlm);
+  const knownSuppressed = rows.filter((r) => r.knownIssue);
   const rv = [['priority', 'item_uid', 'flag', 'p_vlm', 'p_human', 'p_pred_child', 'transcript'].join(',')];
   review.forEach((r, i) =>
     rv.push(
@@ -891,7 +913,6 @@ function analyzeLanguage(language) {
     ),
   );
   writeFileSync(join(OUT_DIR, `review${TAG}_${language}.csv`), rv.join('\n') + '\n', 'utf-8');
-
   // ---- report section ----
   const s = [];
   s.push(`## ${language.toUpperCase()}`);
@@ -909,6 +930,13 @@ function analyzeLanguage(language) {
   s.push('');
   s.push('### Screen flags');
   s.push(`- BROKEN (below chance): **${flagCounts.BROKEN ?? 0}** | HARD: **${flagCounts.HARD ?? 0}** | CEILING: **${flagCounts.CEILING ?? 0}** | OK: ${flagCounts.OK ?? 0}`);
+  if (knownSuppressed.length) {
+    s.push(
+      `- Known issues suppressed from review: **${knownSuppressed.length}** (` +
+        knownSuppressed.map((r) => `\`${r.item_uid}\``).join(', ') +
+        `) — see \`known_issues.json\``,
+    );
+  }
   s.push(`- Review list: \`out/review${TAG}_${language}.csv\` | full screen: \`out/screen${TAG}_${language}.csv\``);
   s.push('');
   if (hasHumanJoin) {
@@ -1127,12 +1155,14 @@ function splitCsvLine(line) {
 function writeCrossLanguageReviewCsvs(langs) {
   const en = loadScreenCsv('en');
   if (en.size === 0) return;
+  const knownIssues = loadKnownIssues(TASK_NAME);
   const XLANG_STRONG = 0.25;
   for (const lang of langs.filter((l) => l !== 'en')) {
     const other = loadScreenCsv(lang);
     if (other.size === 0) continue;
     const rows = [];
     for (const [uid, a] of en) {
+      if (knownIssues.has(uid)) continue;
       const b = other.get(uid);
       if (!b || !Number.isFinite(a.p_vlm) || !Number.isFinite(b.p_vlm)) continue;
       const delta = b.p_vlm - a.p_vlm;

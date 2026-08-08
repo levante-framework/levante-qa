@@ -1,6 +1,6 @@
 # Bank-scale difficulty estimates — vocab / en
 
-Generated: 2026-08-05T23:19:42.937Z
+Generated: 2026-08-07T20:52:29.148Z
 
 ## Inputs
 

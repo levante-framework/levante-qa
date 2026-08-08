@@ -1,6 +1,6 @@
 # Picture Vocabulary (4-AFC) VLM difficulty screen
 
-Generated: 2026-08-02T22:47:40.461Z
+Generated: 2026-08-07T20:52:28.718Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
 

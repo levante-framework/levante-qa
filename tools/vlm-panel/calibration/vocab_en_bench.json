@@ -1,7 +1,7 @@
 {
   "task": "vocab",
   "language": "en_bench",
-  "fittedAt": "2026-08-02T22:47:40.549Z",
+  "fittedAt": "2026-08-07T20:52:28.842Z",
   "chance": 0.25,
   "nMatched": 162,
   "cv": {

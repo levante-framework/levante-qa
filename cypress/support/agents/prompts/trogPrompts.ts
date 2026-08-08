@@ -21,10 +21,17 @@ export const SYSTEM_PROMPT_CHECKLIST = [
   '  3) Spatial words literally (in/on/above/below/beside/under/beneath).',
   '  4) Comparatives ("taller/longer/bigger than X"): compare only the named pair',
   '     using sizes visible in the pictures — not metaphor or other objects.',
-  '  5) Relative clauses and embeddings: which noun the clause modifies',
-  '     (e.g. "the boy the dog chases" → the dog chases the boy).',
-  '  6) Contrast connectives (despite/although/however/instead): the MAIN clause',
-  '     (not the concessive side) must match the picture.',
+  '  5) Relative clauses / noun modifiers — HEAD-NOUN rule:',
+  '     The MAIN predicate (the outer description/action) applies to the HEAD',
+  '     noun only — not to other nouns that only appear inside a modifier.',
+  '       • "The X that/who Y …" / "The X VERBing Y is Z" → X is what Z',
+  '         describes; a picture where Y is also doing Z is usually wrong.',
+  '       • Bare embeddings ("the boy the dog chases") → resolve agent/patient',
+  '         inside the clause, then apply any outer description to the head.',
+  '  6) Contrast connectives (despite/although/however/instead):',
+  '     Match the MAIN clause’s full meaning (who + exact activity). The',
+  '     concessive/subordinate side is context only — do not let it pick the',
+  '     activity. A scene with the right objects but the wrong action is wrong.',
   '',
   'The pictures are numbered by position:',
   '  1 = top-left      2 = top-right',
@@ -98,12 +105,24 @@ export function trogUserText(
 
   const t = String(transcript ?? '').toLowerCase();
   const hints: string[] = [];
+
+  const hasThatRel = /\bthe \w+ (that|who)\b/.test(t);
+  const hasParticipialPostmod =
+    /\bthe \w+ \w+ing\b/.test(t) || /\b\w+ing the \w+ is\b/.test(t);
+  const hasPostmodOrRel = hasThatRel || hasParticipialPostmod;
+  const hasBareEmbedding = /\bthe \w+ the \w+ (chases|pushes|follows|is in|is on)\b/.test(t);
+  const hasPassive = /\bis (chased|pushed|followed|pulled) by\b/.test(t);
+  // Main-clause active verbs only — not when the -ing form is a noun modifier.
+  const hasMainActive =
+    !hasPostmodOrRel &&
+    /\b(chases|pushes|follows|pulls|chasing|pushing|pulling)\b/.test(t);
+
   if (/\bbut not\b|\bnot\b|\bneither\b|\bno (one|body)\b/.test(t)) {
     hints.push('Attend carefully to negation: who/what is excluded.');
   }
   if (/\b(despite|although|however|instead)\b/.test(t)) {
     hints.push(
-      'Match the main clause after the contrast word; do not let the concessive side override it.',
+      'Match the main clause completely (who and the exact activity). The despite/although/however side is context only — right objects with the wrong action still count as wrong.',
     );
   }
   if (/\b(above|below|under|beneath|beside|behind|in front)\b/.test(t)) {
@@ -112,12 +131,17 @@ export function trogUserText(
   if (/\b(taller|longer|bigger|smaller|shorter)\b/.test(t)) {
     hints.push('Compare only the named pair using pictured sizes.');
   }
-  if (/\bis (chased|pushed|followed|pulled) by\b/.test(t)) {
+  if (hasPassive) {
     hints.push('Passive: the noun after "by" is the actor.');
-  } else if (/\b(chasing|pushing|following|pulling|chases|pushes|follows)\b/.test(t)) {
+  } else if (hasMainActive) {
     hints.push('Do not reverse who acts on whom.');
   }
-  if (/\bthe \w+ the \w+ (chases|pushes|follows|is in|is on)\b/.test(t)) {
+  if (hasThatRel || hasParticipialPostmod) {
+    hints.push(
+      'Head-noun rule: the main action/description applies to the head noun only — not to other nouns that only appear in a modifier.',
+    );
+  }
+  if (hasBareEmbedding) {
     hints.push('Embedded clause: resolve which noun is agent vs patient carefully.');
   }
   if (!hints.length) return base;
