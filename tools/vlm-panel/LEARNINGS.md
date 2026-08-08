@@ -69,6 +69,7 @@ used new ones. Do not trust cross-lang deltas until de/es are force-refreshed
 
 - **TROG:** Prompt + calibration improvements are real (better absolute error and ranking vs kids). Hybrid `d_est` (panel `z` + construction tags, Huber/ridge) can beat the p-only Spearman ceiling on bank `d` (~0.53 vs ~0.28 on EN anchors). Prompt checklist covers passive / comparative / despite / embeddings; changes need a panel recollect to move raw `p_vlm`.
 - **Vocab:** Calibration helps; rare-word residual is adult lexical knowledge. Analyze applies a mild wordfreq Zipf shrink into `p_pred_child` for zipf<3 (`vocab_lexicon.json`, β≈0.1) — not more prompting. Heavier blends hurt MAE (Zipf ≠ child AoA). Zipf as a `d_est` feature helps absolute MAE more than ranking.
+- **New-item bank `d`:** Established finite `d` is never overwritten. Blank `d` ← hybrid `d_est` via `apply_d_est_prior.mjs` (draft CSV only; no GCS upload) or `QA_SIM_D_EST_PRIOR` at sim runtime — **skip** `BROKEN` / `known_issues.json` UIDs. Field IRT still owns the final bank after child data.
 
 ## Operator extras (7–10)
 
@@ -79,6 +80,9 @@ node tools/vlm-panel/check_trog_smoke.mjs
 # Bank-scale hybrid d_est (z + TROG tags / vocab Zipf; needs screen + bank cache):
 node tools/vlm-panel/estimate_difficulty.mjs --task trog
 node tools/vlm-panel/estimate_difficulty.mjs --task vocab
+# New-item initial d: fill blank bank d from d_est (never overwrite established d; no GCS upload):
+node tools/vlm-panel/apply_d_est_prior.mjs --task trog --lang en
+# Sim overlay (optional): QA_SIM_D_EST_PRIOR=auto|path → missing d only
 # After TROG prompt edits — limited EN force recollect, then re-analyze/eval:
 #   node tools/vlm-panel/run_panel.mjs --grid tools/vlm-panel/panel_grid_trog_prompt_eval.json --force
 #   node tools/vlm-panel/analyze.mjs --task trog --human-source=bench --run-id-re 'panel_trog_en_.*_a(8|10)_r[12]$'
@@ -104,4 +108,5 @@ node tools/vlm-panel/fit_bench_calibrator.mjs
 node tools/vlm-panel/audit_residuals.mjs
 node tools/vlm-panel/estimate_difficulty.mjs --task trog
 node tools/vlm-panel/estimate_difficulty.mjs --task vocab
+node tools/vlm-panel/apply_d_est_prior.mjs --task trog --lang en
 ```

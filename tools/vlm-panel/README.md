@@ -62,6 +62,7 @@ tools/vlm-panel/
   fit_bench_calibrator.mjs # fit on bench trials; compare to diag; write caches
   audit_residuals.mjs      # where p_vlm disagrees with humans (prompt targets)
   estimate_difficulty.mjs  # map p_pred_child → bank-scale d_est; held-out eval
+  apply_d_est_prior.mjs    # fill blank bank d from d_est (never overwrite established d)
   calibration/             # saved calibrators + item_pass_rates_* + age_item_rates_*
   assets/trog/<lang>/      # captured PNGs + index.json (gitignored PNGs)
   panel_grid.json          # TROG grid (models × ages × repeats)
@@ -460,6 +461,31 @@ node tools/vlm-panel/estimate_difficulty.mjs --task trog \
 
 Requires cached banks (`cypress/cache/sim-item-bank-*.csv`). Bench
 `irt_models/*_item_params.csv` is report-only `d_bench` (different scale).
+
+### New-item initial `d` (hybrid prior)
+
+**Policy:** if the deployed bank already has a finite `d`, keep it. If `d` is
+blank, use hybrid `d_est` from the VLM panel as the **initial CAT prior**
+(simulated children — no human field test required for the first guess),
+**except** when the screen flag is `BROKEN` or the UID is in
+`known_issues.json` (those stay blank). Field IRT still overwrites after real
+trials. This path does **not** upload to GCS.
+
+```bash
+node tools/vlm-panel/analyze.mjs --task trog --human-source=bench
+node tools/vlm-panel/estimate_difficulty.mjs --task trog --lang en
+node tools/vlm-panel/apply_d_est_prior.mjs --task trog --lang en
+# -> out/item_bank_trog_en_d_est_prior.csv   (draft bank; blank d filled)
+# -> out/d_est_prior_report_trog_en.md
+```
+
+For sim / IRT-gate runs, optionally load the same prior at runtime (missing `d`
+only):
+
+```bash
+QA_SIM_D_EST_PRIOR=auto   # or path to out/d_est_trog_en.csv
+# established bank d unchanged; blank items get d_est instead of age-mean fallbackP
+```
 
 ### Improving raw `p_vlm` (prompts / panel quality)
 

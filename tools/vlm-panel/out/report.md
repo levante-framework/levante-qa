@@ -1,6 +1,6 @@
 # TROG VLM difficulty screen
 
-Generated: 2026-08-08T01:17:06.359Z
+Generated: 2026-08-08T21:05:35.396Z
 
 A pre-launch screen: a panel of VLM "children" of varying ability answers each item; items the panel passes **below chance** are flagged BROKEN (candidate mis-key/mistranslation), the panel-hardest items HARD, and panel-easiest CEILING (uninformative). Flags are validated against human pass-rates where those exist.
 

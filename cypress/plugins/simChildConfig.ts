@@ -16,11 +16,13 @@
  * simulator matches age norms while preserving item-difficulty ordering.
  *
  * Items with no `d` in the bank (practice / uncalibrated) fall back to the
- * empirical age accuracy directly. All randomness is hash-seeded browser-side
- * (see support/agentMode.ts), so a run is fully reproducible.
+ * empirical age accuracy directly — unless `QA_SIM_D_EST_PRIOR` supplies a
+ * hybrid panel `d_est` prior for that item (established bank `d` is never
+ * overwritten). All randomness is hash-seeded browser-side (see
+ * support/agentMode.ts), so a run is fully reproducible.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { resolveProfiles } from '../support/persona/childPersona';
 
 /** levante-qa task slug -> canonical LEVANTE task id (item-bank + profile key). */
@@ -142,6 +144,60 @@ function calibrateOffset(
 }
 
 /**
+ * Resolve optional hybrid d_est prior CSV.
+ * QA_SIM_D_EST_PRIOR=1|true|yes|auto → tools/vlm-panel/out/d_est_<slug>_en.csv
+ * QA_SIM_D_EST_PRIOR=/path/to.csv → that file
+ * unset / 0 / false / no → disabled
+ */
+function resolveDEstPriorPath(taskSlug: string): string | null {
+  const raw = (process.env.QA_SIM_D_EST_PRIOR ?? '').trim();
+  if (!raw || /^(0|false|no|off)$/i.test(raw)) return null;
+  if (/^(1|true|yes|auto)$/i.test(raw)) {
+    const auto = join(process.cwd(), 'tools', 'vlm-panel', 'out', `d_est_${taskSlug}_en.csv`);
+    return existsSync(auto) ? auto : null;
+  }
+  const p = resolve(raw);
+  return existsSync(p) ? p : null;
+}
+
+/**
+ * Fill missing dByAnswer entries from hybrid d_est (never overwrite established d).
+ * Returns how many answer keys were added.
+ */
+function applyDEstPriors(
+  rows: Record<string, string>[],
+  dByAnswer: Record<string, number>,
+  dEstPath: string,
+): number {
+  const destRows = parseCsv(readFileSync(dEstPath, 'utf-8'));
+  const byUid = new Map<string, number>();
+  for (const r of destRows) {
+    const uid = String(r.item_uid || r.bank_uid || '').trim();
+    const dEst = Number(String(r.d_est ?? '').trim());
+    if (!uid || !Number.isFinite(dEst)) continue;
+    byUid.set(uid, dEst);
+  }
+  if (byUid.size === 0) return 0;
+
+  const answerByUid = new Map<string, string>();
+  for (const r of rows) {
+    const uid = String(r.item_uid || r.item_id || '').trim();
+    const answer = String(r.answer ?? '').trim();
+    if (uid && answer) answerByUid.set(uid, answer);
+  }
+
+  let applied = 0;
+  for (const [uid, dEst] of byUid) {
+    const answer = answerByUid.get(uid);
+    if (!answer) continue;
+    if (Object.prototype.hasOwnProperty.call(dByAnswer, answer)) continue;
+    dByAnswer[answer] = dEst;
+    applied += 1;
+  }
+  return applied;
+}
+
+/**
  * Build the sim config for one task. Called once per spec via the
  * `getSimConfig` cypress task; the result is handed to `simInit` browser-side.
  */
@@ -200,13 +256,34 @@ export async function buildSimChildConfig(taskSlug: string): Promise<SimChildCon
     // Banks are inconsistent about the difficulty column: trog/vocab use `d`,
     // matrix-reasoning/SDS use `difficulty` (trog's `difficulty` is empty).
     // Blank must NOT coerce to 0 (Number('') === 0): those items are
-    // uncalibrated and should use the empirical-accuracy fallback instead.
+    // uncalibrated and should use the empirical-accuracy fallback instead
+    // (or hybrid d_est when QA_SIM_D_EST_PRIOR is set).
     const dStr = (r.d ?? '').trim() || (r.difficulty ?? '').trim();
     const d = dStr ? Number(dStr) : NaN;
     if (!answer || !Number.isFinite(d)) continue;
     dByAnswer[answer] = d;
     const c = Number((r.chance_level ?? '').trim());
     calItems.push({ d, c: Number.isFinite(c) && c > 0 && c < 1 ? c : 0.25 });
+  }
+
+  const dEstPath = resolveDEstPriorPath(taskSlug);
+  if (dEstPath) {
+    const applied = applyDEstPriors(rows, dByAnswer, dEstPath);
+    console.log(
+      `sim: d_est prior ${dEstPath} — applied ${applied} missing-d item(s) ` +
+        `(established bank d unchanged)`,
+    );
+    // Priors participate in offset calibration so mean accuracy still tracks norms.
+    for (const r of rows) {
+      const answer = (r.answer ?? '').trim();
+      if (!answer || !Object.prototype.hasOwnProperty.call(dByAnswer, answer)) continue;
+      const dStr = (r.d ?? '').trim() || (r.difficulty ?? '').trim();
+      const bankD = dStr ? Number(dStr) : NaN;
+      if (Number.isFinite(bankD)) continue;
+      const d = dByAnswer[answer];
+      const c = Number((r.chance_level ?? '').trim());
+      calItems.push({ d, c: Number.isFinite(c) && c > 0 && c < 1 ? c : 0.25 });
+    }
   }
 
   const offset = theta != null ? calibrateOffset(theta, calItems, fallbackP) : 0;
