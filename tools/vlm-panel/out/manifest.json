@@ -4953,11 +4953,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:38:11.521Z",
+    "startedAt": "2026-08-08T21:54:13.699Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:39:51.029Z",
+    "finishedAt": "2026-08-08T21:55:47.656Z",
     "exitCode": 0,
-    "elapsedMs": 99509
+    "elapsedMs": 93957
   },
   {
     "runId": "panel_trog_en_35flashlite_a10_r2",
@@ -4972,16 +4972,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:39:51.041Z",
+    "startedAt": "2026-08-08T21:55:47.667Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:41:26.128Z",
+    "finishedAt": "2026-08-08T21:57:25.610Z",
     "exitCode": 0,
-    "elapsedMs": 95088
+    "elapsedMs": 97943
   },
   {
     "runId": "panel_trog_en_35flashlite_a10_r3",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -4992,16 +4991,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T01:39:57.066Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a10_r3.log",
-    "finishedAt": "2026-08-06T01:44:29.493Z",
+    "startedAt": "2026-08-08T21:57:25.615Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T21:59:01.739Z",
     "exitCode": 0,
-    "elapsedMs": 272425
+    "elapsedMs": 96124
   },
   {
     "runId": "panel_trog_en_35flashlite_a10_r4",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5012,11 +5010,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T01:44:29.497Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a10_r4.log",
-    "finishedAt": "2026-08-06T01:49:06.138Z",
+    "startedAt": "2026-08-08T21:59:01.743Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T22:00:37.249Z",
     "exitCode": 0,
-    "elapsedMs": 276640
+    "elapsedMs": 95506
   },
   {
     "runId": "panel_trog_en_35flashlite_a12_r1",
@@ -5031,11 +5029,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:41:26.133Z",
+    "startedAt": "2026-08-08T22:00:37.263Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:43:05.709Z",
+    "finishedAt": "2026-08-08T22:02:09.705Z",
     "exitCode": 0,
-    "elapsedMs": 99577
+    "elapsedMs": 92443
   },
   {
     "runId": "panel_trog_en_35flashlite_a12_r2",
@@ -5050,11 +5048,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:43:05.720Z",
+    "startedAt": "2026-08-08T22:02:09.716Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:44:43.656Z",
+    "finishedAt": "2026-08-08T22:03:46.048Z",
     "exitCode": 0,
-    "elapsedMs": 97936
+    "elapsedMs": 96332
   },
   {
     "runId": "panel_trog_en_35flashlite_a12_r3",
@@ -5069,11 +5067,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T02:39:48.995Z",
+    "startedAt": "2026-08-08T22:03:46.052Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T02:41:28.938Z",
+    "finishedAt": "2026-08-08T22:05:18.781Z",
     "exitCode": 0,
-    "elapsedMs": 99943
+    "elapsedMs": 92729
   },
   {
     "runId": "panel_trog_en_35flashlite_a12_r4",
@@ -5088,11 +5086,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T02:41:28.948Z",
+    "startedAt": "2026-08-08T22:05:18.792Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T02:43:09.552Z",
+    "finishedAt": "2026-08-08T22:06:52.165Z",
     "exitCode": 0,
-    "elapsedMs": 100604
+    "elapsedMs": 93373
   },
   {
     "runId": "panel_trog_en_35flashlite_a13_r1",
@@ -5187,11 +5185,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:31:26.785Z",
+    "startedAt": "2026-08-08T21:40:31.267Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:33:16.957Z",
+    "finishedAt": "2026-08-08T21:42:42.372Z",
     "exitCode": 0,
-    "elapsedMs": 110172
+    "elapsedMs": 131107
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r2",
@@ -5206,16 +5204,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:33:16.968Z",
+    "startedAt": "2026-08-08T21:42:42.376Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:34:55.932Z",
+    "finishedAt": "2026-08-08T21:44:16.467Z",
     "exitCode": 0,
-    "elapsedMs": 98964
+    "elapsedMs": 94091
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r3",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5226,16 +5223,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T01:01:36.907Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a6_r3.log",
-    "finishedAt": "2026-08-06T01:06:37.192Z",
+    "startedAt": "2026-08-08T21:44:16.471Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T21:46:01.042Z",
     "exitCode": 0,
-    "elapsedMs": 300284
+    "elapsedMs": 104571
   },
   {
     "runId": "panel_trog_en_35flashlite_a6_r4",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5246,11 +5242,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T01:06:37.195Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a6_r4.log",
-    "finishedAt": "2026-08-06T01:11:25.711Z",
+    "startedAt": "2026-08-08T21:46:01.057Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T21:47:38.944Z",
     "exitCode": 0,
-    "elapsedMs": 288515
+    "elapsedMs": 97887
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r1",
@@ -5265,11 +5261,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:34:55.943Z",
+    "startedAt": "2026-08-08T21:47:38.955Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:36:34.345Z",
+    "finishedAt": "2026-08-08T21:49:12.755Z",
     "exitCode": 0,
-    "elapsedMs": 98402
+    "elapsedMs": 93800
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r2",
@@ -5284,16 +5280,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:36:34.349Z",
+    "startedAt": "2026-08-08T21:49:12.758Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:38:11.509Z",
+    "finishedAt": "2026-08-08T21:50:52.734Z",
     "exitCode": 0,
-    "elapsedMs": 97160
+    "elapsedMs": 99977
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r3",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5304,16 +5299,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T01:20:54.382Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a8_r3.log",
-    "finishedAt": "2026-08-06T01:25:40.939Z",
+    "startedAt": "2026-08-08T21:50:52.740Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T21:52:34.038Z",
     "exitCode": 0,
-    "elapsedMs": 286556
+    "elapsedMs": 101298
   },
   {
     "runId": "panel_trog_en_35flashlite_a8_r4",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5324,11 +5318,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T01:25:40.944Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_35flashlite_a8_r4.log",
-    "finishedAt": "2026-08-06T01:30:29.063Z",
+    "startedAt": "2026-08-08T21:52:34.041Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T21:54:13.688Z",
     "exitCode": 0,
-    "elapsedMs": 288118
+    "elapsedMs": 99647
   },
   {
     "runId": "panel_trog_en_36flash_a10_r1",
@@ -5343,11 +5337,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T19:06:05.641Z",
+    "startedAt": "2026-08-08T22:50:03.665Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T19:10:11.819Z",
+    "finishedAt": "2026-08-08T22:54:13.330Z",
     "exitCode": 0,
-    "elapsedMs": 246178
+    "elapsedMs": 249666
   },
   {
     "runId": "panel_trog_en_36flash_a10_r2",
@@ -5362,16 +5356,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T19:10:11.823Z",
+    "startedAt": "2026-08-08T22:54:13.340Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T19:14:10.232Z",
+    "finishedAt": "2026-08-08T22:58:29.411Z",
     "exitCode": 0,
-    "elapsedMs": 238410
+    "elapsedMs": 256071
   },
   {
     "runId": "panel_trog_en_36flash_a10_r3",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5382,16 +5375,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T06:08:10.518Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a10_r3.log",
-    "finishedAt": "2026-08-06T06:15:50.415Z",
+    "startedAt": "2026-08-08T22:58:29.415Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T23:02:38.975Z",
     "exitCode": 0,
-    "elapsedMs": 459896
+    "elapsedMs": 249560
   },
   {
     "runId": "panel_trog_en_36flash_a10_r4",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5402,11 +5394,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T06:15:50.419Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a10_r4.log",
-    "finishedAt": "2026-08-06T06:23:27.039Z",
+    "startedAt": "2026-08-08T23:02:38.977Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T23:06:42.580Z",
     "exitCode": 0,
-    "elapsedMs": 456619
+    "elapsedMs": 243603
   },
   {
     "runId": "panel_trog_en_36flash_a12_r1",
@@ -5421,11 +5413,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T19:14:10.236Z",
+    "startedAt": "2026-08-08T23:06:42.584Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T19:17:59.904Z",
+    "finishedAt": "2026-08-08T23:10:27.283Z",
     "exitCode": 0,
-    "elapsedMs": 229668
+    "elapsedMs": 224699
   },
   {
     "runId": "panel_trog_en_36flash_a12_r2",
@@ -5440,11 +5432,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T19:17:59.916Z",
+    "startedAt": "2026-08-08T23:10:27.294Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T19:22:05.647Z",
+    "finishedAt": "2026-08-08T23:14:14.707Z",
     "exitCode": 0,
-    "elapsedMs": 245731
+    "elapsedMs": 227413
   },
   {
     "runId": "panel_trog_en_36flash_a12_r3",
@@ -5459,11 +5451,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T02:52:26.541Z",
+    "startedAt": "2026-08-08T23:14:14.712Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T02:57:14.440Z",
+    "finishedAt": "2026-08-08T23:18:13.687Z",
     "exitCode": 0,
-    "elapsedMs": 287899
+    "elapsedMs": 238975
   },
   {
     "runId": "panel_trog_en_36flash_a12_r4",
@@ -5478,11 +5470,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T02:57:14.449Z",
+    "startedAt": "2026-08-08T23:18:13.697Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T03:01:38.888Z",
+    "finishedAt": "2026-08-08T23:22:12.517Z",
     "exitCode": 0,
-    "elapsedMs": 264439
+    "elapsedMs": 238820
   },
   {
     "runId": "panel_trog_en_36flash_a13_r1",
@@ -5577,11 +5569,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:44:43.659Z",
+    "startedAt": "2026-08-08T22:06:52.168Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:50:31.127Z",
+    "finishedAt": "2026-08-08T22:12:40.856Z",
     "exitCode": 0,
-    "elapsedMs": 347468
+    "elapsedMs": 348688
   },
   {
     "runId": "panel_trog_en_36flash_a6_r2",
@@ -5596,16 +5588,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:50:31.138Z",
+    "startedAt": "2026-08-08T22:12:40.861Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T18:56:09.528Z",
+    "finishedAt": "2026-08-08T22:18:17.654Z",
     "exitCode": 0,
-    "elapsedMs": 338390
+    "elapsedMs": 336794
   },
   {
     "runId": "panel_trog_en_36flash_a6_r3",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5616,16 +5607,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T05:01:38.257Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a6_r3.log",
-    "finishedAt": "2026-08-06T05:10:40.793Z",
+    "startedAt": "2026-08-08T22:18:17.659Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T22:23:58.804Z",
     "exitCode": 0,
-    "elapsedMs": 542535
+    "elapsedMs": 341145
   },
   {
     "runId": "panel_trog_en_36flash_a6_r4",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5636,11 +5626,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T05:10:40.800Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a6_r4.log",
-    "finishedAt": "2026-08-06T05:19:35.666Z",
+    "startedAt": "2026-08-08T22:23:58.808Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T22:29:37.805Z",
     "exitCode": 0,
-    "elapsedMs": 534865
+    "elapsedMs": 338997
   },
   {
     "runId": "panel_trog_en_36flash_a8_r1",
@@ -5655,11 +5645,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T18:56:09.532Z",
+    "startedAt": "2026-08-08T22:29:37.808Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T19:01:11.011Z",
+    "finishedAt": "2026-08-08T22:34:37.652Z",
     "exitCode": 0,
-    "elapsedMs": 301480
+    "elapsedMs": 299844
   },
   {
     "runId": "panel_trog_en_36flash_a8_r2",
@@ -5674,16 +5664,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-07T19:01:11.028Z",
+    "startedAt": "2026-08-08T22:34:37.656Z",
     "mode": "replay",
-    "finishedAt": "2026-08-07T19:06:05.637Z",
+    "finishedAt": "2026-08-08T22:39:50.504Z",
     "exitCode": 0,
-    "elapsedMs": 294609
+    "elapsedMs": 312848
   },
   {
     "runId": "panel_trog_en_36flash_a8_r3",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5694,16 +5683,15 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T05:36:04.595Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a8_r3.log",
-    "finishedAt": "2026-08-06T05:44:28.080Z",
+    "startedAt": "2026-08-08T22:39:50.508Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T22:45:04.614Z",
     "exitCode": 0,
-    "elapsedMs": 503484
+    "elapsedMs": 314106
   },
   {
     "runId": "panel_trog_en_36flash_a8_r4",
     "task": "trog",
-    "spec": "cypress/e2e/trog/vlm_agent.cy.ts",
     "provider": "gemini",
     "language": "en",
     "qaLanguage": "en-US",
@@ -5714,11 +5702,11 @@
     "personaAbility": "irt",
     "country": null,
     "status": "done",
-    "startedAt": "2026-08-06T05:44:28.083Z",
-    "logFile": "tools/vlm-panel/out/logs/panel_trog_en_36flash_a8_r4.log",
-    "finishedAt": "2026-08-06T05:52:31.698Z",
+    "startedAt": "2026-08-08T22:45:04.626Z",
+    "mode": "replay",
+    "finishedAt": "2026-08-08T22:50:03.661Z",
     "exitCode": 0,
-    "elapsedMs": 483614
+    "elapsedMs": 299035
   },
   {
     "runId": "panel_trog_en_capture",
