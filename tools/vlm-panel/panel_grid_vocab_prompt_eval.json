@@ -1,0 +1,15 @@
+{
+  "task": "vocab",
+  "spec": "cypress/e2e/vocab/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en-US",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 2,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [6, 8, 11],
+  "_notes": "Limited EN force-recollect for vocabPrompts.ts (v1 then v2). 2 models × 3 ages × 2 repeats = 12 cells. language MUST be en-US. MUST run with --live (vocab has no asset replay). Compare to screen_vocab_en_baseline_pre_v1.csv / prompt_v1 smoke. Analyze with --run-id-re 'panel_vocab_en_(35flashlite|36flash)_a(6|8|11)_r[12]$'."
+}

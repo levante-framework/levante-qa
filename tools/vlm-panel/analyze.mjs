@@ -175,6 +175,20 @@ const TASKS = {
     crowdinFile: 'vocab',
     draftTask: 'vocab',
   },
+  /** Matrix Reasoning — identity is stimulus asset key (shared prompt audio/text). */
+  matrix: {
+    title: 'Matrix Reasoning',
+    diagTask: null,
+    scoredType: 'item',
+    itemBank: join(CORPORA, 'matrix-reasoning', 'shared', 'corpora', 'matrix-reasoning-item-bank.csv'),
+    identity: (rec) => rec.stimulusAlt,
+    hasResponse: (rec) => rec.chosenIndex !== null && rec.chosenIndex !== undefined,
+    defaultChance: 0.25,
+    humanJoin: true,
+    joinByItemId: true,
+    crowdinFile: null,
+    draftTask: 'matrix-reasoning',
+  },
   swr: {
     title: 'ROAR SWR (Single Word Recognition) VLM difficulty screen',
     diagTask: null,
@@ -609,6 +623,41 @@ function buildHumanJoin(language) {
   }
   const diagSubset = LANG_DIAG[primarySubtag(language)] ?? LANG_DIAG.en;
 
+  // diag: item_uid -> {p_correct, point_biserial, flag_pb}
+  const diag = readCsv(DIAG_CSV);
+  const uidToHuman = new Map();
+  if (TASK.diagTask) {
+    for (const r of diag) {
+      if (r.task !== TASK.diagTask || r.subset !== diagSubset) continue;
+      const uid = String(r.item).replace(/-\d+$/, '');
+      if (!uidToHuman.has(uid)) {
+        uidToHuman.set(uid, {
+          p_correct: numOrNull(r.p_correct),
+          point_biserial: numOrNull(r.point_biserial),
+          flag_pb: r.flag_pb,
+        });
+      }
+    }
+  }
+
+  // Matrix (and similar): panel identity is bank item_id / stimulusAlt. Prompts
+  // share audio+text, so transcript→item_id would collapse items. Index by
+  // item_id only — never prefer shared audio_file keys.
+  if (TASK.joinByItemId) {
+    const bank = readCsv(ITEM_BANK);
+    const transcriptToUid = new Map();
+    const transcriptToChance = new Map();
+    for (const r of bank) {
+      const id = String(r.item_id || r.item || '').trim();
+      if (!id) continue;
+      const key = normText(id);
+      if (r.item_uid) transcriptToUid.set(key, r.item_uid);
+      const ch = numOrNull(r.chance_level);
+      if (ch != null && ch > 0 && ch < 1) transcriptToChance.set(key, ch);
+    }
+    return { transcriptToUid, transcriptToChance, uidToHuman };
+  }
+
   // translations: normalized spoken text -> item_id, by inverting the approved
   // itembank strings prefetched in main() (draft bucket JSON, or Crowdin API).
   const textToId = new Map();
@@ -626,20 +675,6 @@ function buildHumanJoin(language) {
     if (r.item_uid) idToUid.set(id, r.item_uid);
     const ch = numOrNull(r.chance_level);
     if (ch != null && ch > 0 && ch < 1) idToChance.set(id, ch);
-  }
-  // diag: item_uid -> {p_correct, point_biserial, flag_pb}
-  const diag = readCsv(DIAG_CSV);
-  const uidToHuman = new Map();
-  for (const r of diag) {
-    if (r.task !== TASK.diagTask || r.subset !== diagSubset) continue;
-    const uid = String(r.item).replace(/-\d+$/, '');
-    if (!uidToHuman.has(uid)) {
-      uidToHuman.set(uid, {
-        p_correct: numOrNull(r.p_correct),
-        point_biserial: numOrNull(r.point_biserial),
-        flag_pb: r.flag_pb,
-      });
-    }
   }
 
   const transcriptToUid = new Map();
@@ -994,7 +1029,7 @@ async function main() {
   // from the configured source (draft bucket JSON by default, or the Crowdin API
   // when QA_TRANSLATIONS_SOURCE=crowdin), so the otherwise-synchronous
   // join/cross-language pipeline can read them without async plumbing.
-  if (TASK.humanJoin) {
+  if (TASK.humanJoin && !TASK.joinByItemId) {
     console.error(`[strings] source=${TRANSLATION_SOURCE} task=${TASK.draftTask}`);
     for (const lang of langs) {
       try {
@@ -1014,6 +1049,8 @@ async function main() {
         );
       }
     }
+  } else if (TASK.joinByItemId) {
+    console.error(`[strings] joinByItemId=true task=${TASK_NAME} (skip transcript string map)`);
   }
 
   const rep = [`# ${TASK.title} VLM difficulty screen`, '', `Generated: ${new Date().toISOString()}`, ''];

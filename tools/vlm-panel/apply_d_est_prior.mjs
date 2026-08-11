@@ -39,6 +39,18 @@ const TASK_CFG = {
     dEstFile: (lang) => `d_est_vocab_${lang}.csv`,
     fillColumn: 'd',
   },
+  stories: {
+    bankFile: 'sim-item-bank-theory-of-mind.csv',
+    dEstFile: (lang) => `d_est_stories_${lang}.csv`,
+    /** ToM CAT bank uses `difficulty` (no `d` column). */
+    fillColumn: 'difficulty',
+  },
+  matrix: {
+    bankFile: 'sim-item-bank-matrix-reasoning.csv',
+    dEstFile: (lang) => `d_est_matrix_${lang}.csv`,
+    /** Matrix bank keeps numeric difficulty in `difficulty` (`d` column blank). */
+    fillColumn: 'difficulty',
+  },
 };
 
 function parseArg(argv, name, fallback = null) {
@@ -196,16 +208,20 @@ function main() {
   const dEstRows = readCsvWithHeader(dEstPath).rows;
   const byUid = new Map();
   for (const r of dEstRows) {
-    const uid = rowUid(r);
     const dEst = num(r.d_est);
-    if (!uid || dEst == null) continue;
-    byUid.set(uid, {
+    if (dEst == null) continue;
+    const prior = {
       d_est: dEst,
       p_pred_child: num(r.p_pred_child),
       p_vlm: num(r.p_vlm),
       flag: String(r.flag || '').trim(),
       transcript: String(r.transcript || '').trim(),
-    });
+    };
+    const uid = rowUid(r);
+    const bankUid = String(r.bank_uid || '').trim();
+    // Index panel item_uid and bank_uid (vocab: vocab_word_* vs vocab__*).
+    if (uid) byUid.set(uid, prior);
+    if (bankUid && bankUid !== uid) byUid.set(bankUid, prior);
   }
 
   let preserved = 0;

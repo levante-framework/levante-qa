@@ -1,0 +1,15 @@
+{
+  "task": "matrix",
+  "spec": "cypress/e2e/matrix_reasoning/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en-US",
+  "temperature": 0.8,
+  "personaAbility": "irt",
+  "repeats": 1,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [6, 8, 11],
+  "_notes": "Matrix Reasoning EN smoke for AI d_est research. Identity = stimulusAlt (item_id); shared prompt audio must NOT be used for join. 2 models × 3 ages × 1 temp × 1 rep = 6 cells. MUST run with --live (no matrix asset replay). Current Gemini only (2.5 EOL)."
+}

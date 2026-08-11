@@ -1,0 +1,12 @@
+{
+  "task": "vocab",
+  "spec": "cypress/e2e/vocab/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en-US",
+  "temperatures": [0.5],
+  "personaAbility": "irt",
+  "repeats": 1,
+  "models": ["gemini-3.6-flash"],
+  "ages": [11],
+  "_notes": "One-cell retry for failed panel_vocab_en_36flash_a11_t05_r1 from v3 ability smoke. MUST --live --force."
+}

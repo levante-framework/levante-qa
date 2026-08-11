@@ -156,26 +156,43 @@ function shortModel(model) {
   return model.replace(/^gemini-/, '').replace(/[^a-z0-9]/gi, '');
 }
 
+/** e.g. 0.5 → t05, 1.2 → t12 (for runIds when temperatures[] is used). */
+function shortTemp(t) {
+  const n = Number(t);
+  if (!Number.isFinite(n)) return 'tna';
+  return `t${String(n).replace('.', '').replace(/-/g, 'm')}`;
+}
+
 function expand(grid, token, locale) {
   const out = [];
+  const temps =
+    Array.isArray(grid.temperatures) && grid.temperatures.length
+      ? grid.temperatures.map(Number)
+      : [grid.temperature ?? 0.8];
+  // Always stamp temp into runId when `temperatures` is set (even length 1),
+  // so one-cell retries match multi-temp smoke runIds (e.g. …_a11_t05_r1).
+  const stampTemp = Array.isArray(grid.temperatures) && grid.temperatures.length > 0;
   for (const model of grid.models) {
     for (const age of grid.ages) {
-      for (let rep = 1; rep <= (grid.repeats ?? 1); rep++) {
-        const runId = `panel_${grid.task}_${token}_${shortModel(model)}_a${age}_r${rep}`;
-        out.push({
-          runId,
-          task: grid.task,
-          spec: grid.spec,
-          provider: grid.provider ?? 'gemini',
-          language: token,
-          qaLanguage: locale,
-          model,
-          age,
-          repeat: rep,
-          temperature: grid.temperature ?? 0.8,
-          personaAbility: grid.personaAbility ?? 'irt',
-          country: grid.country ?? null,
-        });
+      for (const temperature of temps) {
+        for (let rep = 1; rep <= (grid.repeats ?? 1); rep++) {
+          const tempTag = stampTemp ? `_${shortTemp(temperature)}` : '';
+          const runId = `panel_${grid.task}_${token}_${shortModel(model)}_a${age}${tempTag}_r${rep}`;
+          out.push({
+            runId,
+            task: grid.task,
+            spec: grid.spec,
+            provider: grid.provider ?? 'gemini',
+            language: token,
+            qaLanguage: locale,
+            model,
+            age,
+            repeat: rep,
+            temperature,
+            personaAbility: grid.personaAbility ?? 'irt',
+            country: grid.country ?? null,
+          });
+        }
       }
     }
   }
@@ -408,10 +425,13 @@ async function main() {
     : respondents.filter((r) => !hasFinalizedLog(r.runId));
   const skipped = respondents.length - pending.length;
 
+  const tempLabel = Array.isArray(grid.temperatures) && grid.temperatures.length
+    ? `temps=[${grid.temperatures.join(',')}]`
+    : `temp=${grid.temperature}`;
   console.log(
-    `Panel: ${respondents.length} respondent(s) [${grid.models.length} models x ${grid.ages.length} ages x ${grid.repeats} repeats]`,
+    `Panel: ${respondents.length} respondent(s) [${grid.models.length} models x ${grid.ages.length} ages x ${tempLabel} x ${grid.repeats} repeats]`,
   );
-  console.log(`  task=${grid.task} lang=${token} (QA_LANGUAGE=${locale}) temp=${grid.temperature} persona=irt`);
+  console.log(`  task=${grid.task} lang=${token} (QA_LANGUAGE=${locale}) ${tempLabel} persona=irt`);
   console.log(
     `  already done: ${skipped} | to run: ${pending.length}` +
       (args.force ? ' (--force: re-run all, including successes)' : ' (resume: pending/failed only)'),

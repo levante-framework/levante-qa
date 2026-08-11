@@ -1,171 +1,171 @@
 item_uid,bank_uid,p_vlm,p_pred_child,p_human,d_bank,d_bench,d_est,d_est_cv,d_est_p_only_cv,chance,anchor,tags,zipf,flag,transcript
-vocab_word_claw,vocab__claw,0.0000,0.2500,0.0890,1.220500,-3.682731,10.167597,14.388499,15.577341,0.2500,true,rare_vocab,3.590,BROKEN,the claw
-vocab_word_couturier,vocab__couturier,0.5770,0.4370,0.8980,2.212700,-3.582168,1.348142,1.051388,0.249221,0.2500,true,rare_vocab,2.300,HARD,the couturier
-vocab_word_dredging,vocab__dredging,0.6150,0.4420,0.1080,1.888400,-2.633541,1.153336,0.621992,0.320187,0.2500,true,rare_vocab,3.120,HARD,dredging
-vocab_word_mammalogy,vocab__mammalogy,0.6250,0.4310,0.7220,2.580100,-3.875851,1.724558,1.763489,0.385281,0.2500,true,rare_vocab,1.730,HARD,mammalogy
-vocab_word_aesthete,vocab__aesthete,0.6400,0.4330,0.4000,,-2.864038,1.581747,,,0.2500,false,rare_vocab,1.950,HARD,the aesthete
-vocab_word_facade,vocab__facade,0.7200,0.4420,0.6110,4.441200,-4.901497,0.981151,0.619604,0.305108,0.2500,true,rare_vocab,3.420,HARD,the facade
-vocab_word_slope,vocab__slope,0.7310,0.4420,0.5220,-0.050000,-0.631270,0.705655,1.715238,2.081148,0.2500,true,rare_vocab,3.900,HARD,the slope
-vocab_word_precarious,vocab__precarious,0.7500,0.4420,0.3250,0.954600,-2.327559,1.067243,1.007835,0.221048,0.2500,true,rare_vocab,3.270,HARD,precarious
-vocab_word_squash,vocab__squash,0.7600,0.5480,0.0840,,,0.119263,,,0.2500,false,rare_vocab,3.630,HARD,the squash
-vocab_word_aversion,vocab__aversion,0.7600,0.5480,0.6930,2.166300,-3.485589,0.337364,-0.061629,-0.194948,0.2500,true,rare_vocab,3.250,HARD,aversion
-vocab_word_degression,vocab__degression,0.7600,0.5190,0.3060,1.261000,-1.799525,2.074231,2.245165,-0.088736,0.2500,true,rare_vocab,0.000,HARD,degression
-vocab_word_gourmet,vocab__gourmet,0.7600,0.5480,0.7270,-1.915700,-0.361073,0.274229,0.040131,-0.205723,0.2500,true,rare_vocab,3.360,HARD,gourmet
-vocab_word_corset,vocab__corset,0.7690,0.6540,0.6080,-0.041000,-1.405614,-0.187991,0.188089,0.056167,0.2500,true,rare_vocab,3.030,HARD,the corset
-vocab_word_chat,vocab__chat,0.7690,0.6540,0.8940,-3.196000,1.210536,-1.071873,-1.098274,-0.753895,0.2500,true,rare_vocab,4.570,HARD,chat
-vocab_word_resuscitation,vocab__resuscitation,0.7690,0.6390,0.8680,0.766000,-1.395288,-0.355162,-0.153729,-0.584138,0.2500,true,rare_vocab,2.930,HARD,resuscitation
-vocab_word_vertebra,vocab__vertebra,0.7690,0.6360,0.6110,1.186500,-2.051696,-0.245069,-0.338694,-0.626277,0.2500,true,rare_vocab,2.770,HARD,the vertebra
-vocab_word_concentric,vocab__concentric,0.8000,0.6390,0.6960,0.289400,-0.891635,-0.349423,-0.361039,-0.591662,0.2500,true,rare_vocab,2.920,HARD,concentric
-vocab_word_colony,vocab__colony,0.8000,0.6540,0.5050,,-2.460010,-0.813596,,,0.2500,false,rare_vocab,4.120,HARD,the colony
-vocab_word_posterior,vocab__posterior,0.8000,0.6540,0.7980,1.267100,-1.773187,-0.417571,0.024705,0.056167,0.2500,true,rare_vocab,3.430,HARD,the posterior
-vocab_word_skimmer,vocab__skimmer,0.8000,0.6300,0.4840,4.550400,-4.949782,-0.019166,-0.267760,-0.651515,0.2500,true,rare_vocab,2.440,HARD,the skimmer
-vocab_word_sedentary,vocab__sedentary,0.8000,0.6540,0.9160,1.398900,-1.851502,-0.251126,-0.560223,-0.647730,0.2500,true,rare_vocab,3.140,HARD,sedentary
-vocab_word_picking,vocab__picking,0.8080,0.6540,0.9030,-2.994900,1.582794,-0.997260,-1.068688,-0.707174,0.2500,true,rare_vocab,4.440,HARD,picking
-vocab_word_saffron,vocab__saffron,0.8080,0.6540,0.6560,1.877600,-3.624423,-0.291302,-0.401006,-0.654722,0.2500,true,rare_vocab,3.210,HARD,the saffron
-vocab_word_arcade,vocab__arcade,0.8330,0.6540,0.5790,1.162400,-1.835738,-0.589756,-0.097833,0.056167,0.2500,true,rare_vocab,3.730,HARD,the arcade
-vocab_word_divan,vocab__divan,0.8330,0.6310,0.1140,,,-0.076903,,,0.2500,false,rare_vocab,2.530,HARD,the divan
-vocab_word_cassette,vocab__cassette,0.8460,0.6540,0.8330,-1.251700,0.317368,-0.400353,-0.407275,-0.753895,0.2500,true,rare_vocab,3.400,HARD,the cassette
-vocab_word_artifact,vocab__artifact,0.8460,0.6540,0.7010,-0.675400,-0.513899,-0.406092,-0.683364,-0.647730,0.2500,true,rare_vocab,3.410,HARD,the artifact
-vocab_word_metronome,vocab__metronome,0.8460,0.6330,0.5190,1.011500,-1.807135,-0.140724,-0.220665,-0.612826,0.2500,true,rare_vocab,2.620,HARD,the metronome
-vocab_word_habit,vocab__habit,0.8750,0.6540,0.5090,2.108100,-3.641181,-0.882470,-1.123208,-0.654722,0.2500,true,rare_vocab,4.240,OK,the habit
-vocab_word_preserve,vocab__preserve,0.8750,0.6540,0.8010,-0.631400,-0.936334,-0.853772,-0.285724,0.056167,0.2500,true,rare_vocab,4.190,OK,preserve
-vocab_word_arbor,vocab__arbor,0.8750,0.6540,0.7940,1.484400,-2.636203,-0.452008,-0.460429,-0.753895,0.2500,true,rare_vocab,3.490,OK,the arbor
-vocab_word_triad,vocab__triad,0.8750,0.6540,0.5070,2.190400,-0.986640,-0.302781,-0.601270,-0.647730,0.2500,true,rare_vocab,3.230,OK,the triad
-vocab_word_typewriter,vocab__typewriter,0.8800,0.6540,0.8090,,1.352527,-0.320000,,,0.2500,false,rare_vocab,3.260,OK,the typewriter
-vocab_word_cormorant,vocab__cormorant,0.8800,0.6290,0.6710,0.228700,-0.729676,0.044310,-0.010383,-0.594899,0.2500,true,rare_vocab,2.340,OK,the cormorant
-vocab_word_scaffolding,vocab__scaffolding,0.8850,0.6540,0.7840,-0.161800,-0.611488,-0.228168,-0.323877,-0.654722,0.2500,true,rare_vocab,3.100,OK,the scaffolding
-vocab_word_tapestry,vocab__tapestry,0.8850,0.6540,0.6120,-0.897900,-0.765572,-0.308521,0.102312,0.056167,0.2500,true,rare_vocab,3.240,OK,the tapestry
-vocab_word_turbine,vocab__turbine,0.8850,0.6540,0.7660,0.188400,-0.128030,-0.532361,-0.543112,-0.753895,0.2500,true,rare_vocab,3.630,OK,the turbine
-vocab_word_percussion,vocab__percussion,0.8850,0.6540,0.5150,1.927600,-0.872028,-0.383134,-0.665121,-0.647730,0.2500,true,rare_vocab,3.370,OK,the percussion
-vocab_word_rosette,vocab__rosette,0.8850,0.6350,0.5130,0.327800,-1.091806,-0.221766,-0.312580,-0.621793,0.2500,true,rare_vocab,2.740,OK,the rosette
-vocab_word_suede,vocab__suede,0.8850,0.6540,0.6670,,,-0.314260,,,0.2500,false,rare_vocab,3.250,OK,the suede
-vocab_word_confectionery,vocab__confectionery,0.9170,0.6480,0.7590,,-2.809550,-0.427240,,,0.2500,false,rare_vocab,2.960,OK,the confectionery
-vocab_word_ecstatic,vocab__ecstatic,0.9170,0.6640,0.2220,0.514000,-1.306226,-0.444446,-0.564595,-0.696969,0.2500,true,rare_vocab,3.370,OK,ecstatic
-vocab_word_artichoke,vocab__artichoke,0.9200,0.6770,0.7420,-0.932400,-0.114664,-0.473437,-0.341986,-0.149599,0.2500,true,rare_vocab,2.730,OK,the artichoke
-vocab_word_cloak,vocab__cloak,0.9200,0.7000,0.5920,-0.880000,-0.781424,-0.783499,-0.782047,-0.953768,0.2500,true,rare_vocab,3.570,OK,the cloak
-vocab_word_prism,vocab__prism,0.9200,0.7000,0.6960,-0.917600,0.972955,-0.708885,-0.937541,-0.846163,0.2500,true,rare_vocab,3.440,OK,the prism
-vocab_word_irrigation,vocab__irrigation,0.9200,0.7000,0.7500,1.692300,-3.383400,-0.852373,-0.866777,-0.917614,0.2500,true,rare_vocab,3.690,OK,the irrigation
-vocab_word_awning,vocab__awning,0.9200,0.6760,0.8230,-1.318600,0.058995,-0.450022,-0.396984,-0.747984,0.2500,true,rare_vocab,2.700,OK,the awning
-vocab_word_paleontologist,vocab__paleontologist,0.9200,0.6730,0.6690,-0.615600,-0.484057,-0.328146,-0.222746,-0.113603,0.2500,true,rare_vocab,2.520,OK,the paleontologist
-vocab_word_urban,vocab__urban,0.9200,0.7000,0.9060,2.911800,-0.595725,-1.403364,-1.419892,-0.953768,0.2500,true,rare_vocab,4.650,OK,urban
-vocab_word_cornbread,vocab__cornbread,0.9230,0.6900,0.8210,-2.662800,1.136252,-0.548724,-0.322463,-0.802385,0.2500,true,rare_vocab,2.720,OK,the cornbread
-vocab_word_kimono,vocab__kimono,0.9230,0.6940,0.5640,-0.630600,-2.025424,-0.705856,-0.826048,-0.889701,0.2500,true,rare_vocab,2.950,OK,the kimono
-vocab_word_waterwheel,vocab__waterwheel,0.9230,0.6780,0.8260,,0.323920,-0.003262,,,0.2500,false,rare_vocab,1.900,OK,the waterwheel
-vocab_word_fetch,vocab__fetch,0.9230,0.7150,0.7920,-1.910900,0.906107,-0.925275,-1.029309,-0.917549,0.2500,true,rare_vocab,3.650,OK,fetch
-vocab_word_timid,vocab__timid,0.9230,0.7150,0.8340,2.165300,-2.720865,-0.695696,-0.417253,-0.498327,0.2500,true,rare_vocab,3.250,OK,timid
-vocab_word_turnstile,vocab__turnstile,0.9230,0.6840,0.5560,,-3.467620,-0.321812,,,0.2500,false,rare_vocab,2.390,OK,the turnstile
-vocab_word_gesticulate,vocab__gesticulate,0.9550,0.6750,0.5620,3.693800,-3.860343,0.198994,-0.024476,-0.844291,0.2500,true,rare_vocab,1.580,OK,gesticulate
-vocab_word_wetland,vocab__wetland,0.9600,0.7150,0.7420,-1.281400,1.447913,-0.632561,-0.881447,-0.912772,0.2500,true,rare_vocab,3.140,OK,the wetland
-vocab_word_baywindow,vocab__baywindow,0.9600,0.6700,0.6580,0.785200,-1.544376,1.136731,1.279317,-0.779580,0.2500,true,rare_vocab,0.000,OK,the baywindow
-vocab_word_mischievous,vocab__mischievous,0.9600,0.7150,0.5910,0.287400,-1.161880,-0.638301,-0.678725,-0.917549,0.2500,true,rare_vocab,3.150,OK,mischievous
-vocab_word_aloe,vocab__aloe,0.9620,0.7240,0.6070,-0.089000,-1.267218,-0.645083,-0.418620,-0.583278,0.2500,true,rare_vocab,3.060,OK,the aloe
-vocab_word_blower,vocab__blower,0.9620,0.7240,0.9270,-2.465100,3.367786,-0.765613,-0.753113,-1.061761,0.2500,true,rare_vocab,3.270,OK,the blower
-vocab_word_dumpling,vocab__dumpling,0.9620,0.6970,0.6710,-2.338600,0.606372,-0.564059,-0.336741,-0.832981,0.2500,true,rare_vocab,2.670,OK,the dumpling
-vocab_word_fan,vocab__fan,0.9620,0.7240,0.9620,-4.050100,2.788454,-1.712629,-1.839380,-1.031317,0.2500,true,rare_vocab,4.920,OK,the fan
-vocab_word_foam,vocab__foam,0.9620,0.7240,0.9130,-2.401400,1.697482,-1.058327,-1.169454,-0.957816,0.2500,true,rare_vocab,3.780,OK,the foam
-vocab_word_pistachio,vocab__pistachio,0.9620,0.6990,0.7510,-2.119500,0.821621,-0.628355,-0.540329,-0.349772,0.2500,true,rare_vocab,2.760,OK,the pistachio
-vocab_word_sprinkler,vocab__sprinkler,0.9620,0.7240,0.8000,-2.512500,0.676297,-0.639344,-0.623182,-1.061761,0.2500,true,rare_vocab,3.050,OK,the sprinkler
-vocab_word_telescope,vocab__telescope,0.9620,0.7240,0.9260,-3.363900,2.050671,-1.041108,-1.208867,-0.953378,0.2500,true,rare_vocab,3.750,OK,the telescope
-vocab_word_furry,vocab__furry,0.9620,0.7240,0.8510,-2.538400,2.068729,-0.932058,-0.939747,-1.031317,0.2500,true,rare_vocab,3.560,OK,furry
-vocab_word_rickety,vocab__rickety,0.9620,0.6970,0.7110,-1.779500,0.064349,-0.569799,-0.493004,-0.838426,0.2500,true,rare_vocab,2.680,OK,rickety
-vocab_word_acorn,vocab__acorn,1.0000,0.8790,0.9180,-4.186200,3.434115,-1.919229,-2.133186,-2.418819,0.2500,true,rare_vocab,3.080,CEILING,the acorn
-vocab_word_antenna,vocab__antenna,1.0000,0.8790,0.8700,-1.146400,0.293108,-2.315253,-2.261540,-1.945497,0.2500,true,rare_vocab,3.770,CEILING,the antenna
-vocab_word_bamboo,vocab__bamboo,1.0000,0.8790,0.9390,,2.339202,-2.246380,,,0.2500,false,rare_vocab,3.650,CEILING,the bamboo
-vocab_word_barrel,vocab__barrel,1.0000,0.8790,0.8840,-3.036000,2.047678,-2.544833,-2.463767,-1.830745,0.2500,true,rare_vocab,4.170,CEILING,the barrel
-vocab_word_blender,vocab__blender,1.0000,0.8790,0.9590,,2.117830,-2.120111,,,0.2500,false,rare_vocab,3.430,CEILING,the blender
-vocab_word_bouquet,vocab__bouquet,1.0000,0.8790,0.9270,-1.705200,1.163405,-2.108632,-2.141370,-1.961776,0.2500,true,rare_vocab,3.410,CEILING,the bouquet
-vocab_word_buffet,vocab__buffet,1.0000,0.8790,0.7990,,1.247313,-2.183245,,,0.2500,false,rare_vocab,3.540,CEILING,the buffet
-vocab_word_bulldozer,vocab__bulldozer,1.0000,0.8400,0.8800,-1.735400,0.750646,-1.729033,-1.508884,-1.558096,0.2500,true,rare_vocab,2.880,CEILING,the bulldozer
-vocab_word_cake,vocab__cake,1.0000,0.8790,0.9700,,2.847316,-2.751455,,,0.2500,false,rare_vocab,4.530,CEILING,the cake
-vocab_word_caramel,vocab__caramel,1.0000,0.8790,0.8470,-2.008700,1.374345,-2.148808,-2.296570,-2.418819,0.2500,true,rare_vocab,3.480,CEILING,the caramel
-vocab_word_carousel,vocab__carousel,1.0000,0.8790,0.7540,-1.392500,0.053285,-1.993842,-1.930806,-1.945497,0.2500,true,rare_vocab,3.210,CEILING,the carousel
-vocab_word_carrot,vocab__carrot,1.0000,0.8790,0.9810,-4.434500,3.553760,-2.229161,-2.212926,-1.830745,0.2500,true,rare_vocab,3.620,CEILING,the carrot
-vocab_word_cheese,vocab__cheese,1.0000,0.8790,0.7380,-0.071900,-0.594938,-2.774413,-2.908704,-1.961776,0.2500,true,rare_vocab,4.570,CEILING,the cheese
-vocab_word_clothespin,vocab__clothespin,1.0000,0.8250,0.9260,-2.716600,0.352369,-0.994863,-0.662390,-1.467470,0.2500,true,rare_vocab,1.830,CEILING,the clothespin
-vocab_word_coaster,vocab__coaster,1.0000,0.8790,0.8180,-0.426600,-1.597695,-2.269338,-2.382347,-2.418819,0.2500,true,rare_vocab,3.690,CEILING,the coaster
-vocab_word_cork,vocab__cork,1.0000,0.8790,0.8510,-2.091100,0.159717,-2.280817,-2.226104,-1.945497,0.2500,true,rare_vocab,3.710,CEILING,the cork
-vocab_word_elbow,vocab__elbow,1.0000,0.8790,0.9110,-2.268700,1.990077,-2.355430,-2.313262,-1.830745,0.2500,true,rare_vocab,3.840,CEILING,the elbow
-vocab_word_footbath,vocab__footbath,1.0000,0.8200,0.9770,,2.154696,-0.608419,,,0.2500,false,rare_vocab,1.230,CEILING,the footbath
-vocab_word_fruitcake,vocab__fruitcake,1.0000,0.8310,0.9300,-2.746900,2.307406,-1.350664,-1.448943,-1.614397,0.2500,true,rare_vocab,2.360,CEILING,the fruitcake
-vocab_word_gutter,vocab__gutter,1.0000,0.8790,0.7280,-0.704600,-0.732718,-2.091413,-1.947587,-1.827852,0.2500,true,rare_vocab,3.380,CEILING,the gutter
-vocab_word_hamster,vocab__hamster,1.0000,0.8790,0.9360,-4.079800,2.116275,-2.051237,-2.227132,-2.418819,0.2500,true,rare_vocab,3.310,CEILING,the hamster
-vocab_word_hedgehog,vocab__hedgehog,1.0000,0.8790,0.9850,,,-2.016800,,,0.2500,false,rare_vocab,3.250,CEILING,the hedgehog
-vocab_word_hoe,vocab__hoe,1.0000,0.8790,0.7640,-1.639900,0.659055,-2.016800,-1.954430,-1.945497,0.2500,true,rare_vocab,3.250,CEILING,the hoe
-vocab_word_hopscotch,vocab__hopscotch,1.0000,0.8310,0.6920,-2.723700,2.559914,-1.362143,-1.016753,-1.503187,0.2500,true,rare_vocab,2.380,CEILING,the hopscotch
-vocab_word_latch,vocab__latch,1.0000,0.8790,0.7210,-1.855600,0.741252,-2.068455,-2.095066,-1.961776,0.2500,true,rare_vocab,3.340,CEILING,the latch
-vocab_word_locker,vocab__locker,1.0000,0.8790,0.9390,-3.961100,3.136258,-2.418564,-2.347253,-1.827852,0.2500,true,rare_vocab,3.950,CEILING,the locker
-vocab_word_lollipop,vocab__lollipop,1.0000,0.8790,0.9620,-5.608100,3.852974,-1.959405,-2.161778,-2.418819,0.2500,true,rare_vocab,3.150,CEILING,the lollipop
-vocab_word_map,vocab__map,1.0000,0.8790,0.9500,-3.711100,2.876199,-2.883463,-2.846231,-1.945497,0.2500,true,rare_vocab,4.760,CEILING,the map
-vocab_word_marshmallow,vocab__marshmallow,1.0000,0.8790,0.9730,,2.120148,-1.959405,,,0.2500,false,rare_vocab,3.150,CEILING,the marshmallow
-vocab_word_net,vocab__net,1.0000,0.8790,0.9590,,,-2.883463,,,0.2500,false,rare_vocab,4.760,CEILING,the net
-vocab_word_oil,vocab__oil,1.0000,0.8790,0.9640,,,-3.078606,,,0.2500,false,rare_vocab,5.100,CEILING,the oil
-vocab_word_omelet,vocab__omelet,1.0000,0.8350,0.7060,-2.499200,1.213837,-1.540761,-1.160357,-1.527597,0.2500,true,rare_vocab,2.630,CEILING,the omelet
-vocab_word_pie,vocab__pie,1.0000,0.8790,0.8960,,2.076227,-2.556312,,,0.2500,false,rare_vocab,4.190,CEILING,the pie
-vocab_word_pitcher,vocab__pitcher,1.0000,0.8790,0.8290,-0.096600,-0.874250,-2.326732,-2.392738,-1.961776,0.2500,true,rare_vocab,3.790,CEILING,the pitcher
-vocab_word_potato,vocab__potato,1.0000,0.8790,0.9700,,,-2.510396,,,0.2500,false,rare_vocab,4.110,CEILING,the potato
-vocab_word_puddle,vocab__puddle,1.0000,0.8790,0.9290,-3.118600,1.235535,-2.022539,-1.863447,-1.827852,0.2500,true,rare_vocab,3.260,CEILING,the puddle
-vocab_word_pump,vocab__pump,1.0000,0.8790,0.9420,-1.865600,1.424832,-2.607967,-2.623338,-2.418819,0.2500,true,rare_vocab,4.280,CEILING,the pump
-vocab_word_rice,vocab__rice,1.0000,0.8790,0.9820,,,-2.762934,,,0.2500,false,rare_vocab,4.550,CEILING,the rice
-vocab_word_saddle,vocab__saddle,1.0000,0.8790,0.9270,-2.482000,1.317678,-2.292296,-2.237916,-1.945497,0.2500,true,rare_vocab,3.730,CEILING,the saddle
-vocab_word_sandbag,vocab__sandbag,1.0000,0.8320,0.9270,-1.916600,1.479938,-1.399567,-1.046906,-1.509251,0.2500,true,rare_vocab,2.430,CEILING,the sandbag
-vocab_word_scoop,vocab__scoop,1.0000,0.8790,0.9490,-1.075300,1.770256,-2.269338,-2.326589,-1.961776,0.2500,true,rare_vocab,3.690,CEILING,the scoop
-vocab_word_seagull,vocab__seagull,1.0000,0.8790,0.8960,-3.040200,1.111044,-1.884792,-1.695167,-1.827852,0.2500,true,rare_vocab,3.020,CEILING,the seagull
-vocab_word_ship,vocab__ship,1.0000,0.8790,0.7910,,1.188957,-2.981034,,,0.2500,false,rare_vocab,4.930,CEILING,the ship
-vocab_word_shower,vocab__shower,1.0000,0.8790,0.9660,-4.175900,3.950138,-2.734236,-2.713199,-2.418819,0.2500,true,rare_vocab,4.500,CEILING,the shower
-vocab_word_silverware,vocab__silverware,1.0000,0.8790,0.7850,-2.313600,0.995654,-1.919229,-1.854028,-1.945497,0.2500,true,rare_vocab,3.080,CEILING,the silverware
-vocab_word_sink,vocab__sink,1.0000,0.8790,0.8940,,,-2.567791,,,0.2500,false,rare_vocab,4.210,CEILING,the sink
-vocab_word_ski,vocab__ski,1.0000,0.8790,0.8460,-3.340400,2.072599,-2.521875,-2.445524,-1.830745,0.2500,true,rare_vocab,4.130,CEILING,the ski
-vocab_word_sloth,vocab__sloth,1.0000,0.8790,0.9520,-3.040900,2.126161,-1.930708,-1.936307,-1.961776,0.2500,true,rare_vocab,3.100,CEILING,the sloth
-vocab_word_snail,vocab__snail,1.0000,0.8790,0.9570,-2.634800,2.340997,-2.257859,-2.150926,-1.827852,0.2500,true,rare_vocab,3.670,CEILING,the snail
-vocab_word_sorbet,vocab__sorbet,1.0000,0.8350,0.5360,-0.111000,-0.988042,-1.546500,-1.825195,-1.784604,0.2500,true,rare_vocab,2.640,CEILING,the sorbet
-vocab_word_spatula,vocab__spatula,1.0000,0.8400,0.8260,-1.944100,0.577381,-1.717554,-1.915964,-1.671494,0.2500,true,rare_vocab,2.860,CEILING,the spatula
-vocab_word_squirrel,vocab__squirrel,1.0000,0.8790,0.9810,,,-2.269338,,,0.2500,false,rare_vocab,3.690,CEILING,the squirrel
-vocab_word_stew,vocab__stew,1.0000,0.8790,0.8460,-0.044600,-0.634275,-2.148808,-2.149075,-1.830745,0.2500,true,rare_vocab,3.480,CEILING,the stew
-vocab_word_rubberband,vocab__rubberband,1.0000,0.8790,0.9390,,,-2.533354,,,0.2500,false,rare_vocab,4.150,CEILING,the rubber band
-vocab_word_stump,vocab__stump,1.0000,0.8790,0.7070,-1.743700,0.839109,-2.131590,-2.167830,-1.961776,0.2500,true,rare_vocab,3.450,CEILING,the stump
-vocab_word_sunflower,vocab__sunflower,1.0000,0.8790,0.9510,-4.155500,3.157223,-2.079934,-1.933564,-1.827852,0.2500,true,rare_vocab,3.360,CEILING,the sunflower
-vocab_word_swordfish,vocab__swordfish,1.0000,0.8360,0.6090,-0.429100,-0.046741,-1.572597,-1.849447,-1.797510,0.2500,true,rare_vocab,2.670,CEILING,the swordfish
-vocab_word_teabag,vocab__teabag,1.0000,0.8280,0.8630,,0.955745,-1.198433,,,0.2500,false,rare_vocab,2.140,CEILING,the teabag
-vocab_word_thermos,vocab__thermos,1.0000,0.8360,0.9030,-0.426800,-0.095363,-1.561118,-1.757441,-1.646363,0.2500,true,rare_vocab,2.650,CEILING,the thermos
-vocab_word_treasure,vocab__treasure,1.0000,0.8790,0.8770,-3.186600,1.794237,-2.544833,-2.463767,-1.830745,0.2500,true,rare_vocab,4.170,CEILING,the treasure
-vocab_word_trumpet,vocab__trumpet,1.0000,0.8790,0.9770,,,-2.206203,,,0.2500,false,rare_vocab,3.580,CEILING,the trumpet
-vocab_word_tulip,vocab__tulip,1.0000,0.8790,0.6860,-1.373600,-0.068521,-1.976624,-1.989227,-1.961776,0.2500,true,rare_vocab,3.180,CEILING,the tulip
-vocab_word_turkey,vocab__turkey,1.0000,0.8790,0.9100,-4.434300,2.480302,-2.768673,-2.774965,-1.827852,0.2500,true,rare_vocab,4.560,CEILING,the turkey
-vocab_word_turtle,vocab__turtle,1.0000,0.8790,0.9770,,,-2.395606,,,0.2500,false,rare_vocab,3.910,CEILING,the turtle
-vocab_word_watermelon,vocab__watermelon,1.0000,0.8790,0.9830,,,-2.074195,,,0.2500,false,rare_vocab,3.350,CEILING,the watermelon
-vocab_word_ant,vocab__ant,1.0000,0.8790,0.9830,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the ant
-vocab_word_ball,vocab__ball,1.0000,0.8790,0.9560,-4.447400,4.657985,-2.108632,-2.267978,-2.418819,0.2500,true,rare_vocab,3.410,CEILING,the ball
-vocab_word_bear,vocab__bear,1.0000,0.8790,0.9880,-4.513400,,-2.108632,-2.048925,-1.945497,0.2500,true,rare_vocab,3.410,CEILING,the bear
-vocab_word_duck,vocab__duck,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the duck
-vocab_word_fork,vocab__fork,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the fork
-vocab_word_kitten,vocab__kitten,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the kitten
-vocab_word_knee,vocab__knee,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the knee
-vocab_word_milkshake,vocab__milkshake,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the milkshake
-vocab_word_skin,vocab__skin,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the skin
-vocab_word_wall,vocab__wall,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the wall
-vocab_word_wheel,vocab__wheel,1.0000,0.8790,,,,-2.108632,,,0.2500,false,rare_vocab,3.410,CEILING,the wheel
-vocab_word_farm,vocab__farm,1.0000,0.8790,0.8510,,2.105561,-2.877724,,,0.2500,false,rare_vocab,4.750,CEILING,the farm
-vocab_word_juggling,vocab__juggling,1.0000,0.8790,0.9580,,,-2.005321,,,0.2500,false,rare_vocab,3.230,CEILING,juggling
-vocab_word_dressing,vocab__dressing,1.0000,0.8790,0.6570,-1.486700,-0.252869,-2.544833,-2.463767,-1.830745,0.2500,true,rare_vocab,4.170,CEILING,the dressing
-vocab_word_roof,vocab__roof,1.0000,0.8790,0.9490,-3.260500,2.278317,-2.762934,-2.895474,-1.961776,0.2500,true,rare_vocab,4.550,CEILING,the roof
-vocab_word_peeking,vocab__peeking,1.0000,0.8420,0.8540,-3.248700,1.982298,-1.793148,-1.580235,-1.570636,0.2500,true,rare_vocab,2.960,CEILING,peeking
-vocab_word_ruler,vocab__ruler,1.0000,0.8790,0.9290,,0.452365,-2.355430,,,0.2500,false,rare_vocab,3.840,CEILING,the ruler
-vocab_word_tunnel,vocab__tunnel,1.0000,0.8790,0.9390,,,-2.585010,,,0.2500,false,rare_vocab,4.240,CEILING,the tunnel
-vocab_word_envelope,vocab__envelope,1.0000,0.8790,0.8820,-1.972500,1.580035,-2.366909,-2.451785,-2.418819,0.2500,true,rare_vocab,3.860,CEILING,the envelope
-vocab_word_diamond,vocab__diamond,1.0000,0.8790,0.7800,-2.370600,0.789800,-2.688320,-2.645428,-1.945497,0.2500,true,rare_vocab,4.420,CEILING,the diamond
-vocab_word_calendar,vocab__calendar,1.0000,0.8790,0.8940,-3.775500,2.432010,-2.619446,-2.523057,-1.830745,0.2500,true,rare_vocab,4.300,CEILING,the calendar
-vocab_word_panda,vocab__panda,1.0000,0.8790,0.9140,-4.054900,3.241915,-2.246380,-2.300129,-1.961776,0.2500,true,rare_vocab,3.650,CEILING,the panda
-vocab_word_arrow,vocab__arrow,1.0000,0.8790,0.7630,-0.827400,-0.231358,-2.521875,-2.473463,-1.827852,0.2500,true,rare_vocab,4.130,CEILING,the arrow
-vocab_word_dripping,vocab__dripping,1.0000,0.8790,0.7490,-2.047800,1.335373,-2.148808,-2.296570,-2.418819,0.2500,true,rare_vocab,3.480,CEILING,dripping
-vocab_word_knight,vocab__knight,1.0000,0.8790,0.8800,,1.352938,-2.607967,,,0.2500,false,rare_vocab,4.280,CEILING,the knight
-vocab_word_delivering,vocab__delivering,1.0000,0.8790,0.8660,-2.065900,1.333034,-2.498917,-2.450531,-1.945497,0.2500,true,rare_vocab,4.090,CEILING,delivering
-vocab_word_dentist,vocab__dentist,1.0000,0.8790,0.8630,-2.829600,1.444296,-2.366909,-2.322384,-1.830745,0.2500,true,rare_vocab,3.860,CEILING,the dentist
-vocab_word_uniform,vocab__uniform,1.0000,0.8790,0.6550,-0.777600,-1.405539,-2.636665,-2.749945,-1.961776,0.2500,true,rare_vocab,4.330,CEILING,the uniform
-vocab_word_beret,vocab__beret,1.0000,0.8410,0.5850,-0.506100,-0.863779,-1.761069,-1.544542,-1.564352,0.2500,true,rare_vocab,2.920,CEILING,the beret
-vocab_word_applaud,vocab__applaud,1.0000,0.8790,0.9500,,0.985720,-2.137329,,,0.2500,false,rare_vocab,3.460,CEILING,applaud
-vocab_word_camp,vocab__camp,1.0000,0.8790,0.8630,-3.686800,2.802823,-2.900681,-2.831652,-2.418819,0.2500,true,rare_vocab,4.790,CEILING,the camp
-vocab_word_tumble,vocab__tumble,1.0000,0.8790,0.8810,-1.228800,0.551416,-2.108632,-2.048925,-1.945497,0.2500,true,rare_vocab,3.410,CEILING,tumble
-vocab_word_intersection,vocab__intersection,1.0000,0.8790,0.7620,-0.487900,-0.143297,-2.378388,-2.331505,-1.830745,0.2500,true,rare_vocab,3.880,CEILING,the intersection
-vocab_word_kazoo,vocab__kazoo,1.0000,0.8310,0.4210,-0.698100,-1.084671,-1.344925,-1.442328,-1.614397,0.2500,true,rare_vocab,2.350,CEILING,the kazoo
-vocab_word_steam,vocab__steam,1.0000,0.8790,0.8490,-1.432300,1.112978,-2.745715,-2.746918,-1.827852,0.2500,true,rare_vocab,4.520,CEILING,the steam
-vocab_word_bandage,vocab__bandage,1.0000,0.8790,0.8890,-3.114200,3.701644,-2.011061,-2.198540,-2.418819,0.2500,true,rare_vocab,3.240,CEILING,the bandage
+vocab_word_claw,vocab__claw,0.0000,0.2500,0.0920,1.220500,-3.682731,14.437920,19.436197,19.548146,0.2500,true,rare_vocab,3.590,BROKEN,the claw
+vocab_word_gesticulate,vocab__gesticulate,0.0830,0.4650,0.5640,3.693800,-3.860343,1.615530,1.303236,0.111015,0.2500,true,rare_vocab,1.580,BROKEN,gesticulate
+vocab_word_arcade,vocab__arcade,0.2500,0.5520,0.5520,1.162400,-1.835738,0.540733,0.376250,-0.291424,0.2500,true,rare_vocab,3.730,HARD,the arcade
+vocab_word_aversion,vocab__aversion,0.2500,0.5520,0.6830,2.166300,-3.485589,0.741058,0.495843,-0.221613,0.2500,true,rare_vocab,3.250,HARD,aversion
+vocab_word_couturier,vocab__couturier,0.2500,0.5360,0.9110,2.212700,-3.582168,0.643602,0.685613,-0.098197,0.2500,true,rare_vocab,2.300,HARD,the couturier
+vocab_word_aesthete,vocab__aesthete,0.2500,0.5320,0.3980,,-2.864038,0.825256,,,0.2500,false,rare_vocab,1.950,HARD,the aesthete
+vocab_word_mammalogy,vocab__mammalogy,0.2500,0.5300,0.6680,2.580100,-3.875851,0.934938,1.152892,1.423501,0.2500,true,rare_vocab,1.730,HARD,mammalogy
+vocab_word_resuscitation,vocab__resuscitation,0.2500,0.5470,0.8630,0.766000,-1.395288,0.283770,0.236478,-0.304053,0.2500,true,rare_vocab,2.930,HARD,resuscitation
+vocab_word_triad,vocab__triad,0.2500,0.5520,0.6300,2.190400,-0.986640,0.749405,0.682447,-0.291424,0.2500,true,rare_vocab,3.230,HARD,the triad
+vocab_word_degression,vocab__degression,0.3330,0.5360,0.4900,1.261000,-1.799525,1.603492,1.998219,-0.143713,0.2500,true,rare_vocab,0.000,HARD,degression
+vocab_word_posterior,vocab__posterior,0.3330,0.5670,0.7030,1.267100,-1.773187,0.536384,0.523674,-0.259221,0.2500,true,rare_vocab,3.430,HARD,the posterior
+vocab_word_rosette,vocab__rosette,0.3330,0.5560,0.4570,0.327800,-1.091806,0.284702,0.765228,1.119689,0.2500,true,rare_vocab,2.740,HARD,the rosette
+vocab_word_corset,vocab__corset,0.4170,0.5670,0.6160,-0.041000,-1.405614,0.703322,0.399466,-0.397607,0.2500,true,rare_vocab,3.030,HARD,the corset
+vocab_word_concentric,vocab__concentric,0.4170,0.5600,0.7280,0.289400,-0.891635,0.174987,-0.153187,-0.329855,0.2500,true,rare_vocab,2.920,HARD,concentric
+vocab_word_divan,vocab__divan,0.4170,0.5530,0.1130,,,0.398381,,,0.2500,false,rare_vocab,2.530,HARD,the divan
+vocab_word_turbine,vocab__turbine,0.5000,0.6040,0.7810,0.188400,-0.128030,0.139406,-0.105175,-0.467205,0.2500,true,rare_vocab,3.630,HARD,the turbine
+vocab_word_cormorant,vocab__cormorant,0.5000,0.5840,0.6750,0.228700,-0.729676,0.211946,0.258282,-0.345594,0.2500,true,rare_vocab,2.340,HARD,the cormorant
+vocab_word_confectionery,vocab__confectionery,0.5000,0.5950,0.7600,,-2.809550,-0.139740,,,0.2500,false,rare_vocab,2.960,HARD,the confectionery
+vocab_word_gourmet,vocab__gourmet,0.5000,0.6040,0.6190,-1.915700,-0.361073,0.252089,0.624312,0.577298,0.2500,true,rare_vocab,3.360,HARD,gourmet
+vocab_word_facade,vocab__facade,0.5000,0.6040,0.6210,4.441200,-4.901497,0.227048,0.008939,-0.566968,0.2500,true,rare_vocab,3.420,HARD,the facade
+vocab_word_habit,vocab__habit,0.5000,0.6040,0.5030,2.108100,-3.641181,-0.115174,-0.343166,-0.537035,0.2500,true,rare_vocab,4.240,HARD,the habit
+vocab_word_precarious,vocab__precarious,0.5000,0.6040,0.3350,0.954600,-2.327559,0.289650,0.111373,-0.467205,0.2500,true,rare_vocab,3.270,HARD,precarious
+vocab_word_arbor,vocab__arbor,0.5000,0.6040,0.7150,1.484400,-2.636203,0.197834,0.184242,-0.446132,0.2500,true,rare_vocab,3.490,HARD,the arbor
+vocab_word_dredging,vocab__dredging,0.5000,0.6040,0.2320,1.888400,-2.633541,0.352251,0.644767,0.577298,0.2500,true,rare_vocab,3.120,HARD,dredging
+vocab_word_artichoke,vocab__artichoke,0.5830,0.6080,0.7290,-0.932400,-0.114664,-0.153027,-0.175919,-0.585105,0.2500,true,rare_vocab,2.730,HARD,the artichoke
+vocab_word_tapestry,vocab__tapestry,0.5830,0.6240,0.5640,-0.897900,-0.765572,0.134545,0.115213,-0.629958,0.2500,true,rare_vocab,3.240,HARD,the tapestry
+vocab_word_irrigation,vocab__irrigation,0.5830,0.6240,0.6980,1.692300,-3.383400,-0.053259,-0.282173,-0.560120,0.2500,true,rare_vocab,3.690,HARD,the irrigation
+vocab_word_paleontologist,vocab__paleontologist,0.5830,0.6050,0.7070,-0.615600,-0.484057,-0.040207,-0.014731,-0.451138,0.2500,true,rare_vocab,2.520,HARD,the paleontologist
+vocab_word_suede,vocab__suede,0.5830,0.6240,0.6560,,,0.130372,,,0.2500,false,rare_vocab,3.250,HARD,the suede
+vocab_word_turnstile,vocab__turnstile,0.5830,0.6030,0.5560,,-3.467620,0.030844,,,0.2500,false,rare_vocab,2.390,HARD,the turnstile
+vocab_word_vertebra,vocab__vertebra,0.5830,0.6090,0.6020,1.186500,-2.051696,-0.178109,0.168934,0.521558,0.2500,true,rare_vocab,2.770,HARD,the vertebra
+vocab_word_aloe,vocab__aloe,0.6670,0.6240,0.7170,-0.089000,-1.267218,0.209667,-0.041710,-0.657520,0.2500,true,rare_vocab,3.060,OK,the aloe
+vocab_word_artifact,vocab__artifact,0.6670,0.6240,0.7410,-0.675400,-0.513899,0.063597,0.011105,-0.629958,0.2500,true,rare_vocab,3.410,OK,the artifact
+vocab_word_beret,vocab__beret,0.6670,0.6120,0.6230,-0.506100,-0.863779,-0.265865,-0.305217,-0.504408,0.2500,true,rare_vocab,2.920,OK,the beret
+vocab_word_baywindow,vocab__baywindow,0.6670,0.5880,0.6440,0.785200,-1.544376,1.154675,1.527894,-0.365778,0.2500,true,rare_vocab,0.000,OK,the baywindow
+vocab_word_metronome,vocab__metronome,0.6670,0.6060,0.5110,1.011500,-1.807135,-0.090337,0.214908,0.554993,0.2500,true,rare_vocab,2.620,OK,the metronome
+vocab_word_saffron,vocab__saffron,0.6670,0.6240,0.6160,1.877600,-3.624423,0.147066,-0.083438,-0.657520,0.2500,true,rare_vocab,3.210,OK,the saffron
+vocab_word_skimmer,vocab__skimmer,0.6670,0.6030,0.3330,4.550400,-4.949782,0.009977,-0.194915,-0.532379,0.2500,true,rare_vocab,2.440,OK,the skimmer
+vocab_word_sedentary,vocab__sedentary,0.6670,0.6240,0.7990,1.398900,-1.851502,0.176280,0.048664,-0.560120,0.2500,true,rare_vocab,3.140,OK,sedentary
+vocab_word_cassette,vocab__cassette,0.7500,0.6240,0.7880,-1.251700,0.317368,0.067770,0.070718,-0.546068,0.2500,true,rare_vocab,3.400,OK,the cassette
+vocab_word_kimono,vocab__kimono,0.7500,0.6130,0.5710,-0.630600,-2.025424,-0.286766,0.109374,0.477012,0.2500,true,rare_vocab,2.950,OK,the kimono
+vocab_word_prism,vocab__prism,0.7500,0.6240,0.6920,-0.917600,0.972955,0.051077,-0.147420,-0.657520,0.2500,true,rare_vocab,3.440,OK,the prism
+vocab_word_sorbet,vocab__sorbet,0.7500,0.6070,0.5370,-0.111000,-0.988042,-0.107076,-0.348252,-0.550996,0.2500,true,rare_vocab,2.640,OK,the sorbet
+vocab_word_intersection,vocab__intersection,0.7500,0.6240,0.6350,-0.487900,-0.143297,-0.132555,-0.396462,-0.560120,0.2500,true,rare_vocab,3.880,OK,the intersection
+vocab_word_preserve,vocab__preserve,0.7500,0.6240,0.8290,-0.631400,-0.936334,-0.261931,-0.369068,-0.546068,0.2500,true,rare_vocab,4.190,OK,preserve
+vocab_word_awning,vocab__awning,0.7500,0.6080,0.7230,-1.318600,0.058995,-0.140507,0.185961,0.532700,0.2500,true,rare_vocab,2.700,OK,the awning
+vocab_word_percussion,vocab__percussion,0.7500,0.6240,0.5320,1.927600,-0.872028,0.080291,-0.127947,-0.657520,0.2500,true,rare_vocab,3.370,OK,the percussion
+vocab_word_gutter,vocab__gutter,0.8330,0.6240,0.6300,-0.704600,-0.732718,0.076117,0.029477,-0.629958,0.2500,true,rare_vocab,3.380,OK,the gutter
+vocab_word_hoe,vocab__hoe,0.8330,0.6240,0.7090,-1.639900,0.659055,0.130372,-0.017503,-0.560120,0.2500,true,rare_vocab,3.250,OK,the hoe
+vocab_word_wetland,vocab__wetland,0.8330,0.6240,0.6740,-1.281400,1.447913,0.176280,0.215458,-0.546068,0.2500,true,rare_vocab,3.140,OK,the wetland
+vocab_word_ecstatic,vocab__ecstatic,0.8330,0.6240,0.1750,0.514000,-1.306226,0.080291,0.402436,0.354638,0.2500,true,rare_vocab,3.370,OK,ecstatic
+vocab_word_rickety,vocab__rickety,0.8330,0.6070,0.6810,-1.779500,0.064349,-0.123770,-0.154462,-0.580572,0.2500,true,rare_vocab,2.680,OK,rickety
+vocab_word_colony,vocab__colony,0.8330,0.6240,0.5000,,-2.460010,-0.232717,,,0.2500,false,rare_vocab,4.120,OK,the colony
+vocab_word_mischievous,vocab__mischievous,0.8330,0.6240,0.7580,0.287400,-1.161880,0.172106,0.170328,-0.629958,0.2500,true,rare_vocab,3.150,OK,mischievous
+vocab_word_fruitcake,vocab__fruitcake,0.9170,0.6360,0.9160,-2.746900,2.307406,-0.233151,-0.137326,-0.615823,0.2500,true,rare_vocab,2.360,OK,the fruitcake
+vocab_word_pistachio,vocab__pistachio,0.9170,0.6430,0.6950,-2.119500,0.821621,-0.458782,-0.459153,-0.640973,0.2500,true,rare_vocab,2.760,OK,the pistachio
+vocab_word_spatula,vocab__spatula,0.9170,0.6450,0.7760,-1.944100,0.577381,-0.517303,-0.236460,0.120892,0.2500,true,rare_vocab,2.860,OK,the spatula
+vocab_word_squash,vocab__squash,0.9170,0.6620,0.0830,,,-0.347367,,,0.2500,false,rare_vocab,3.630,OK,the squash
+vocab_word_typewriter,vocab__typewriter,0.9170,0.6620,0.8110,,1.352527,-0.192949,,,0.2500,false,rare_vocab,3.260,OK,the typewriter
+vocab_word_waterwheel,vocab__waterwheel,0.9170,0.6310,0.8230,,0.323920,0.000710,,,0.2500,false,rare_vocab,1.900,OK,the waterwheel
+vocab_word_timid,vocab__timid,0.9170,0.6620,0.8410,2.165300,-2.720865,-0.188776,-0.381673,-0.829926,0.2500,true,rare_vocab,3.250,OK,timid
+vocab_word_slope,vocab__slope,0.9170,0.6620,0.5330,-0.050000,-0.631270,-0.460050,-0.582208,-0.806878,0.2500,true,rare_vocab,3.900,OK,the slope
+vocab_word_urban,vocab__urban,0.9170,0.6620,0.8360,2.911800,-0.595725,-0.773057,-1.127911,-0.737027,0.2500,true,rare_vocab,4.650,OK,urban
+vocab_word_acorn,vocab__acorn,1.0000,0.8560,0.8790,-4.186200,3.434115,-2.062894,-1.961344,-1.895972,0.2500,true,rare_vocab,3.080,CEILING,the acorn
+vocab_word_antenna,vocab__antenna,1.0000,0.8560,0.8820,-1.146400,0.293108,-2.350861,-2.617167,-2.652966,0.2500,true,rare_vocab,3.770,CEILING,the antenna
+vocab_word_bamboo,vocab__bamboo,1.0000,0.8560,0.9360,,2.339202,-2.300780,,,0.2500,false,rare_vocab,3.650,CEILING,the bamboo
+vocab_word_barrel,vocab__barrel,1.0000,0.8560,0.8450,-3.036000,2.047678,-2.517798,-2.387396,-1.880668,0.2500,true,rare_vocab,4.170,CEILING,the barrel
+vocab_word_blender,vocab__blender,1.0000,0.8560,0.9600,,2.117830,-2.208964,,,0.2500,false,rare_vocab,3.430,CEILING,the blender
+vocab_word_blower,vocab__blower,1.0000,0.8560,0.8920,-2.465100,3.367786,-2.142189,-1.983565,-1.885127,0.2500,true,rare_vocab,3.270,CEILING,the blower
+vocab_word_bouquet,vocab__bouquet,1.0000,0.8560,0.9320,-1.705200,1.163405,-2.200617,-2.017060,-1.815191,0.2500,true,rare_vocab,3.410,CEILING,the bouquet
+vocab_word_buffet,vocab__buffet,1.0000,0.8560,0.7970,,1.247313,-2.254872,,,0.2500,false,rare_vocab,3.540,CEILING,the buffet
+vocab_word_bulldozer,vocab__bulldozer,1.0000,0.8200,0.8610,-1.735400,0.750646,-2.167475,-2.145003,-1.629821,0.2500,true,rare_vocab,2.880,CEILING,the bulldozer
+vocab_word_cake,vocab__cake,1.0000,0.8560,0.9700,,2.847316,-2.668042,,,0.2500,false,rare_vocab,4.530,CEILING,the cake
+vocab_word_caramel,vocab__caramel,1.0000,0.8560,0.7890,-2.008700,1.374345,-2.229831,-2.592450,-2.652966,0.2500,true,rare_vocab,3.480,CEILING,the caramel
+vocab_word_carousel,vocab__carousel,1.0000,0.8560,0.6950,-1.392500,0.053285,-2.117148,-2.120339,-1.880668,0.2500,true,rare_vocab,3.210,CEILING,the carousel
+vocab_word_carrot,vocab__carrot,1.0000,0.8560,0.9550,-4.434500,3.553760,-2.288259,-2.197904,-1.885127,0.2500,true,rare_vocab,3.620,CEILING,the carrot
+vocab_word_cheese,vocab__cheese,1.0000,0.8560,0.7120,-0.071900,-0.594938,-2.684736,-2.714825,-1.815191,0.2500,true,rare_vocab,4.570,CEILING,the cheese
+vocab_word_cloak,vocab__cloak,1.0000,0.8560,0.4150,-0.880000,-0.781424,-2.267392,-2.234123,-1.895972,0.2500,true,rare_vocab,3.570,CEILING,the cloak
+vocab_word_clothespin,vocab__clothespin,1.0000,0.8040,0.9080,-2.716600,0.352369,-1.550893,-2.078328,-1.823046,0.2500,true,rare_vocab,1.830,CEILING,the clothespin
+vocab_word_coaster,vocab__coaster,1.0000,0.8560,0.7800,-0.426600,-1.597695,-2.317473,-2.253868,-1.880668,0.2500,true,rare_vocab,3.690,CEILING,the coaster
+vocab_word_cork,vocab__cork,1.0000,0.8560,0.7950,-2.091100,0.159717,-2.325820,-2.253019,-1.885127,0.2500,true,rare_vocab,3.710,CEILING,the cork
+vocab_word_cornbread,vocab__cornbread,1.0000,0.8170,0.7930,-2.662800,1.136252,-2.066469,-1.768678,-1.548764,0.2500,true,rare_vocab,2.720,CEILING,the cornbread
+vocab_word_dumpling,vocab__dumpling,1.0000,0.8160,0.5490,-2.338600,0.606372,-2.034276,-1.983628,-1.602661,0.2500,true,rare_vocab,2.670,CEILING,the dumpling
+vocab_word_elbow,vocab__elbow,1.0000,0.8560,0.8900,-2.268700,1.990077,-2.380075,-2.623134,-2.652966,0.2500,true,rare_vocab,3.840,CEILING,the elbow
+vocab_word_fan,vocab__fan,1.0000,0.8560,0.9330,-4.050100,2.788454,-2.830806,-2.596035,-1.880668,0.2500,true,rare_vocab,4.920,CEILING,the fan
+vocab_word_foam,vocab__foam,1.0000,0.8560,0.8970,-2.401400,1.697482,-2.355034,-2.295887,-1.885127,0.2500,true,rare_vocab,3.780,CEILING,the foam
+vocab_word_footbath,vocab__footbath,1.0000,0.8000,0.9770,,2.154696,-1.257399,,,0.2500,false,rare_vocab,1.230,CEILING,the footbath
+vocab_word_hamster,vocab__hamster,1.0000,0.8560,0.8920,-4.079800,2.116275,-2.158883,-1.956908,-1.815191,0.2500,true,rare_vocab,3.310,CEILING,the hamster
+vocab_word_hedgehog,vocab__hedgehog,1.0000,0.8560,0.9850,,,-2.133842,,,0.2500,false,rare_vocab,3.250,CEILING,the hedgehog
+vocab_word_hopscotch,vocab__hopscotch,1.0000,0.8110,0.6770,-2.723700,2.559914,-1.857231,-1.767508,-1.569265,0.2500,true,rare_vocab,2.380,CEILING,the hopscotch
+vocab_word_latch,vocab__latch,1.0000,0.8560,0.6360,-1.855600,0.741252,-2.171403,-2.580518,-2.652966,0.2500,true,rare_vocab,3.340,CEILING,the latch
+vocab_word_locker,vocab__locker,1.0000,0.8560,0.8710,-3.961100,3.136258,-2.425983,-2.326196,-1.880668,0.2500,true,rare_vocab,3.950,CEILING,the locker
+vocab_word_lollipop,vocab__lollipop,1.0000,0.8560,0.9310,-5.608100,3.852974,-2.092108,-1.910078,-1.885127,0.2500,true,rare_vocab,3.150,CEILING,the lollipop
+vocab_word_map,vocab__map,1.0000,0.8560,0.9260,-3.711100,2.876199,-2.764031,-2.829114,-1.815191,0.2500,true,rare_vocab,4.760,CEILING,the map
+vocab_word_marshmallow,vocab__marshmallow,1.0000,0.8560,0.9730,,2.120148,-2.092108,,,0.2500,false,rare_vocab,3.150,CEILING,the marshmallow
+vocab_word_net,vocab__net,1.0000,0.8560,0.9590,,,-2.764031,,,0.2500,false,rare_vocab,4.760,CEILING,the net
+vocab_word_oil,vocab__oil,1.0000,0.8560,0.9640,,,-2.905928,,,0.2500,false,rare_vocab,5.100,CEILING,the oil
+vocab_word_omelet,vocab__omelet,1.0000,0.8150,0.6060,-2.499200,1.213837,-2.006299,-1.950345,-1.595934,0.2500,true,rare_vocab,2.630,CEILING,the omelet
+vocab_word_pie,vocab__pie,1.0000,0.8560,0.8960,,2.076227,-2.526145,,,0.2500,false,rare_vocab,4.190,CEILING,the pie
+vocab_word_pitcher,vocab__pitcher,1.0000,0.8560,0.8660,-0.096600,-0.874250,-2.359208,-2.618872,-2.652966,0.2500,true,rare_vocab,3.790,CEILING,the pitcher
+vocab_word_potato,vocab__potato,1.0000,0.8560,0.9700,,,-2.492758,,,0.2500,false,rare_vocab,4.110,CEILING,the potato
+vocab_word_puddle,vocab__puddle,1.0000,0.8560,0.8870,-3.118600,1.235535,-2.138016,-2.134249,-1.880668,0.2500,true,rare_vocab,3.260,CEILING,the puddle
+vocab_word_pump,vocab__pump,1.0000,0.8560,0.9480,-1.865600,1.424832,-2.563706,-2.602085,-1.885127,0.2500,true,rare_vocab,4.280,CEILING,the pump
+vocab_word_rice,vocab__rice,1.0000,0.8560,0.9820,,,-2.676389,,,0.2500,false,rare_vocab,4.550,CEILING,the rice
+vocab_word_saddle,vocab__saddle,1.0000,0.8560,0.9260,-2.482000,1.317678,-2.334167,-2.209547,-1.815191,0.2500,true,rare_vocab,3.730,CEILING,the saddle
+vocab_word_sandbag,vocab__sandbag,1.0000,0.8120,0.9090,-1.916600,1.479938,-1.889221,-1.806200,-1.575897,0.2500,true,rare_vocab,2.430,CEILING,the sandbag
+vocab_word_scaffolding,vocab__scaffolding,1.0000,0.8560,0.7210,-0.161800,-0.611488,-2.071241,-2.560062,-2.652966,0.2500,true,rare_vocab,3.100,CEILING,the scaffolding
+vocab_word_scoop,vocab__scoop,1.0000,0.8560,0.9460,-1.075300,1.770256,-2.317473,-2.253868,-1.880668,0.2500,true,rare_vocab,3.690,CEILING,the scoop
+vocab_word_seagull,vocab__seagull,1.0000,0.8560,0.8760,-3.040200,1.111044,-2.037853,-1.830467,-1.885127,0.2500,true,rare_vocab,3.020,CEILING,the seagull
+vocab_word_ship,vocab__ship,1.0000,0.8560,0.7900,,1.188957,-2.834980,,,0.2500,false,rare_vocab,4.930,CEILING,the ship
+vocab_word_shower,vocab__shower,1.0000,0.8560,0.9350,-4.175900,3.950138,-2.655522,-2.672719,-1.815191,0.2500,true,rare_vocab,4.500,CEILING,the shower
+vocab_word_silverware,vocab__silverware,1.0000,0.8560,0.7980,-2.313600,0.995654,-2.062894,-1.961344,-1.895972,0.2500,true,rare_vocab,3.080,CEILING,the silverware
+vocab_word_sink,vocab__sink,1.0000,0.8560,0.8940,,,-2.534492,,,0.2500,false,rare_vocab,4.210,CEILING,the sink
+vocab_word_ski,vocab__ski,1.0000,0.8560,0.7760,-3.340400,2.072599,-2.501105,-2.647851,-2.652966,0.2500,true,rare_vocab,4.130,CEILING,the ski
+vocab_word_sloth,vocab__sloth,1.0000,0.8560,0.9250,-3.040900,2.126161,-2.071241,-2.089739,-1.880668,0.2500,true,rare_vocab,3.100,CEILING,the sloth
+vocab_word_snail,vocab__snail,1.0000,0.8560,0.9540,-2.634800,2.340997,-2.309126,-2.228524,-1.885127,0.2500,true,rare_vocab,3.670,CEILING,the snail
+vocab_word_sprinkler,vocab__sprinkler,1.0000,0.8560,0.7600,-2.512500,0.676297,-2.050373,-1.800513,-1.815191,0.2500,true,rare_vocab,3.050,CEILING,the sprinkler
+vocab_word_squirrel,vocab__squirrel,1.0000,0.8560,0.9810,,,-2.317473,,,0.2500,false,rare_vocab,3.690,CEILING,the squirrel
+vocab_word_stew,vocab__stew,1.0000,0.8560,0.8370,-0.044600,-0.634275,-2.229831,-2.184020,-1.895972,0.2500,true,rare_vocab,3.480,CEILING,the stew
+vocab_word_rubberband,vocab__rubberband,1.0000,0.8560,0.9400,,,-2.509452,,,0.2500,false,rare_vocab,4.150,CEILING,the rubber band
+vocab_word_stump,vocab__stump,1.0000,0.8560,0.5710,-1.743700,0.839109,-2.217311,-2.589893,-2.652966,0.2500,true,rare_vocab,3.450,CEILING,the stump
+vocab_word_sunflower,vocab__sunflower,1.0000,0.8560,0.9270,-4.155500,3.157223,-2.179750,-2.162067,-1.880668,0.2500,true,rare_vocab,3.360,CEILING,the sunflower
+vocab_word_swordfish,vocab__swordfish,1.0000,0.8160,0.6500,-0.429100,-0.046741,-2.034276,-2.125871,-1.612400,0.2500,true,rare_vocab,2.670,CEILING,the swordfish
+vocab_word_teabag,vocab__teabag,1.0000,0.8080,0.8630,,0.955745,-1.723930,,,0.2500,false,rare_vocab,2.140,CEILING,the teabag
+vocab_word_telescope,vocab__telescope,1.0000,0.8560,0.8870,-3.363900,2.050671,-2.342514,-2.221578,-1.815191,0.2500,true,rare_vocab,3.750,CEILING,the telescope
+vocab_word_thermos,vocab__thermos,1.0000,0.8150,0.9140,-0.426800,-0.095363,-2.014645,-1.961479,-1.595934,0.2500,true,rare_vocab,2.650,CEILING,the thermos
+vocab_word_treasure,vocab__treasure,1.0000,0.8560,0.8310,-3.186600,1.794237,-2.517798,-2.651260,-2.652966,0.2500,true,rare_vocab,4.170,CEILING,the treasure
+vocab_word_trumpet,vocab__trumpet,1.0000,0.8560,0.9770,,,-2.271566,,,0.2500,false,rare_vocab,3.580,CEILING,the trumpet
+vocab_word_tulip,vocab__tulip,1.0000,0.8560,0.6480,-1.373600,-0.068521,-2.104628,-2.111994,-1.880668,0.2500,true,rare_vocab,3.180,CEILING,the tulip
+vocab_word_turkey,vocab__turkey,1.0000,0.8560,0.8790,-4.434300,2.480302,-2.680562,-2.773555,-1.885127,0.2500,true,rare_vocab,4.560,CEILING,the turkey
+vocab_word_turtle,vocab__turtle,1.0000,0.8560,0.9770,,,-2.409289,,,0.2500,false,rare_vocab,3.910,CEILING,the turtle
+vocab_word_watermelon,vocab__watermelon,1.0000,0.8560,0.9830,,,-2.175576,,,0.2500,false,rare_vocab,3.350,CEILING,the watermelon
+vocab_word_ant,vocab__ant,1.0000,0.8560,0.9830,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the ant
+vocab_word_ball,vocab__ball,1.0000,0.8560,0.9360,-4.447400,4.657985,-2.200617,-2.017060,-1.815191,0.2500,true,rare_vocab,3.410,CEILING,the ball
+vocab_word_bear,vocab__bear,1.0000,0.8560,0.9570,-4.513400,,-2.200617,-2.145052,-1.895972,0.2500,true,rare_vocab,3.410,CEILING,the bear
+vocab_word_duck,vocab__duck,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the duck
+vocab_word_fork,vocab__fork,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the fork
+vocab_word_kitten,vocab__kitten,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the kitten
+vocab_word_knee,vocab__knee,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the knee
+vocab_word_milkshake,vocab__milkshake,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the milkshake
+vocab_word_skin,vocab__skin,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the skin
+vocab_word_wall,vocab__wall,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the wall
+vocab_word_wheel,vocab__wheel,1.0000,0.8560,,,,-2.200617,,,0.2500,false,rare_vocab,3.410,CEILING,the wheel
+vocab_word_farm,vocab__farm,1.0000,0.8560,0.8520,,2.105561,-2.759858,,,0.2500,false,rare_vocab,4.750,CEILING,the farm
+vocab_word_juggling,vocab__juggling,1.0000,0.8560,0.9590,,,-2.125495,,,0.2500,false,rare_vocab,3.230,CEILING,juggling
+vocab_word_dressing,vocab__dressing,1.0000,0.8560,0.5800,-1.486700,-0.252869,-2.517798,-2.651260,-2.652966,0.2500,true,rare_vocab,4.170,CEILING,the dressing
+vocab_word_roof,vocab__roof,1.0000,0.8560,0.9150,-3.260500,2.278317,-2.676389,-2.493106,-1.880668,0.2500,true,rare_vocab,4.550,CEILING,the roof
+vocab_word_peeking,vocab__peeking,1.0000,0.8210,0.8150,-3.248700,1.982298,-2.212359,-2.355887,-1.644028,0.2500,true,rare_vocab,2.960,CEILING,peeking
+vocab_word_ruler,vocab__ruler,1.0000,0.8560,0.9290,,0.452365,-2.380075,,,0.2500,false,rare_vocab,3.840,CEILING,the ruler
+vocab_word_tunnel,vocab__tunnel,1.0000,0.8560,0.9390,,,-2.547012,,,0.2500,false,rare_vocab,4.240,CEILING,the tunnel
+vocab_word_envelope,vocab__envelope,1.0000,0.8560,0.8470,-1.972500,1.580035,-2.388422,-2.287745,-1.815191,0.2500,true,rare_vocab,3.860,CEILING,the envelope
+vocab_word_diamond,vocab__diamond,1.0000,0.8560,0.7720,-2.370600,0.789800,-2.622134,-2.707311,-1.895972,0.2500,true,rare_vocab,4.420,CEILING,the diamond
+vocab_word_calendar,vocab__calendar,1.0000,0.8560,0.8140,-3.775500,2.432010,-2.572053,-2.662340,-2.652966,0.2500,true,rare_vocab,4.300,CEILING,the calendar
+vocab_word_panda,vocab__panda,1.0000,0.8560,0.8770,-4.054900,3.241915,-2.300780,-2.242740,-1.880668,0.2500,true,rare_vocab,3.650,CEILING,the panda
+vocab_word_arrow,vocab__arrow,1.0000,0.8560,0.7430,-0.827400,-0.231358,-2.501105,-2.510225,-1.885127,0.2500,true,rare_vocab,4.130,CEILING,the arrow
+vocab_word_picking,vocab__picking,1.0000,0.8560,0.8210,-2.994900,1.582794,-2.630481,-2.636628,-1.815191,0.2500,true,rare_vocab,4.440,CEILING,picking
+vocab_word_dripping,vocab__dripping,1.0000,0.8560,0.7050,-2.047800,1.335373,-2.229831,-2.184020,-1.895972,0.2500,true,rare_vocab,3.480,CEILING,dripping
+vocab_word_knight,vocab__knight,1.0000,0.8560,0.8810,,1.352938,-2.563706,,,0.2500,false,rare_vocab,4.280,CEILING,the knight
+vocab_word_delivering,vocab__delivering,1.0000,0.8560,0.7180,-2.065900,1.333034,-2.484411,-2.644442,-2.652966,0.2500,true,rare_vocab,4.090,CEILING,delivering
+vocab_word_dentist,vocab__dentist,1.0000,0.8560,0.8130,-2.829600,1.444296,-2.388422,-2.301159,-1.880668,0.2500,true,rare_vocab,3.860,CEILING,the dentist
+vocab_word_uniform,vocab__uniform,1.0000,0.8560,0.7120,-0.777600,-1.405539,-2.584573,-2.632704,-1.885127,0.2500,true,rare_vocab,4.330,CEILING,the uniform
+vocab_word_furry,vocab__furry,1.0000,0.8560,0.8440,-2.538400,2.068729,-2.263219,-2.107289,-1.815191,0.2500,true,rare_vocab,3.560,CEILING,furry
+vocab_word_fetch,vocab__fetch,1.0000,0.8560,0.7970,-1.910900,0.906107,-2.300780,-2.278658,-1.895972,0.2500,true,rare_vocab,3.650,CEILING,fetch
+vocab_word_applaud,vocab__applaud,1.0000,0.8560,0.9500,,0.985720,-2.221484,,,0.2500,false,rare_vocab,3.460,CEILING,applaud
+vocab_word_camp,vocab__camp,1.0000,0.8560,0.8300,-3.686800,2.802823,-2.776552,-2.704104,-2.652966,0.2500,true,rare_vocab,4.790,CEILING,the camp
+vocab_word_tumble,vocab__tumble,1.0000,0.8560,0.8910,-1.228800,0.551416,-2.200617,-2.175976,-1.880668,0.2500,true,rare_vocab,3.410,CEILING,tumble
+vocab_word_kazoo,vocab__kazoo,1.0000,0.8110,0.4140,-0.698100,-1.084671,-1.844711,-1.878436,-1.581348,0.2500,true,rare_vocab,2.350,CEILING,the kazoo
+vocab_word_chat,vocab__chat,1.0000,0.8560,0.7950,-3.196000,1.210536,-2.684736,-2.714825,-1.815191,0.2500,true,rare_vocab,4.570,CEILING,chat
+vocab_word_steam,vocab__steam,1.0000,0.8560,0.8120,-1.432300,1.112978,-2.663869,-2.762980,-1.895972,0.2500,true,rare_vocab,4.520,CEILING,the steam
+vocab_word_bandage,vocab__bandage,1.0000,0.8560,0.7830,-3.114200,3.701644,-2.129669,-2.571995,-2.652966,0.2500,true,rare_vocab,3.240,CEILING,the bandage

@@ -14,6 +14,8 @@
  *   node tools/vlm-panel/estimate_difficulty.mjs --task trog
  *   node tools/vlm-panel/estimate_difficulty.mjs --task vocab --lang en
  *   node tools/vlm-panel/estimate_difficulty.mjs --task trog --baseline out/d_est_trog_en_baseline.json
+ *   node tools/vlm-panel/estimate_difficulty.mjs --task stories --lang en
+ *   node tools/vlm-panel/estimate_difficulty.mjs --task matrix --lang en
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -73,6 +75,30 @@ const TASK_CFG = {
       const m = /^vocab_word_(.+)$/.exec(uid);
       return m ? `vocab__${m[1]}` : uid;
     },
+  },
+  /** QA task id `stories` = theory-of-mind bank; UIDs `tom_*`. */
+  stories: {
+    bankFile: 'sim-item-bank-theory-of-mind.csv',
+    defaultScreen: (lang) => `screen_stories_${lang}.csv`,
+    passRates: 'item_pass_rates_stories.json',
+    benchParams: 'theory-of-mind_item_params.csv',
+    // Bench IRT rows are tom_storyN_*; bank/screen use tom_*.
+    toBankUid: (uid) => {
+      const m = /^tom_story\d+_(.+)$/i.exec(String(uid || ''));
+      return m ? `tom_${m[1]}` : uid;
+    },
+    // Bank has no shipped difficulty — seed fit anchors from bench IRT
+    // (easiness-coded export → flip so higher = harder, like CAT d).
+    seedAnchorsFromBench: true,
+    flipBenchDifficulty: true,
+  },
+  /** Matrix Reasoning — bank `difficulty` is filled; features = z only. */
+  matrix: {
+    bankFile: 'sim-item-bank-matrix-reasoning.csv',
+    defaultScreen: (lang) => `screen_matrix_${lang}.csv`,
+    passRates: 'item_pass_rates_matrix.json',
+    benchParams: 'matrix-reasoning_item_params.csv',
+    toBankUid: (uid) => uid,
   },
 };
 
@@ -400,9 +426,27 @@ function loadBenchParams(cfg) {
   for (const r of readCsv(path)) {
     const uid = (r.item_uid || '').trim();
     const d = parseBankD(r.difficulty) ?? parseBankD(r.d);
-    if (uid && d != null) byUid.set(uid, d);
+    if (!uid || d == null) continue;
+    byUid.set(uid, d);
+    const bankUid = cfg.toBankUid(uid);
+    if (bankUid && bankUid !== uid) byUid.set(bankUid, d);
   }
   return { path, byUid };
+}
+
+/** When bank d is blank, use bench IRT as in-memory anchors for the hybrid fit. */
+function seedBankAnchorsFromBench(bank, bench, cfg) {
+  if (!cfg.seedAnchorsFromBench || !bench?.byUid?.size) return { seeded: 0 };
+  let seeded = 0;
+  for (const [uid, row] of bank.byUid) {
+    if (row.d_bank != null) continue;
+    const raw = bench.byUid.get(uid);
+    if (raw == null) continue;
+    row.d_bank = cfg.flipBenchDifficulty ? -raw : raw;
+    row.d_bank_source = 'bench_irt';
+    seeded += 1;
+  }
+  return { seeded };
 }
 
 function loadPassRates(cfg) {
@@ -441,6 +485,7 @@ function resolveHuman(screenP, passRates, bankUid, screenUid) {
 
 function featureNamesFor(task) {
   if (task === 'trog') return ['z', ...TROG_TAG_FEATURES];
+  if (task === 'stories' || task === 'matrix') return ['z']; // pass-rate → difficulty
   return ['z', 'zipf', 'rare'];
 }
 
@@ -451,6 +496,8 @@ function buildFeatureRow(task, row, zipfLex) {
   if (task === 'trog') {
     const tags = new Set(tagResidual(row.item_uid, row.transcript));
     for (const t of TROG_TAG_FEATURES) feats.push(tags.has(t) ? 1 : 0);
+  } else if (task === 'stories' || task === 'matrix') {
+    // z only
   } else {
     const zf = zipfLex.byUid.get(row.item_uid) ?? zipfLex.median;
     feats.push(zf);
@@ -492,6 +539,13 @@ function main() {
 
   const bank = loadBank(task, cfg);
   const bench = loadBenchParams(cfg);
+  const seedInfo = seedBankAnchorsFromBench(bank, bench, cfg);
+  if (cfg.seedAnchorsFromBench) {
+    console.log(
+      `Seeded ${seedInfo.seeded} bank anchors from bench IRT` +
+        (cfg.flipBenchDifficulty ? ' (flipped easiness→harder-higher)' : ''),
+    );
+  }
   const passRates = loadPassRates(cfg);
   const zipfLex = task === 'vocab' ? loadZipfLexicon() : { path: null, byUid: new Map(), median: 3.5 };
 

@@ -20,6 +20,7 @@ export const TASK_TO_BENCH = {
   trog: 'trog',
   vocab: 'vocab',
   stories: 'theory-of-mind',
+  matrix: 'matrix-reasoning',
 };
 
 export function benchRoot() {
