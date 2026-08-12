@@ -640,6 +640,10 @@ export const SwrTrialRecordSchema = z.object({
   modelRaw: z.string().nullable().default(null),
   latencyMs: z.number().nonnegative().nullable().default(null),
   timedOut: z.boolean().nullable().default(null),
+  /** Runtime roar-swr store markers (adaptiveTimingMultiStage / userMode). */
+  userMode: z.string().nullable().default(null),
+  blockIndex: z.number().int().nullable().default(null),
+  presentationTime: z.union([z.number(), z.string()]).nullable().default(null),
 });
 export type SwrTrialRecord = z.infer<typeof SwrTrialRecordSchema>;
 

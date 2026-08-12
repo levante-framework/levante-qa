@@ -16,6 +16,7 @@
  * Optional assessment param overrides (merged into administration + assignment):
  *   --param isAdaptive=true
  *   --param isAdaptive=false
+ *   --param userMode=adaptiveTimingMultiStage   # SWR CAT variant (also set QA_SWR_USER_MODE)
  */
 import 'dotenv/config';
 
@@ -385,6 +386,30 @@ async function main() {
     console.log(
       '[qa-provision] isAdaptive requested — not written to Firestore ' +
         '(permission-denied on updateTaskParams). Run Cypress with QA_PA_IS_ADAPTIVE=true.',
+    );
+  }
+  // Same for SWR userMode (adaptiveTimingMultiStage, etc.): inject at runtime via
+  // QA_SWR_USER_MODE + swrUserModeBridge (userParams), not gameParams / Firestore.
+  const envSwrMode = process.env.QA_SWR_USER_MODE;
+  if (
+    envSwrMode !== undefined &&
+    String(envSwrMode).trim() !== '' &&
+    args.paramOverrides.userMode === undefined
+  ) {
+    args.paramOverrides.userMode = String(envSwrMode).trim();
+  }
+  const wantSwrUserMode =
+    typeof args.paramOverrides.userMode === 'string'
+      ? String(args.paramOverrides.userMode).trim()
+      : '';
+  if ('userMode' in args.paramOverrides) {
+    delete args.paramOverrides.userMode;
+  }
+  if (wantSwrUserMode) {
+    console.log(
+      `[qa-provision] userMode=${wantSwrUserMode} requested — not written to Firestore ` +
+        '(updateTaskParams / gameParams). Run Cypress with ' +
+        `QA_SWR_USER_MODE=${wantSwrUserMode}.`,
     );
   }
   const assessment = await buildAssessment(db, args.task, args.language, args.paramOverrides);

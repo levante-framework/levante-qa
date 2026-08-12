@@ -169,8 +169,24 @@ export function launchRoarTask(taskId: string): void {
       cy.wrap($link.first()).scrollIntoView().click({ force: true });
       return;
     }
+    // Local vite GameTabs uses `.game-card--available` (href may be `/` when
+    // variantURL is set); still try the card before cold-navigating.
+    const $card = $b.find('a.game-card--available').filter(':visible');
+    if ($card.length) {
+      traceRoar('launchRoarTask:click-game-card', { taskId, cardsVisible: $card.length });
+      cy.wrap($card.first()).scrollIntoView().click({ force: true });
+      return;
+    }
     traceRoar('launchRoarTask:fallback-direct-visit', { taskId });
     cy.visit(`${dashboardBase()}/game/${taskId}`, { onBeforeLoad: withQaLocale(() => {}) });
+  });
+
+  // If the card click left us on home (e.g. href="/"), cold-navigate.
+  cy.location('pathname', { timeout: 30000 }).then((pathname) => {
+    if (!String(pathname).includes(`/game/${taskId}`)) {
+      traceRoar('launchRoarTask:retry-direct-visit', { taskId, pathname: String(pathname) });
+      cy.visit(`${dashboardBase()}/game/${taskId}`, { onBeforeLoad: withQaLocale(() => {}) });
+    }
   });
 
   cy.location('pathname', { timeout: 120000 }).should('include', `/game/${taskId}`);

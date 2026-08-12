@@ -1,6 +1,7 @@
 import { defineConfig } from 'cypress';
 import { existsSync, mkdirSync, appendFileSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import * as dotenv from 'dotenv';
 
 const PANEL_STATUS_PATH = join(process.cwd(), 'tools', 'vlm-panel', 'out', 'status.json');
@@ -244,6 +245,24 @@ export default defineConfig({
         },
 
         /**
+         * Disk-patch local vite `@bdelab_roar-swr` prebundle for QA_SWR_USER_MODE
+         * (force runtime userMode; keep Firestore updateTaskParams on stock params).
+         */
+        patchRoarSwrUserMode(mode: string) {
+          const out = execFileSync(
+            process.execPath,
+            [join(process.cwd(), 'scripts/e2e-init/patch-roar-swr-usermode.mjs'), mode || ''],
+            { encoding: 'utf8' },
+          );
+          return JSON.parse(out) as {
+            ok: boolean;
+            reason?: string;
+            forcedS2?: boolean;
+            path?: string;
+          };
+        },
+
+        /**
          * Fetches an mp3 and returns its parsed ID3 tags, including the canonical
          * narration transcript. Results are cached by URL inside the reader.
          */
@@ -459,6 +478,7 @@ export default defineConfig({
         'QA_TIMED_AGE_MONTHS',
         'QA_TIMED_SEED',
         'QA_PA_IS_ADAPTIVE',
+        'QA_SWR_USER_MODE',
         'QA_PERSONA_AGE_YEARS',
         'QA_PERSONA_AGE_MONTHS',
         'QA_PERSONA_ABILITY',

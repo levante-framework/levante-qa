@@ -6,6 +6,11 @@ import {
   trialRecordOracleFlag,
 } from '../../support/agentMode';
 import { launchTask } from '../../support/launch';
+import {
+  installSwrUserModeBridge,
+  installSwrUserModeFlag,
+  swrUserModeRuntime,
+} from '../../support/swrUserModeBridge';
 import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
   advanceSwrLexicalityTutorial,
@@ -17,10 +22,12 @@ import {
   hasActiveStimulus,
   isDashboardReroute,
   isProgressComplete,
+  isSwrAnswerableTrial,
+  isSwrBreakScreen,
   readCorrectLrFromWindow,
+  readSwrRuntimeMeta,
+  readSwrTrialKey,
   scoreTrials,
-  SWR_ASSET_WAIT_MS,
-  SWR_STEP_MS,
 } from '../../support/tasks/swr';
 import { parseSwrTrialRecord, type SwrTrialRecord } from '../../support/tasks/types';
 
@@ -28,6 +35,10 @@ const TASK = 'swr';
 const LIVE_LOG = `cypress/logs/_swr_${agentLogStem()}_live.jsonl`;
 const NO_LR_LOG = 'cypress/logs/_swr_no_correct_lr.jsonl';
 const MAX_ITER = 800;
+/** Poll when waiting for the next stimulus / break (must be << 350ms timed flash). */
+const POLL_MS = 80;
+/** Brief settle after a keypress before the next poll. */
+const AFTER_ANSWER_MS = 120;
 
 describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correctLR)'}`, () => {
   const records: SwrTrialRecord[] = [];
@@ -37,10 +48,25 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
   let nItems = 0;
   let nBreaks = 0;
   let nNoLr = 0;
+  let sawTimedStage = false;
+  let sawUntimedStage = false;
+  let loggedMode = false;
+  let lastAnsweredKey: string | null = null;
+  let seenTrialKey: string | null = null;
 
   function logRecord(
     input: Pick<SwrTrialRecord, 'timestamp' | 'itemType' | 'oracle'> &
-      Partial<Pick<SwrTrialRecord, 'correctLr' | 'breakMarker' | 'correct'>>,
+      Partial<
+        Pick<
+          SwrTrialRecord,
+          | 'correctLr'
+          | 'breakMarker'
+          | 'correct'
+          | 'userMode'
+          | 'blockIndex'
+          | 'presentationTime'
+        >
+      >,
   ): void {
     step += 1;
     const rec = parseSwrTrialRecord({ ...input, task: TASK, step });
@@ -52,13 +78,22 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_swr_${ts}.jsonl`, records });
     const stats = scoreTrials(records);
+    const requestedMode = swrUserModeRuntime();
 
     cy.wrap(null).then(() => {
       expect(taskComplete || gameComplete, 'SWR run reached completion').to.equal(true);
       expect(stats.nItems, 'scored SWR item trials').to.be.greaterThan(0);
       expect(nNoLr, `trials with no session correctLR (see ${NO_LR_LOG})`).to.equal(0);
       expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
-      cy.log(`items: ${nItems}, breaks: ${nBreaks}`);
+      cy.log(
+        `items: ${nItems}, breaks: ${nBreaks}, sawUntimedStage: ${sawUntimedStage}, sawTimedStage: ${sawTimedStage}`,
+      );
+      if (requestedMode === 'adaptiveTimingMultiStage') {
+        expect(sawUntimedStage, 'adaptiveTimingMultiStage untimed stage (presentationTime infinite/null)').to.equal(
+          true,
+        );
+        expect(sawTimedStage, 'adaptiveTimingMultiStage timed stage (350 / stage complete)').to.equal(true);
+      }
     });
   }
 
@@ -69,42 +104,60 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
       return;
     }
 
-    cy.wait(SWR_ASSET_WAIT_MS * 0.15, { log: false });
-    cy.get('body', { log: false })
-      .invoke('text')
-      .then((text) => {
+    cy.window({ log: false }).then((win) => {
+      cy.get('body', { log: false }).then(($b) => {
+        const text = $b.text();
         if (isDashboardReroute(text)) {
           taskComplete = true;
           finalize();
           return;
         }
 
-        cy.window({ log: false }).then((win) => {
-          if (isProgressComplete(win.document)) {
-            gameComplete = true;
-            finalize();
-            return;
-          }
+        const doc = win.document;
+        if (isProgressComplete(doc)) {
+          gameComplete = true;
+          finalize();
+          return;
+        }
 
-          const doc = win.document;
-          if (!hasActiveStimulus(doc)) {
-            nBreaks += 1;
-            logRecord({
-              timestamp: new Date().toISOString(),
-              itemType: 'break',
-              breakMarker: 'block_transition',
-              correctLr: null,
-              correct: null,
-              oracle: trialRecordOracleFlag(),
-            });
-            // Break / practice-feedback screens advance on a specific arrow
-            // ("press the right arrow to continue"), so press both (mirrors
-            // roar-dashboard's blind arrow presses) plus any Continue button.
-            cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
-            if (!isProgressComplete(doc)) {
-              clickSwrContinue();
-            }
-            cy.wait(SWR_STEP_MS * 0.2, { log: false });
+        const meta = readSwrRuntimeMeta(win);
+        if (!loggedMode && meta.userMode) {
+          loggedMode = true;
+          cy.log(
+            `SWR runtime userMode=${meta.userMode} blockIndex=${meta.blockIndex} ` +
+              `presentationTime=${meta.presentationTime} firstStageComplete=${meta.firstStageComplete}`,
+          );
+        }
+        if (
+          meta.firstStageComplete === true ||
+          meta.blockIndex === 1 ||
+          meta.presentationTime === 350
+        ) {
+          sawTimedStage = true;
+        }
+        if (
+          meta.presentationTime === null ||
+          meta.presentationTime === 'infinite' ||
+          meta.presentationTime === 'Infinity'
+        ) {
+          sawUntimedStage = true;
+        }
+
+        if (hasActiveStimulus(doc)) {
+          const k = readSwrTrialKey(win);
+          if (k) seenTrialKey = k;
+        }
+
+        if (
+          isSwrAnswerableTrial(doc, win, text, {
+            seenTrialKey,
+            lastAnsweredKey,
+          })
+        ) {
+          const trialKey = readSwrTrialKey(win);
+          // One keypress per trial — even while .stimulus is still on screen.
+          if (trialKey && trialKey === lastAnsweredKey) {
+            cy.wait(POLL_MS, { log: false });
             playTrials(iterLeft - 1);
             return;
           }
@@ -126,13 +179,13 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
               },
               { log: false },
             );
-            // Advance anyway so an unreadable trial can't stall the whole run.
             cy.get('body', { log: false }).type('{leftarrow}', { log: false });
-            cy.wait(SWR_STEP_MS * 0.08, { log: false });
+            cy.wait(AFTER_ANSWER_MS, { log: false });
             playTrials(iterLeft - 1);
             return;
           }
 
+          lastAnsweredKey = trialKey;
           nItems += 1;
           logRecord({
             timestamp: new Date().toISOString(),
@@ -141,19 +194,55 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
             breakMarker: null,
             correct: !isWrongAgentMode(),
             oracle: trialRecordOracleFlag(),
+            userMode: meta.userMode,
+            blockIndex: meta.blockIndex,
+            presentationTime: meta.presentationTime,
           });
           cy.get('body', { log: false }).type(arrowKeyForLr(lr, isWrongAgentMode()), { log: false });
-          cy.wait(SWR_STEP_MS * 0.08, { log: false });
+          cy.wait(AFTER_ANSWER_MS, { log: false });
           playTrials(iterLeft - 1);
-        });
+          return;
+        }
+
+        // Block / stage-transition break (not inter-trial gaps).
+        if (isSwrBreakScreen(doc, text)) {
+          nBreaks += 1;
+          logRecord({
+            timestamp: new Date().toISOString(),
+            itemType: 'break',
+            breakMarker: 'block_transition',
+            correctLr: null,
+            correct: null,
+            oracle: trialRecordOracleFlag(),
+            userMode: meta.userMode,
+            blockIndex: meta.blockIndex,
+            presentationTime: meta.presentationTime,
+          });
+          // Break / practice-feedback screens advance on a specific arrow
+          // ("press the right arrow to continue"), so press both (mirrors
+          // roar-dashboard's blind arrow presses) plus any Continue button.
+          cy.get('body', { log: false }).type('{leftarrow}{rightarrow}', { log: false });
+          if (!isProgressComplete(doc)) {
+            clickSwrContinue();
+          }
+        }
+        cy.wait(POLL_MS, { log: false });
+        playTrials(iterLeft - 1);
       });
+    });
   }
 
   it('completes roar-swr by pressing sessionStorage correctLR through all blocks', () => {
+    const requested = swrUserModeRuntime();
+    cy.log(`QA_SWR_USER_MODE=${requested ?? '(unset)'}`);
+    installSwrUserModeBridge();
     launchTask({
       taskId: 'swr',
       demoUrl: 'about:blank',
-      onBeforeLoad: installAudioCapture,
+      onBeforeLoad: (win) => {
+        installSwrUserModeFlag(win);
+        installAudioCapture(win);
+      },
     });
 
     waitForRoarJsPsych();

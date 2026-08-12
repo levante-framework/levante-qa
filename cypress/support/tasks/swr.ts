@@ -19,6 +19,8 @@ import {
 
 interface SwrStimulus {
   correct_response?: string;
+  stimulus?: string;
+  id?: string | number;
 }
 
 function lrFromArrow(value: unknown): CorrectLr | null {
@@ -65,6 +67,99 @@ export function readCorrectLrFromWindow(win: Window): CorrectLr | null {
   } catch {
     return null;
   }
+}
+
+export type SwrRuntimeMeta = {
+  userMode: string | null;
+  blockIndex: number | null;
+  presentationTime: number | string | null;
+  firstStageComplete: boolean | null;
+};
+
+/** Read adaptiveTiming / userMode markers from roar-swr store2. */
+export function readSwrRuntimeMeta(win: Window): SwrRuntimeMeta {
+  try {
+    const store = collectStore(win);
+    const config =
+      store.config && typeof store.config === 'object'
+        ? (store.config as Record<string, unknown>)
+        : null;
+    const userMode =
+      (typeof config?.userMode === 'string' && config.userMode) ||
+      (typeof store.userMode === 'string' && store.userMode) ||
+      null;
+    const blockRaw = store.currentBlockIndex;
+    const blockIndex =
+      typeof blockRaw === 'number'
+        ? blockRaw
+        : typeof blockRaw === 'string' && Number.isFinite(Number(blockRaw))
+          ? Number(blockRaw)
+          : null;
+    const pt = store.presentationTime;
+    const presentationTime =
+      typeof pt === 'number' || typeof pt === 'string' ? pt : pt === null ? 'infinite' : null;
+    const firstStageComplete =
+      typeof store.adaptiveTimingFirstStageComplete === 'boolean'
+        ? store.adaptiveTimingFirstStageComplete
+        : null;
+    return { userMode, blockIndex, presentationTime, firstStageComplete };
+  } catch {
+    return {
+      userMode: null,
+      blockIndex: null,
+      presentationTime: null,
+      firstStageComplete: null,
+    };
+  }
+}
+
+/** Stable id for the current item (dedupe answers on timed post-flash polls). */
+export function readSwrTrialKey(win: Window): string | null {
+  try {
+    const store = collectStore(win);
+    const next = store.nextStimulus as SwrStimulus | null | undefined;
+    if (next && typeof next === 'object') {
+      const stim =
+        typeof (next as { stimulus?: unknown }).stimulus === 'string'
+          ? (next as { stimulus: string }).stimulus
+          : '';
+      const cr =
+        typeof next.correct_response === 'string' ? next.correct_response : '';
+      const id =
+        typeof (next as { id?: unknown }).id === 'string' ||
+        typeof (next as { id?: unknown }).id === 'number'
+          ? String((next as { id: string | number }).id)
+          : '';
+      if (stim || cr || id) return `${id}|${stim}|${cr}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Timed trials clear `.stimulus` before the keyboard response is collected.
+ * Only answer without a visible stimulus when we already saw this trial's
+ * flash (`seenTrialKey`) — never on presentationTime alone (shortRandom is
+ * also 350ms and would double-fire between trials).
+ */
+export function isSwrAnswerableTrial(
+  doc: Document,
+  win: Window,
+  bodyText: string,
+  opts?: { seenTrialKey?: string | null; lastAnsweredKey?: string | null },
+): boolean {
+  if (hasActiveStimulus(doc)) return true;
+  if (isSwrBreakScreen(doc, bodyText)) return false;
+  const lr = readCorrectLrFromWindow(win);
+  if (!lr) return false;
+  const key = readSwrTrialKey(win);
+  const seen = opts?.seenTrialKey ?? null;
+  const answered = opts?.lastAnsweredKey ?? null;
+  if (!key || key !== seen || key === answered) return false;
+  // Post-flash response window: we already observed this trial's stimulus.
+  return true;
 }
 
 export const SWR_ROUTE = '/game/swr';
@@ -136,6 +231,12 @@ export function swrStartupComplete(doc: Document, bodyText: string, win: Window)
   if (progressStarted(doc)) return true;
   if (readCorrectLrFromWindow(win)) return true;
   return false;
+}
+
+/** True when SWR is on a block/transition break (arrows + Continue), not a trial. */
+export function isSwrBreakScreen(doc: Document, bodyText: string): boolean {
+  if (hasActiveStimulus(doc)) return false;
+  return bodyLooksLikeSwrBlockBreak(bodyText);
 }
 
 function bodyLooksLikeSwrBlockBreak(text: string): boolean {

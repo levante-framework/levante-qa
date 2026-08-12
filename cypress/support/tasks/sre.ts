@@ -164,7 +164,12 @@ export function isDashboardReroute(bodyText: string): boolean {
 }
 
 export function hasActiveStimulus(doc: Document): boolean {
-  return doc.querySelectorAll(STIMULUS).length > 0;
+  const nodes = doc.querySelectorAll(STIMULUS);
+  for (let i = 0; i < nodes.length; i++) {
+    const text = (nodes[i].textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (text.length > 0) return true;
+  }
+  return false;
 }
 
 /** Visible sentence/text on an active SRE trial (normalized). */

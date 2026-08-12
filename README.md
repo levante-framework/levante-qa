@@ -992,9 +992,32 @@ These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`,
 **SWR (single word recognition)** — wired in levante-qa:
 
 - **Launch:** `/game/swr` via `launchRoarTask()`; provision with `--task swr`.
-- **Answer key:** store2 session `correctLR` → arrow keys when `.stimulus` is visible; block ends use left + Continue (roar-dashboard `swrHelpers.js`).
+- **Answer key:** store2 session `correctLR` → arrow keys when `.stimulus` is visible (or after timed flash); block / stage-transition breaks use left+right + Continue (roar-dashboard `swrHelpers.js`).
 - **Support:** `cypress/support/tasks/swr.ts` (`advanceSwrStartup` dismisses fullscreen/audio before Lexicality).
 - **Oracle:** `cypress/e2e/swr/oracle.cy.ts` — `pnpm cy:run:swr:oracle`.
+- **Adaptive timing CAT (`userMode=adaptiveTimingMultiStage`):** like PA’s `QA_PA_IS_ADAPTIVE`, do **not** write `userMode` into Firestore gameParams (`updateTaskParams` rejects it). Provision strips `--param userMode=…`; inject at runtime with `QA_SWR_USER_MODE`. Hosted `hs-levante-admin-dev` may ship a roar-swr build **without** this mode — use a local dashboard whose `@bdelab/roar-swr` includes `adaptiveTimingMultiStage` (1.17.5+).
+
+  Because roar-swr still merges `userParams.userMode` into the Firestore write, also disk-patch the local vite prebundle so `updateTaskParams` keeps stock gameParams, then **restart vite without `--force`** (vite keeps deps in memory):
+
+  ```bash
+  # once per dashboard vite session:
+  export LEVANTE_DASHBOARD_ROOT=/path/to/levante-dashboard
+  node scripts/e2e-init/patch-roar-swr-usermode.mjs adaptiveTimingMultiStage
+  # restart: cd "$LEVANTE_DASHBOARD_ROOT" && npx vite --host 127.0.0.1 --port 5173
+
+  node scripts/e2e-init/provision-participant.mjs \
+    --task swr --language en --age-years 8 \
+    --param userMode=adaptiveTimingMultiStage
+  # prints credentials; userMode is NOT written to Firestore — use QA_SWR_USER_MODE:
+
+  LAUNCH=dashboard \
+    DASHBOARD_URL=http://127.0.0.1:5173 \
+    PARTICIPANT_USER=... PARTICIPANT_PASS=... \
+    QA_SWR_USER_MODE=adaptiveTimingMultiStage \
+    pnpm cy:run:swr:oracle
+  ```
+
+  The Cypress bridge (`swrUserModeBridge`) re-applies the stock-j2 patch via `cy.task` and sets `window.__QA_SWR_USER_MODE`. Local `TaskSWR.vue` must forward that onto `userParams` when set (gated; no-op in production). Expect `userMode=adaptiveTimingMultiStage`, untimed (`presentationTime` infinite/null) and timed (`350`) stages, and 100% oracle accuracy. Restore the prebundle with `node scripts/e2e-init/patch-roar-swr-usermode.mjs ""` when done.
 - **Explore:** `cypress/e2e/swr/_explore.cy.ts` → `cypress/logs/_swr_explore.jsonl`.
 - **Score:** `pnpm score:swr` → `results/swr_summary.csv`.
 
