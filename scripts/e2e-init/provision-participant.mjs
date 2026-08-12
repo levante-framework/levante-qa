@@ -12,6 +12,10 @@
  * Usage:
  *   node scripts/e2e-init/provision-participant.mjs \
  *     --task egma-math --language en-US --age-years 8 --age-months 0 --run-id abc12345
+ *
+ * Optional assessment param overrides (merged into administration + assignment):
+ *   --param isAdaptive=true
+ *   --param isAdaptive=false
  */
 import 'dotenv/config';
 
@@ -39,6 +43,8 @@ function parseArgs(argv) {
     projectId: undefined,
     credential: process.env.LEVANTE_ADMIN_FIREBASE_CREDENTIALS,
     force: false,
+    /** @type {Record<string, unknown>} */
+    paramOverrides: {},
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -50,6 +56,17 @@ function parseArgs(argv) {
     else if (a === '--project-id') args.projectId = argv[++i];
     else if (a === '--credential') args.credential = argv[++i];
     else if (a === '--force') args.force = true;
+    else if (a === '--param') {
+      const raw = argv[++i];
+      if (!raw || !raw.includes('=')) {
+        throw new Error(`Invalid --param '${raw}' (expected key=value)`);
+      }
+      const eq = raw.indexOf('=');
+      const key = raw.slice(0, eq).trim();
+      const valueRaw = raw.slice(eq + 1).trim();
+      if (!key) throw new Error(`Invalid --param '${raw}' (empty key)`);
+      args.paramOverrides[key] = coerceParamValue(valueRaw);
+    }
   }
   if (!args.task) throw new Error('Missing --task');
   if (!Number.isFinite(args.ageYears) || args.ageYears < 0) throw new Error('Invalid --age-years');
@@ -57,6 +74,17 @@ function parseArgs(argv) {
     throw new Error('Invalid --age-months');
   }
   return args;
+}
+
+/** Coerce common param string forms used in Firestore variant params. */
+function coerceParamValue(valueRaw) {
+  const lower = valueRaw.toLowerCase();
+  if (lower === 'true') return true;
+  if (lower === 'false') return false;
+  if (lower === 'null') return null;
+  const n = Number(valueRaw);
+  if (valueRaw !== '' && Number.isFinite(n) && String(n) === valueRaw) return n;
+  return valueRaw;
 }
 
 async function getCredentials(credentialPath) {
@@ -120,7 +148,7 @@ function pickVariant(docs, languageCode) {
   return sorted[0] ?? null;
 }
 
-async function buildAssessment(db, taskId, languageCode) {
+async function buildAssessment(db, taskId, languageCode, paramOverrides = {}) {
   const taskDoc = await db.collection('tasks').doc(taskId).get();
   if (!taskDoc.exists) throw new Error(`Task "${taskId}" not found on dev`);
   const variants = await db.collection('tasks').doc(taskId).collection('variants').get();
@@ -128,11 +156,12 @@ async function buildAssessment(db, taskId, languageCode) {
   const pick = pickVariant(variants.docs, languageCode);
   if (!pick) throw new Error(`Task "${taskId}" has no usable variant for ${languageCode}`);
   const data = pick.data() ?? {};
+  const baseParams = data.params ?? { language: languageCode };
   return {
     taskId,
     variantId: pick.id,
     variantName: data.name ?? languageCode,
-    params: data.params ?? { language: languageCode },
+    params: { ...baseParams, ...paramOverrides },
   };
 }
 
@@ -336,7 +365,32 @@ async function main() {
   const { birthYear, birthMonth } = birthFromAge(args.ageYears, args.ageMonths);
 
   const districtId = await getOrCreateDistrict(db, SITE_NAME);
-  const assessment = await buildAssessment(db, args.task, args.language);
+  // Env / --param isAdaptive is a *runtime* Cypress flag (QA_PA_IS_ADAPTIVE), not
+  // a Firestore variantParam. Writing isAdaptive into assignment params makes
+  // roar-pa updateTaskParams hit FirebaseError permission-denied on admin-dev.
+  const envAdaptive = process.env.QA_PA_IS_ADAPTIVE;
+  if (
+    envAdaptive !== undefined &&
+    envAdaptive !== '' &&
+    args.paramOverrides.isAdaptive === undefined
+  ) {
+    const v = String(envAdaptive).trim().toLowerCase();
+    if (v === 'true' || v === '1' || v === 'yes') args.paramOverrides.isAdaptive = true;
+  }
+  const wantAdaptive = args.paramOverrides.isAdaptive === true;
+  if ('isAdaptive' in args.paramOverrides) {
+    delete args.paramOverrides.isAdaptive;
+  }
+  if (wantAdaptive) {
+    console.log(
+      '[qa-provision] isAdaptive requested — not written to Firestore ' +
+        '(permission-denied on updateTaskParams). Run Cypress with QA_PA_IS_ADAPTIVE=true.',
+    );
+  }
+  const assessment = await buildAssessment(db, args.task, args.language, args.paramOverrides);
+  if (Object.keys(args.paramOverrides).length) {
+    console.log(`[qa-provision] param overrides: ${JSON.stringify(args.paramOverrides)}`);
+  }
   const participant = await createParticipant(db, {
     districtId,
     siteName: SITE_NAME,

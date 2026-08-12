@@ -18,8 +18,24 @@ export const PROGRESS_INNER = '#jspsych-progressbar-inner';
 export const FULLSCREEN_BTN = '#jspsych-fullscreen-btn, .jspsych-fullscreen-btn';
 // Answer-choice images on an AFC trial (also rendered on tutorial demo screens).
 export const CHOICE_IMG = 'img[src*=".webp"]';
-// Any button that advances a non-trial screen (intro / tutorial / break / end).
-export const ADVANCE_BTN = `${CONTINUE}, ${JSPSYCH_BTN}`;
+/**
+ * jsPsych-generated response buttons. Cue/audio preview trials paint the same
+ * `.webp` images inside prompt HTML as plain
+ * `.jspsych-audio-button-response-button` divs *without* cursor styling —
+ * answering there is a no-op and the trial auto-advances (~1.1s).
+ * LSM/FSM/etc. response phases use cursor:pointer audio buttons; DEL blocks
+ * use html-multi-response buttons instead.
+ */
+export const RESPONSE_CHOICE_BTN = [
+  '.jspsych-audio-button-response-button[style*="cursor"]',
+  '.jspsych-html-multi-response-button',
+].join(', ');
+export const RESPONSE_CHOICE_IMG = [
+  '.jspsych-audio-button-response-button[style*="cursor"] img[src*=".webp"]',
+  '.jspsych-html-multi-response-button img[src*=".webp"]',
+].join(', ');
+// Advance controls for intro / tutorial / break / end — never the in-trial replay.
+export const ADVANCE_BTN = `${CONTINUE}, ${JSPSYCH_BTN}:not(#replay)`;
 
 /** Matches roar-dashboard `Cypress.expose('timeout')` default (10s). */
 export const PA_STEP_MS = 10_000;
@@ -83,10 +99,18 @@ export function goalImagePresent(doc: Document, goal: string): boolean {
   );
 }
 
+/** True when the goal is among jsPsych response-button images (not cue HTML). */
+export function goalResponseImagePresent(doc: Document, goal: string): boolean {
+  const needle = paGoalNeedle(goal);
+  return [...doc.querySelectorAll(RESPONSE_CHOICE_IMG)].some((el) =>
+    normalizePaSrc(el.getAttribute('src') ?? '').includes(needle),
+  );
+}
+
 /** Click the choice image matching the goal (locale-robust src match). */
 export function clickCorrectPaImage(goal: string): void {
   const needle = paGoalNeedle(goal);
-  cy.get(CHOICE_IMG, { log: false }).then(($imgs) => {
+  cy.get(RESPONSE_CHOICE_IMG, { log: false }).then(($imgs) => {
     const target = [...$imgs].find((el) =>
       normalizePaSrc(el.getAttribute('src') ?? '').includes(needle),
     );
@@ -112,7 +136,7 @@ export function readStimulusSignature(win: Window): string | null {
 /** Click any response image that is not the sessionStorage goal (locale-robust). */
 export function clickWrongPaImage(goal: string): void {
   const needle = paGoalNeedle(goal);
-  cy.get('img[src*=".webp"]', { log: false }).then(($imgs) => {
+  cy.get(RESPONSE_CHOICE_IMG, { log: false }).then(($imgs) => {
     const wrong = [...$imgs].find(
       (el) => !normalizePaSrc(el.getAttribute('src') ?? '').includes(needle),
     );
@@ -180,6 +204,15 @@ export function isPaFinished(win: Window): boolean {
 /** Answer-choice images present (real AFC trial *or* a tutorial demo screen). */
 export function hasPaChoices(doc: Document): boolean {
   return doc.querySelectorAll(CHOICE_IMG).length > 0;
+}
+
+/**
+ * True only on the response phase of an AFC item (jsPsych wired the choice
+ * buttons). False during cue/audio preview trials that embed the same images
+ * in prompt HTML without cursor:pointer.
+ */
+export function hasPaResponseChoices(doc: Document): boolean {
+  return doc.querySelectorAll(RESPONSE_CHOICE_IMG).length > 0;
 }
 
 /**

@@ -191,6 +191,7 @@ function expand(grid, token, locale) {
             temperature,
             personaAbility: grid.personaAbility ?? 'irt',
             country: grid.country ?? null,
+            gridEnv: grid.env && typeof grid.env === 'object' ? grid.env : null,
           });
         }
       }
@@ -461,7 +462,7 @@ async function main() {
       cellsTotal: pending.length,
       status: 'running',
     });
-    const extra = {};
+    const extra = { ...(r.gridEnv && typeof r.gridEnv === 'object' ? r.gridEnv : {}) };
     if (assetDir) {
       extra.QA_PANEL_ASSET_DIR = assetDir;
       extra.QA_PANEL_USE_ASSETS = '1';

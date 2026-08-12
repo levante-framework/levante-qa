@@ -12,19 +12,30 @@
  *   random — uniform seeded guesser: picks any choice with equal probability.
  *            Accuracy should land at chance level (mean 1/choices); asserted
  *            with the same binomial band as sim. Needs no node-side config.
+ *   timed_child — age-typical accuracy + RT delays + wait-for-audio (PA first);
+ *            see cypress/plugins/timedChildConfig.ts.
  */
 import type { SimChildConfig } from '../plugins/simChildConfig';
+import type { TimedChildConfig } from '../plugins/timedChildConfig';
 
-export type QaAgentMode = 'oracle' | 'wrong' | 'sim' | 'random';
+export type QaAgentMode = 'oracle' | 'wrong' | 'sim' | 'random' | 'timed_child';
 
 /** Detect mode from QA_AGENT_MODE (entry files, dashboard) or the spec filename. */
 export function qaAgentMode(): QaAgentMode {
   const explicit = String(Cypress.expose('QA_AGENT_MODE') ?? '').toLowerCase();
-  if (explicit === 'wrong' || explicit === 'sim' || explicit === 'random') return explicit;
+  if (
+    explicit === 'wrong' ||
+    explicit === 'sim' ||
+    explicit === 'random' ||
+    explicit === 'timed_child'
+  ) {
+    return explicit;
+  }
   const rel = `${Cypress.spec.relative ?? ''}#${Cypress.spec.name ?? ''}`;
   if (rel.includes('wrong_agent')) return 'wrong';
   if (rel.includes('sim_child')) return 'sim';
   if (rel.includes('random_agent')) return 'random';
+  if (rel.includes('timed_child')) return 'timed_child';
   return 'oracle';
 }
 
@@ -40,9 +51,13 @@ export function isRandomMode(): boolean {
   return qaAgentMode() === 'random';
 }
 
+export function isTimedChildMode(): boolean {
+  return qaAgentMode() === 'timed_child';
+}
+
 /** Modes whose accuracy is probabilistic (band assertion + decisions log). */
 export function isStochasticMode(): boolean {
-  return isSimMode() || isRandomMode();
+  return isSimMode() || isRandomMode() || isTimedChildMode();
 }
 
 /** Log/archive filename stem (`oracle`, `wrong`, or `sim`). */
@@ -221,6 +236,7 @@ export function randomDecideIndex(
 
 /** Mean predicted accuracy over the items actually seen this run. */
 export function simPredictedAccuracy(): number | null {
+  if (isTimedChildMode()) return timedChildPredictedAccuracy();
   if (simDecisions.size === 0) return null;
   let s = 0;
   simDecisions.forEach((r) => (s += r.p));
@@ -229,6 +245,7 @@ export function simPredictedAccuracy(): number | null {
 
 /** 3-sigma binomial band (with a small floor) around the predicted mean. */
 export function simAccuracyTolerance(): number {
+  if (isTimedChildMode()) return timedChildAccuracyTolerance();
   const n = simDecisions.size;
   const p = simPredictedAccuracy();
   if (!n || p == null) return 0.2;
@@ -237,6 +254,16 @@ export function simAccuracyTolerance(): number {
 
 /** Per-item decisions (for the sim decisions log written at finalize). */
 export function simDecisionLog(): (SimDecision & { itemKey: string })[] {
+  if (isTimedChildMode()) {
+    return timedChildDecisionLog().map((r) => ({
+      itemKey: r.itemKey,
+      index: r.correct ? 0 : 1,
+      correct: r.correct,
+      p: r.p,
+      roll: r.roll,
+      d: null,
+    }));
+  }
   const out: (SimDecision & { itemKey: string })[] = [];
   simDecisions.forEach((r, itemKey) => out.push({ ...r, itemKey }));
   return out;
@@ -245,6 +272,85 @@ export function simDecisionLog(): (SimDecision & { itemKey: string })[] {
 /** The installed config (for logging run metadata). */
 export function simConfigInfo(): SimChildConfig | null {
   return simConfig;
+}
+
+// --- Timed child (audio wait + age-typical RT + empirical accuracy) ----------
+
+export interface TimedChildDecision {
+  correct: boolean;
+  p: number;
+  roll: number;
+  rtMs: number;
+}
+
+let timedConfig: TimedChildConfig | null = null;
+const timedDecisions = new Map<string, TimedChildDecision>();
+
+/** Install the node-built timed_child config (once per spec). */
+export function timedChildInit(cfg: TimedChildConfig): void {
+  timedConfig = cfg;
+  timedDecisions.clear();
+}
+
+export function timedChildConfigInfo(): TimedChildConfig | null {
+  return timedConfig;
+}
+
+/**
+ * Sample an age-typical RT (ms) between p25–p75 via log-uniform hash.
+ * Returns the memoized RT once timedChildDecide has stored the item.
+ */
+export function timedChildSampleRtMs(itemKey: string): number {
+  if (!timedConfig) {
+    throw new Error('timed_child: timedChildSampleRtMs before timedChildInit');
+  }
+  const prior = timedDecisions.get(itemKey);
+  if (prior) return prior.rtMs;
+  const stem = `${timedConfig.seed}#timed#${timedConfig.taskSlug}#${itemKey}#rt`;
+  const u = Math.max(1e-9, hashToUnit(stem));
+  const lo = Math.log(Math.max(1, timedConfig.rtP25));
+  const hi = Math.log(Math.max(timedConfig.rtP25 + 1, timedConfig.rtP75));
+  return Math.round(Math.exp(lo + u * (hi - lo)));
+}
+
+/**
+ * Age-typical correct/incorrect draw for PA (empirical pCorrect). Call after
+ * sampling RT so both land in the same memo entry.
+ */
+export function timedChildDecide(itemKey: string, rtMs?: number): TimedChildDecision {
+  if (!timedConfig) {
+    throw new Error('timed_child: timedChildDecide before timedChildInit');
+  }
+  const prior = timedDecisions.get(itemKey);
+  if (prior) return prior;
+  const p = timedConfig.pCorrect;
+  const stem = `${timedConfig.seed}#timed#${timedConfig.taskSlug}#${itemKey}`;
+  const roll = hashToUnit(stem);
+  const correct = roll < p;
+  const rt = rtMs ?? timedChildSampleRtMs(itemKey);
+  const decision: TimedChildDecision = { correct, p, roll, rtMs: rt };
+  timedDecisions.set(itemKey, decision);
+  return decision;
+}
+
+export function timedChildPredictedAccuracy(): number | null {
+  if (timedDecisions.size === 0) return timedConfig?.pCorrect ?? null;
+  let s = 0;
+  timedDecisions.forEach((r) => (s += r.p));
+  return s / timedDecisions.size;
+}
+
+export function timedChildAccuracyTolerance(): number {
+  const n = timedDecisions.size;
+  const p = timedChildPredictedAccuracy();
+  if (!n || p == null) return 0.2;
+  return Math.max(0.08, 3 * Math.sqrt((p * (1 - p)) / n));
+}
+
+export function timedChildDecisionLog(): (TimedChildDecision & { itemKey: string })[] {
+  const out: (TimedChildDecision & { itemKey: string })[] = [];
+  timedDecisions.forEach((r, itemKey) => out.push({ ...r, itemKey }));
+  return out;
 }
 
 // --- VLM IRT age gate (opt-in via QA_PERSONA_GATE=irt) ----------------------

@@ -31,6 +31,8 @@ export interface AudioWindow extends Window {
   __audioOverlaps?: AudioOverlap[];
   /** The task's asset manifest (key -> URL), exposed by core-tasks. */
   __mediaAssets?: { audio?: Record<string, string> };
+  /** Count of speech (non-cue) clips currently playing — polled by waitUntilSpeechIdle. */
+  __speechActiveCount?: number;
 }
 
 /**
@@ -94,6 +96,7 @@ export function installAudioCapture(win: Window): void {
   g.__audioPlayLog = [];
   g.__currentAudioUrl = null;
   g.__audioOverlaps = [];
+  g.__speechActiveCount = 0;
 
   const abToUrl = new WeakMap<ArrayBuffer, string>();
   const bufToUrl = new WeakMap<AudioBuffer, string>();
@@ -238,6 +241,9 @@ export function installAudioCapture(win: Window): void {
   // never fires onended — so instruction OK buttons that wait on narration stay
   // disabled forever.
   const activeSpeech = new Map<AudioBufferSourceNode, string>();
+  const syncSpeechCount = (): void => {
+    g.__speechActiveCount = activeSpeech.size;
+  };
   const OVERLAP_GRACE_MS = 60;
   const srcProto = g.AudioBufferSourceNode?.prototype;
   if (srcProto) {
@@ -261,8 +267,12 @@ export function installAudioCapture(win: Window): void {
         if (!isNonSpeechAudio(url)) {
           const hadOthers = activeSpeech.size > 0;
           activeSpeech.set(this, url);
+          syncSpeechCount();
           // Arrow callbacks capture `this` (the source node) lexically.
-          this.addEventListener('ended', () => activeSpeech.delete(this));
+          this.addEventListener('ended', () => {
+            activeSpeech.delete(this);
+            syncSpeechCount();
+          });
           if (hadOthers) {
             g.setTimeout(() => {
               if (!activeSpeech.has(this)) return; // this clip already finished
@@ -289,9 +299,59 @@ export function installAudioCapture(win: Window): void {
     const origStop = srcProto.stop;
     srcProto.stop = function patchedStop(this: AudioBufferSourceNode, when?: number): void {
       activeSpeech.delete(this);
+      syncSpeechCount();
       origStop.call(this, when ?? 0);
     };
   }
+}
+
+/** Current speech-clip count on the AUT window (0 when idle / capture not installed). */
+export function speechActiveCount(win: AudioWindow): number {
+  return win.__speechActiveCount ?? 0;
+}
+
+/**
+ * Wait for narration timing realism: optionally wait for speech to start (short
+ * grace), then until no speech clips are active, then a brief settle. Screens
+ * with no speech proceed after the start grace so the agent does not hang.
+ */
+export function waitUntilSpeechIdle(opts?: {
+  startGraceMs?: number;
+  idleTimeoutMs?: number;
+  settleMs?: number;
+}): Cypress.Chainable<null> {
+  const startGraceMs = opts?.startGraceMs ?? 3_000;
+  const idleTimeoutMs = opts?.idleTimeoutMs ?? 45_000;
+  const settleMs = opts?.settleMs ?? 150;
+
+  const startDeadline = Date.now() + startGraceMs;
+
+  const waitIdle = (idleDeadline: number): Cypress.Chainable<null> =>
+    cy.window({ log: false }).then((win) => {
+      if (speechActiveCount(win as AudioWindow) === 0) {
+        return cy.wrap(null, { log: false });
+      }
+      if (Date.now() > idleDeadline) {
+        return cy.wrap(null, { log: false });
+      }
+      return cy.wait(50, { log: false }).then(() => waitIdle(idleDeadline));
+    });
+
+  const waitStartOrGrace = (): Cypress.Chainable<null> =>
+    cy.window({ log: false }).then((win) => {
+      if (speechActiveCount(win as AudioWindow) > 0) {
+        return waitIdle(Date.now() + idleTimeoutMs);
+      }
+      if (Date.now() > startDeadline) {
+        return cy.wrap(null, { log: false });
+      }
+      return cy.wait(50, { log: false }).then(() => waitStartOrGrace());
+    });
+
+  return waitStartOrGrace().then(() => {
+    if (settleMs > 0) return cy.wait(settleMs, { log: false }).then(() => null);
+    return cy.wrap(null, { log: false });
+  });
 }
 
 /**

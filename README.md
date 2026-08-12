@@ -342,6 +342,15 @@ VLM persona runs can set `QA_PERSONA_COUNTRY` the same way.
 **Child Twins panel** (age × country × language × task × sim/vlm): see
 [`tools/child-twins/README.md`](tools/child-twins/README.md) —
 `pnpm child-twins:dry` / `pnpm child-twins:smoke`.
+
+### Timed child (audio + age-typical RT; PA first)
+
+A separate agent from Sim: **`timed_child`** waits for speech to finish, delays
+by age-typical response times from levante-bench trial norms, and answers with
+age-typical accuracy (needed so PA adaptive CAT paths differ). See the PA
+section below for provision (`--param isAdaptive=…`) and
+`pnpm cy:run:pa:timed`. Rebuild norms with `pnpm norms:pa:timed`.
+
 ### Random agent (chance-level check)
 
 A sixth agent, **Random**, picks every choice with equal probability — a
@@ -952,6 +961,22 @@ These three tasks live in the dashboard as **ROAR packages** (`@bdelab/roar-pa`,
   `img[src*="<goal>.webp"]` (same as `roar-dashboard` `paHelpers.js`). No `.correct` DOM class.
 - **Support:** `cypress/support/tasks/pa.ts` (`advancePaScreen`, `clickAllPaChoices`, `hasPaChoices`, `readGoalFromWindow`).
 - **Oracle:** `cypress/e2e/pa/oracle.cy.ts` — structural, language-agnostic loop (mirrors SRE/SWR): trial = choice images + `currentStimulus.goal`; tutorial = images + Continue; break/intro/end = advance any visible affordance; done = progress 100% or reroute. Runs en/de/es unchanged (`pnpm cy:run:pa:oracle`).
+- **Timed child:** `cypress/e2e/pa/timed_child.cy.ts` — waits for narration to finish, delays by age-typical RT from `pa_timed_child_norms.json` (built from levante-bench `pa_trials.csv` via `pnpm norms:pa:timed`), and answers with age-typical accuracy so adaptive CAT paths diverge. For PA, **adaptive vs fixed is `isAdaptive`** (not SWR-style `userMode`).
+  - Provision a fresh participant (age only — do **not** write `isAdaptive` into Firestore variant params; that causes `permission-denied` on `updateTaskParams`):
+    ```bash
+    node scripts/e2e-init/provision-participant.mjs --task pa --language en-US \
+      --age-years 8
+    ```
+    Export `PARTICIPANT_USER` / `PARTICIPANT_PASS` from that run's `PROVISION_RESULT`
+    before `pnpm cy:run:pa:timed` (each provision needs a fresh export).
+  - Run fixed (default) or adaptive at Cypress runtime:
+    ```bash
+    # Fixed
+    QA_TIMED_AGE_YEARS=8 QA_TIMED_SEED=1 pnpm cy:run:pa:timed
+    # Adaptive (injects isAdaptive via userParams bridge)
+    QA_PA_IS_ADAPTIVE=true QA_TIMED_AGE_YEARS=8 QA_TIMED_SEED=1 pnpm cy:run:pa:timed
+    ```
+  - Compare fixed vs adaptive at the same age with two provisions + the `QA_PA_IS_ADAPTIVE` toggle.
 - **Score:** `pnpm score:pa` → `results/pa_summary.csv`.
 - **Next:** VLM spec.
 

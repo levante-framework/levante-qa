@@ -59,6 +59,7 @@ import { makeChildPersonaPrompt } from './cypress/support/persona/childPersona';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
 import { solveMentalRotation } from './cypress/plugins/mentalRotationSolver';
 import { buildSimChildConfig, type SimChildConfig } from './cypress/plugins/simChildConfig';
+import { buildTimedChildConfig, type TimedChildConfig } from './cypress/plugins/timedChildConfig';
 import {
   loadCrowdinApprovedTranslations as loadCrowdinApprovedTranslationsFromCrowdin,
   translationForAudioUrl,
@@ -228,6 +229,18 @@ export default defineConfig({
          */
         async getSimConfig({ taskSlug }: { taskSlug: string }): Promise<SimChildConfig> {
           return buildSimChildConfig(taskSlug);
+        },
+
+        /**
+         * Age-binned empirical accuracy + RT percentiles for timed_child (PA).
+         * Env: QA_TIMED_AGE_YEARS (required), QA_TIMED_AGE_MONTHS, QA_TIMED_SEED.
+         */
+        async getTimedChildConfig({
+          taskSlug,
+        }: {
+          taskSlug: string;
+        }): Promise<TimedChildConfig> {
+          return buildTimedChildConfig(taskSlug);
         },
 
         /**
@@ -442,6 +455,10 @@ export default defineConfig({
         'QA_SIM_SEED',
         'QA_SIM_COUNTRY',
         'QA_SIM_SITE',
+        'QA_TIMED_AGE_YEARS',
+        'QA_TIMED_AGE_MONTHS',
+        'QA_TIMED_SEED',
+        'QA_PA_IS_ADAPTIVE',
         'QA_PERSONA_AGE_YEARS',
         'QA_PERSONA_AGE_MONTHS',
         'QA_PERSONA_ABILITY',
@@ -451,6 +468,7 @@ export default defineConfig({
         'QA_PANEL_CAPTURE',
         'QA_PANEL_ASSET_DIR',
         'QA_PANEL_USE_ASSETS',
+        'QA_VOCAB_PROMPT',
       ]) {
         if (process.env[key] !== undefined) {
           config.env[key] = process.env[key];

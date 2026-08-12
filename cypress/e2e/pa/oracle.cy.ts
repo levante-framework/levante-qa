@@ -1,10 +1,21 @@
-import { installAudioCapture } from '../../support/audio/audioCapture';
+import { installAudioCapture, waitUntilSpeechIdle } from '../../support/audio/audioCapture';
+import { installPaAdaptiveBridge, installPaAdaptiveFlag, isPaAdaptiveRuntime } from '../../support/paAdaptiveBridge';
 import {
   agentLogStem,
   expectedAccuracy,
+  isStochasticMode,
+  isTimedChildMode,
   isWrongAgentMode,
+  simAccuracyTolerance,
+  simPredictedAccuracy,
+  timedChildConfigInfo,
+  timedChildDecide,
+  timedChildDecisionLog,
+  timedChildInit,
+  timedChildSampleRtMs,
   trialRecordOracleFlag,
 } from '../../support/agentMode';
+import type { TimedChildConfig } from '../../plugins/timedChildConfig';
 import { launchTask } from '../../support/launch';
 import { waitForRoarJsPsych } from '../../support/tasks/roar';
 import {
@@ -14,11 +25,12 @@ import {
   clickPaContinue,
   clickCorrectPaImage,
   clickWrongPaImage,
-  goalImagePresent,
+  goalResponseImagePresent,
   CONTINUE,
   FULLSCREEN_BTN,
   INTRO_CANVAS,
   hasPaChoices,
+  hasPaResponseChoices,
   isDashboardReroute,
   isProgressComplete,
   PA_ASSET_WAIT_MS,
@@ -38,6 +50,14 @@ const NO_GOAL_LOG = 'cypress/logs/_pa_no_goal.jsonl';
 // without a multi-minute hang.
 const STUCK_LOG = `cypress/logs/_pa_${agentLogStem()}_screen_stuck.jsonl`;
 const STALL_LIMIT = 25;
+/** Post-answer UI settle for timed_child (audio+RT dominate wall-clock). */
+const TIMED_SETTLE_MS = 400;
+
+function agentLabel(): string {
+  if (isWrongAgentMode()) return 'wrong agent';
+  if (isTimedChildMode()) return 'timed child';
+  return 'oracle (sessionStorage key)';
+}
 
 /**
  * Language-agnostic, structural PA oracle (mirrors the SRE / SWR oracles).
@@ -55,8 +75,11 @@ const STALL_LIMIT = 25;
  *   - done           : progress bar at 100% or dashboard reroute.
  *
  * No localized strings, so it runs for en / de / es / es-AR / … unchanged.
+ *
+ * timed_child: wait for speech idle, delay by age-typical RT, then click with
+ * age-typical correctness (see timedChildConfig / pa_timed_child_norms.json).
  */
-describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage key)'}`, () => {
+describe(`PA — ${agentLabel()}`, () => {
   const records: PaTrialRecord[] = [];
   let step = 0;
   let gameComplete = false;
@@ -76,7 +99,7 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
 
   function logRecord(
     input: Pick<PaTrialRecord, 'timestamp' | 'itemType' | 'oracle'> &
-      Partial<Pick<PaTrialRecord, 'goal' | 'breakMarker' | 'correct'>>,
+      Partial<Pick<PaTrialRecord, 'goal' | 'breakMarker' | 'correct' | 'rtMs'>>,
   ): void {
     step += 1;
     const rec = parsePaTrialRecord({ ...input, task: TASK, step });
@@ -84,16 +107,43 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
     cy.task('writeJsonl', { path: LIVE_LOG, records: [rec] }, { log: false });
   }
 
+  function postAnswerWait(): void {
+    if (isTimedChildMode()) cy.wait(TIMED_SETTLE_MS, { log: false });
+    else cy.wait(PA_STEP_MS, { log: false });
+  }
+
   function finalize(): void {
     const ts = Date.now();
     cy.task('writeJsonl', { path: `cypress/logs/${agentLogStem()}_pa_${ts}.jsonl`, records });
+    if (isTimedChildMode()) {
+      cy.task('writeJsonl', {
+        path: `cypress/logs/${agentLogStem()}_pa_${ts}_decisions.jsonl`,
+        records: [{ config: timedChildConfigInfo() }, ...timedChildDecisionLog()],
+      });
+    }
     const stats = scoreTrials(records);
 
     cy.wrap(null).then(() => {
       expect(taskComplete || gameComplete, 'PA run reached completion').to.equal(true);
       expect(stats.nItems, 'scored PA item trials').to.be.greaterThan(0);
-      expect(nNoGoal, `trials with no sessionStorage goal (see ${NO_GOAL_LOG})`).to.equal(0);
-      expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
+      // Adaptive CAT can briefly show choice chrome while currentStimulus is
+      // cleared between blocks; allow a few no-goal polls there.
+      if (isPaAdaptiveRuntime()) {
+        expect(nNoGoal, `adaptive no-goal polls (see ${NO_GOAL_LOG})`).to.be.at.most(5);
+      } else {
+        expect(nNoGoal, `trials with no sessionStorage goal (see ${NO_GOAL_LOG})`).to.equal(0);
+      }
+      if (isStochasticMode()) {
+        const predicted = simPredictedAccuracy() ?? 0;
+        const tol = simAccuracyTolerance();
+        cy.log(`${agentLogStem()}: predicted accuracy ${predicted.toFixed(3)} ± ${tol.toFixed(3)}`);
+        expect(
+          stats.accuracy ?? 0,
+          `${agentLogStem()} accuracy within the predicted band`,
+        ).to.be.closeTo(predicted, tol);
+      } else {
+        expect(stats.accuracy ?? 0, `${agentLogStem()} accuracy`).to.equal(expectedAccuracy());
+      }
       // Break screens only occur at block boundaries; a short adaptive run can
       // legitimately complete without one, so this is informational, not a gate.
       cy.log(`items: ${nItems}, breaks: ${stats.nBreaks}`);
@@ -103,6 +153,36 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
   function answerTrial(goal: string): void {
     breakLoggedSinceItem = false;
     nItems += 1;
+
+    if (isTimedChildMode()) {
+      // Response trial is already on screen (gated by hasPaResponseChoices). Wait
+      // for question audio, then age-typical RT, then click — re-check the goal
+      // image so a stale cue-phase entry cannot assert-fail after auto-advance.
+      waitUntilSpeechIdle();
+      const rtMs = timedChildSampleRtMs(goal);
+      cy.wait(rtMs, { log: false });
+      cy.window({ log: false }).then((win) => {
+        if (!goalResponseImagePresent(win.document, goal)) {
+          cy.log(`timed_child: goal=${goal} left the response buttons before click; skipping`);
+          nItems -= 1;
+          return;
+        }
+        const decision = timedChildDecide(goal, rtMs);
+        logRecord({
+          timestamp: new Date().toISOString(),
+          itemType: 'item',
+          goal,
+          breakMarker: null,
+          correct: decision.correct,
+          rtMs: decision.rtMs,
+          oracle: trialRecordOracleFlag(),
+        });
+        if (decision.correct) clickCorrectPaImage(goal);
+        else clickWrongPaImage(goal);
+      });
+      return;
+    }
+
     logRecord({
       timestamp: new Date().toISOString(),
       itemType: 'item',
@@ -206,10 +286,17 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
         // non-trial pause; used only to tally break screens for the summary.
         const advanceVisible = $b.find(ADVANCE_BTN).filter(':visible').length > 0;
 
-        // Real AFC trial: answer images + answer key, no Continue button.
-        if (choices && goal && !continueVisible && goalImagePresent(doc, goal)) {
-          answerTrial(goal);
-          cy.wait(PA_STEP_MS, { log: false });
+        // Real AFC response phase: jsPsych choice buttons + answer key, no Continue.
+        // Cue/audio previews show the same .webp images in prompt HTML without
+        // cursor:pointer — must not answer there (auto-advance ~1.1s).
+        const responseReady =
+          hasPaResponseChoices(doc) &&
+          !!goal &&
+          !continueVisible &&
+          goalResponseImagePresent(doc, goal);
+        if (responseReady) {
+          answerTrial(goal!);
+          postAnswerWait();
           playPa(iterLeft - 1);
           return;
         }
@@ -217,6 +304,7 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
         // Tutorial / guided demo: choice images shown with a Continue button.
         // Click every image (correct one included), then Continue.
         if (choices && continueVisible) {
+          if (isTimedChildMode()) waitUntilSpeechIdle({ startGraceMs: 1500 });
           clickAllPaChoices();
           clickPaContinue();
           cy.wait(PA_STEP_MS * 0.1, { log: false });
@@ -231,9 +319,13 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
           cy.wait(PA_STEP_MS, { log: false });
           cy.window({ log: false }).then((win2) => {
             const retryGoal = readGoalFromWindow(win2);
-            if (retryGoal && goalImagePresent(win2.document, retryGoal)) {
+            if (
+              retryGoal &&
+              hasPaResponseChoices(win2.document) &&
+              goalResponseImagePresent(win2.document, retryGoal)
+            ) {
               answerTrial(retryGoal);
-              cy.wait(PA_STEP_MS, { log: false });
+              postAnswerWait();
               playPa(iterLeft - 1);
               return;
             }
@@ -263,6 +355,9 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
             oracle: trialRecordOracleFlag(),
           });
         }
+        if (isTimedChildMode() && advanceVisible) {
+          waitUntilSpeechIdle({ startGraceMs: 2_000 });
+        }
         advancePaScreen();
         cy.wait(PA_STEP_MS * 0.1, { log: false });
         playPa(iterLeft - 1);
@@ -271,23 +366,44 @@ describe(`PA — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (sessionStorage 
   }
 
   it('completes roar-pa by selecting sessionStorage goal on every item', () => {
-    launchTask({
-      taskId: 'pa',
-      demoUrl: 'about:blank',
-      onBeforeLoad: installAudioCapture,
-    });
+    const start = () => {
+      installPaAdaptiveBridge();
+      launchTask({
+        taskId: 'pa',
+        demoUrl: 'about:blank',
+        onBeforeLoad: (win) => {
+          installPaAdaptiveFlag(win);
+          installAudioCapture(win);
+        },
+      });
 
-    waitForRoarJsPsych();
-    waitForPaReady();
-    logRecord({
-      timestamp: new Date().toISOString(),
-      itemType: 'intro',
-      goal: null,
-      breakMarker: null,
-      correct: null,
-      oracle: trialRecordOracleFlag(),
-    });
+      waitForRoarJsPsych();
+      waitForPaReady();
+      logRecord({
+        timestamp: new Date().toISOString(),
+        itemType: 'intro',
+        goal: null,
+        breakMarker: null,
+        correct: null,
+        oracle: trialRecordOracleFlag(),
+      });
 
-    playPa();
+      playPa();
+    };
+
+    if (isTimedChildMode()) {
+      cy.task('getTimedChildConfig', { taskSlug: 'pa' }).then((cfg) => {
+        timedChildInit(cfg as TimedChildConfig);
+        cy.log(
+          `timed_child age=${(cfg as TimedChildConfig).age.toFixed(2)} ` +
+            `normAge=${(cfg as TimedChildConfig).normAge} ` +
+            `pCorrect=${(cfg as TimedChildConfig).pCorrect.toFixed(3)} ` +
+            `rtP50=${(cfg as TimedChildConfig).rtP50}`,
+        );
+        start();
+      });
+    } else {
+      start();
+    }
   });
 });

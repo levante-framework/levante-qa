@@ -199,6 +199,11 @@ export const VocabTrialRecordSchema = z.object({
   modelRaw: z.string().nullable().default(null),
   latencyMs: z.number().nonnegative().nullable().default(null),
   timedOut: z.boolean().nullable().default(null),
+  // v3 DIGIT YES|NO / v4 HIGH|MED|LOW audit (soft-score / age-knows).
+  knowsWord: z.boolean().nullable().default(null),
+  modelIndex: z.number().int().nullable().default(null),
+  randomized: z.boolean().nullable().default(null),
+  confidence: z.enum(['high', 'med', 'low']).nullable().default(null),
   // Optional IRT age-gate audit (QA_PERSONA_GATE=irt).
   vlmProposedIndex: z.number().int().nullable().default(null),
   gateWantCorrect: z.boolean().nullable().default(null),

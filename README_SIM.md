@@ -155,8 +155,9 @@ chance would suggest a scoring inversion. Verified offline (400 hashed items:
 
 - **Dashboard wiring** — needs catalog + UI changes; CLI env vars suffice for
   now.
-- **A response-time model** — decisions are instant; RT realism is a separate
-  roadmap item.
+- **A response-time model on `sim`** — sim decisions stay instant. Timing
+  realism lives in the separate **`timed_child`** agent (PA first: audio idle +
+  age-typical RT from `pa_timed_child_norms.json`; see main README PA section).
 - **Per-item discrimination (2PL a-parameter)** — the banks only ship
   difficulty.
 

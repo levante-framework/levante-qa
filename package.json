@@ -43,6 +43,8 @@
     "cy:run:trog:vlm": "cypress run --spec 'cypress/e2e/trog/vlm_agent.cy.ts'",
     "cy:run:memory:oracle": "cypress run --spec 'cypress/e2e/memory_game/oracle.cy.ts'",
     "cy:run:pa:oracle": "LAUNCH=dashboard cypress run --spec 'cypress/e2e/pa/oracle.cy.ts'",
+    "cy:run:pa:timed": "LAUNCH=dashboard cypress run --spec 'cypress/e2e/pa/timed_child.cy.ts'",
+    "norms:pa:timed": "node scripts/build_pa_timed_child_norms.mjs",
     "cy:run:sre:oracle": "LAUNCH=dashboard cypress run --spec 'cypress/e2e/sre/oracle.cy.ts'",
     "cy:run:sre:vlm": "LAUNCH=dashboard cypress run --spec 'cypress/e2e/sre/vlm_agent.cy.ts'",
     "cy:run:swr:oracle": "LAUNCH=dashboard cypress run --spec 'cypress/e2e/swr/oracle.cy.ts'",

@@ -144,6 +144,10 @@ describe(`Vocab — VLM agent (${provider})`, () => {
             timedOut: decision.latencyMs > TIMEOUT_MS,
             audioTranscript: audio.transcript,
             audioSource: audio.source,
+            knowsWord: decision.knowsWord,
+            modelIndex: decision.modelIndex,
+            randomized: decision.randomized,
+            confidence: decision.confidence,
             ...gateLogFields(resolved.gate, resolved.vlmIndex),
           });
 

@@ -1,0 +1,18 @@
+{
+  "task": "vocab",
+  "spec": "cypress/e2e/vocab/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en-US",
+  "temperatures": [0.5, 1.2],
+  "personaAbility": "irt",
+  "repeats": 1,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [6, 11],
+  "env": {
+    "QA_VOCAB_PROMPT": "v4"
+  },
+  "_notes": "v4 graded confidence smoke: DIGIT HIGH|MED|LOW; LOW→randomize. Lean grid 2 models × 2 temps × 2 ages × 1 = 8 cells. MUST --live. Analyze: node tools/vlm-panel/analyze_vocab_graded.mjs --run-id-re 'panel_vocab_en_(35flashlite|36flash)_a(6|11)_t(05|12)_r1$'. Compare to v3 soft YES|NO (REPORT_vocab_soft_v3.md)."
+}

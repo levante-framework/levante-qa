@@ -20,6 +20,19 @@ const ROAR_READY_SELECTORS = [
 const ROAR_START_FAILED = /error occurred while starting the task/i;
 const ROAR_TRACE_LOG = 'cypress/logs/_roar_vlm_wait_trace.jsonl';
 
+type RoarCypress = typeof Cypress & { __roarStartFailed?: string; __roarAlertHooked?: boolean };
+
+function installRoarStartAlertHook(): void {
+  const cyx = Cypress as RoarCypress;
+  if (cyx.__roarAlertHooked) return;
+  cyx.__roarAlertHooked = true;
+  cy.on('window:alert', (text) => {
+    if (ROAR_START_FAILED.test(String(text))) {
+      cyx.__roarStartFailed = String(text);
+    }
+  });
+}
+
 function isRoarTraceOn(): boolean {
   const raw = String(Cypress.expose('QA_ROAR_TRACE') ?? '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
@@ -74,6 +87,7 @@ export function waitForParticipantHomeReady(taskId: string, requireTaskLink = tr
  */
 export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
   const MAX_ATTEMPTS = 150;
+  installRoarStartAlertHook();
 
   if (attempt >= MAX_ATTEMPTS) {
     if (reloadLeft > 0) {
@@ -88,6 +102,7 @@ export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
   cy.window({ log: false }).then((win) => {
     const doc = win.document;
     const bodyText = doc.body?.textContent ?? '';
+    const alertFail = (Cypress as RoarCypress).__roarStartFailed;
     if (attempt % 10 === 0) {
       traceWait({
         stage: 'waitForRoarJsPsych:poll',
@@ -100,16 +115,25 @@ export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
         bodySnippet: bodyText.replace(/\s+/g, ' ').trim().slice(0, 220),
       });
     }
-    if (ROAR_START_FAILED.test(bodyText)) {
+    if (alertFail || ROAR_START_FAILED.test(bodyText)) {
       traceWait({
         stage: 'waitForRoarJsPsych:start-failed',
         attempt,
         path: win.location?.pathname ?? null,
-        bodySnippet: bodyText.replace(/\s+/g, ' ').trim().slice(0, 400),
+        bodySnippet: (alertFail || bodyText).replace(/\s+/g, ' ').trim().slice(0, 400),
       });
-      throw new Error('Dashboard reported the ROAR task failed to start (alert text visible)');
+      throw new Error(
+        `Dashboard reported the ROAR task failed to start: ${alertFail || 'alert/body text visible'}`,
+      );
     }
-    if (docHasRoarReady(doc)) {
+    // Require real jsPsych content, not merely #jspsych-target (TaskPA mounts
+    // that node immediately under the Levante spinner, before start succeeds).
+    const ready =
+      !!doc.querySelector(`${JSPSYCH_TARGET} .jspsych-content-wrapper`) ||
+      !!doc.querySelector(`${JSPSYCH_TARGET} .jspsych-content`) ||
+      !!doc.querySelector('.jspsych-btn') ||
+      !!doc.querySelector('.instructionCanvasNS');
+    if (ready) {
       traceWait({
         stage: 'waitForRoarJsPsych:ready',
         attempt,

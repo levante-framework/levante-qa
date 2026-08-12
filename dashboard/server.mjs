@@ -475,6 +475,7 @@ async function finalizeRun(run) {
 
 function specForAgent(task, agent) {
   if (agent === 'wrong') return task.wrongSpec;
+  if (agent === 'timed_child' || agent === 'timed') return task.timedSpec || task.oracleSpec;
   if (agent === 'vlm' || agent === 'child') return task.vlmSpec;
   return task.oracleSpec;
 }
@@ -533,6 +534,14 @@ function spawnCypress(run) {
     if (run.meta.ageMonths != null) env.QA_SIM_AGE_MONTHS = String(run.meta.ageMonths);
     if (run.meta.country) env.QA_SIM_COUNTRY = String(run.meta.country);
   }
+  if (run.meta.agent === 'timed_child' || run.meta.agent === 'timed') {
+    env.QA_AGENT_MODE = 'timed_child';
+    if (run.meta.ageYears != null) env.QA_TIMED_AGE_YEARS = String(run.meta.ageYears);
+    if (run.meta.ageMonths != null) env.QA_TIMED_AGE_MONTHS = String(run.meta.ageMonths);
+    if (run.meta.isAdaptive != null) {
+      env.QA_PA_IS_ADAPTIVE = run.meta.isAdaptive ? 'true' : 'false';
+    }
+  }
 
   const args = [
     'cypress',
@@ -580,8 +589,17 @@ function provisionThenRun(run) {
     '--run-id',
     run.runId.slice(0, 8),
   ];
+  if (run.meta.isAdaptive === true) {
+    // Do not pass --param isAdaptive=true: Firestore variantParams write is
+    // permission-denied. Cypress enables adaptive via QA_PA_IS_ADAPTIVE + bridge.
+  }
+  // Fixed mode: omit isAdaptive (roar-pa default).
   const launch = scriptCommand(PROVISIONER, provisionArgs);
-  appendLog(run, `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m)...\n`);
+  appendLog(
+    run,
+    `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m` +
+      `${run.meta.isAdaptive != null ? `, isAdaptive=${run.meta.isAdaptive}` : ''})...\n`,
+  );
 
   const child = spawn(launch.command, launch.args, { cwd: E2E_CWD, env: { ...process.env }, detached: true });
   run.proc = child;
@@ -859,10 +877,17 @@ const server = http.createServer(async (req, res) => {
         const p = JSON.parse(body || '{}');
         const task = findTask(p.taskId);
         if (!task) return sendJson(res, 400, { error: `Unknown task: ${p.taskId}` });
-        const agent = ['vlm', 'child', 'wrong'].includes(p.agent) ? p.agent : 'oracle';
+        const agent = ['vlm', 'child', 'wrong', 'timed_child', 'timed'].includes(p.agent)
+          ? p.agent === 'timed'
+            ? 'timed_child'
+            : p.agent
+          : 'oracle';
         const isVlmBacked = agent === 'vlm' || agent === 'child';
         if (agent === 'wrong' && !task.wrongSpec) {
           return sendJson(res, 400, { error: `${task.label} has no Wrong agent spec.` });
+        }
+        if ((agent === 'timed_child') && !task.timedSpec) {
+          return sendJson(res, 400, { error: `${task.label} has no timed_child agent spec.` });
         }
         if (isVlmBacked && !task.vlmSpec) {
           return sendJson(res, 400, { error: `${task.label} has no VLM agent (oracle only).` });
@@ -886,6 +911,13 @@ const server = http.createServer(async (req, res) => {
         const persona = agent === 'child';
         const personaAbility =
           persona && p.personaAbility === 'irt' ? 'irt' : null;
+        let isAdaptive = null;
+        if (p.isAdaptive === true || p.isAdaptive === false) isAdaptive = p.isAdaptive;
+        else if (typeof p.isAdaptive === 'string') {
+          const v = p.isAdaptive.trim().toLowerCase();
+          if (v === 'true' || v === '1') isAdaptive = true;
+          else if (v === 'false' || v === '0') isAdaptive = false;
+        }
         const runId = startRun({
           task: task.id,
           taskLabel: task.label,
@@ -896,6 +928,7 @@ const server = http.createServer(async (req, res) => {
           personaAbility,
           ageYears,
           ageMonths,
+          isAdaptive,
           spec: specForAgent(task, agent),
         });
         sendJson(res, 200, { runId });

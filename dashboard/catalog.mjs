@@ -82,6 +82,7 @@ export const CATALOG = [
     taskId: 'pa',
     oracleSpec: 'cypress/e2e/pa/oracle.cy.ts',
     wrongSpec: 'cypress/e2e/pa/wrong_agent.cy.ts',
+    timedSpec: 'cypress/e2e/pa/timed_child.cy.ts',
     vlmSpec: null,
     requiresDashboard: true,
   },

@@ -12,6 +12,11 @@
  * Prompt **v3** (2026-08-10): reply format `DIGIT YES|NO` (knows word at age?).
  * Agent randomizes choice when NO — works with current strong models without
  * relying on EOL weaker SKUs. Pair with temperature ladder in panel grids.
+ * Default when `QA_VOCAB_PROMPT` unset.
+ *
+ * Prompt **v4** (2026-08-11): reply `DIGIT HIGH|MED|LOW` graded age-knows
+ * confidence. LOW → randomize (like v3 NO). Soft score: HIGH=1, MED=0.5, LOW=chance.
+ * Enable with `QA_VOCAB_PROMPT=v4`.
  */
 
 function ageVocabLine(ageYears: number | null): string {
@@ -28,8 +33,8 @@ function ageVocabLine(ageYears: number | null): string {
   );
 }
 
-/** Shared reply / grid footer (v3 two-token format). */
-const REPLY_FOOTER = [
+/** Shared reply / grid footer — v3 binary YES|NO. */
+const REPLY_FOOTER_V3 = [
   '',
   'The pictures are numbered by position:',
   '  1 = top-left      2 = top-right',
@@ -42,11 +47,62 @@ const REPLY_FOOTER = [
   'If NO, still give a digit guess for (1); do not invent an adult stretch.',
 ].join('\n');
 
+/** Shared reply / grid footer — v4 graded confidence. */
+const REPLY_FOOTER_V4 = [
+  '',
+  'The pictures are numbered by position:',
+  '  1 = top-left      2 = top-right',
+  '  3 = bottom-left   4 = bottom-right',
+  '',
+  'Reply with exactly two tokens on one line:',
+  '  (1) the digit 1-4 of the picture that matches the word',
+  '  (2) HIGH, MED, or LOW — how sure are you that a child with your',
+  '      vocabulary limit would know this word?',
+  '        HIGH = clearly in that age vocabulary',
+  '        MED  = maybe / borderline for that age',
+  '        LOW  = outside that age vocabulary',
+  'Examples: "2 HIGH" or "3 MED" or "1 LOW". No other words or punctuation.',
+  'If LOW, still give a digit guess for (1); do not invent an adult stretch.',
+].join('\n');
+
+export type VocabPromptVersion = 'v3' | 'v4';
+
+/** Resolve prompt version from QA_VOCAB_PROMPT (default v3). */
+export function resolveVocabPromptVersion(): VocabPromptVersion {
+  let raw: unknown;
+  try {
+    if (typeof Cypress !== 'undefined' && typeof Cypress.expose === 'function') {
+      raw = Cypress.expose('QA_VOCAB_PROMPT');
+    }
+  } catch {
+    /* not in Cypress */
+  }
+  if (raw == null || raw === '') {
+    raw = typeof process !== 'undefined' ? process.env.QA_VOCAB_PROMPT : undefined;
+  }
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (s === 'v4' || s === 'graded' || s === '4') return 'v4';
+  return 'v3';
+}
+
+function replyFooter(version: VocabPromptVersion = resolveVocabPromptVersion()): string {
+  return version === 'v4' ? REPLY_FOOTER_V4 : REPLY_FOOTER_V3;
+}
+
 /**
  * Build older / default checklist (ages > VOCAB_YOUNG_AGE_MAX).
  * Exported constant uses null age (generic school-age line) for static imports.
  */
-export function buildSystemPromptChecklist(ageYears: number | null = null): string {
+export function buildSystemPromptChecklist(
+  ageYears: number | null = null,
+  version: VocabPromptVersion = resolveVocabPromptVersion(),
+): string {
+  const knowLine =
+    version === 'v4'
+      ? 'If the word is uncommon or outside your age vocabulary, answer LOW.'
+      : 'If the word is uncommon or outside your age vocabulary, answer NO for knowing it.';
   return [
     'You are taking a picture-vocabulary test, one item at a time.',
     'You hear a single word (given to you as text) and see four pictures arranged',
@@ -58,15 +114,22 @@ export function buildSystemPromptChecklist(ageYears: number | null = null): stri
     'Prefer the everyday meaning someone your age would actually know.',
     'Do not stretch to rare, metaphorical, technical, or secondary senses.',
     '',
-    'If the word is uncommon or outside your age vocabulary, answer NO for knowing it.',
+    knowLine,
     'Do not use adult encyclopedic knowledge to rescue an uncommon word.',
     'If two pictures seem related, pick the one that best fits the spoken word alone.',
-    REPLY_FOOTER,
+    replyFooter(version),
   ].join('\n');
 }
 
 /** Light prompt for young personas (age ≤ VOCAB_YOUNG_AGE_MAX). */
-export function buildSystemPromptYoung(ageYears: number | null = null): string {
+export function buildSystemPromptYoung(
+  ageYears: number | null = null,
+  version: VocabPromptVersion = resolveVocabPromptVersion(),
+): string {
+  const knowLine =
+    version === 'v4'
+      ? 'If the word is uncommon or you would not know it at your age, answer LOW.'
+      : 'If the word is uncommon or you would not know it at your age, answer NO for knowing it.';
   return [
     'You are taking a picture-vocabulary test, one item at a time.',
     'You hear a single word (given to you as text) and see four pictures arranged',
@@ -75,9 +138,9 @@ export function buildSystemPromptYoung(ageYears: number | null = null): string {
     ageVocabLine(ageYears),
     '',
     'Pick the picture that matches the word in the most ordinary way for your age.',
-    'If the word is uncommon or you would not know it at your age, answer NO for knowing it.',
+    knowLine,
     'Do not invent a stretch.',
-    REPLY_FOOTER,
+    replyFooter(version),
   ].join('\n');
 }
 
@@ -90,6 +153,13 @@ export const SYSTEM_PROMPT = SYSTEM_PROMPT_CHECKLIST;
 
 /** Ages ≤ this get the young (light) prompt. */
 export const VOCAB_YOUNG_AGE_MAX = 8;
+
+/** Soft easiness weights for graded confidence (and v3 YES/NO mapped). */
+export const VOCAB_CONFIDENCE_WEIGHT: Record<'high' | 'med' | 'low', number> = {
+  high: 1,
+  med: 0.5,
+  low: 0.25,
+};
 
 export function resolvePersonaAgeYears(): number | null {
   let raw: unknown;
@@ -113,9 +183,10 @@ export function useYoungVocabPrompt(ageYears: number | null = resolvePersonaAgeY
 }
 
 export function vocabSystemPrompt(ageYears: number | null = resolvePersonaAgeYears()): string {
+  const version = resolveVocabPromptVersion();
   return useYoungVocabPrompt(ageYears)
-    ? buildSystemPromptYoung(ageYears)
-    : buildSystemPromptChecklist(ageYears);
+    ? buildSystemPromptYoung(ageYears, version)
+    : buildSystemPromptChecklist(ageYears, version);
 }
 
 /** User text: word reminder + two-token reply format. */
@@ -123,30 +194,61 @@ export function vocabUserText(
   transcript: string | null,
   _ageYears: number | null = resolvePersonaAgeYears(),
 ): string {
+  const version = resolveVocabPromptVersion();
   const base =
-    'Reply with exactly two tokens: digit (1-4) then YES or NO (know this word at your age?). Example: "2 YES" or "3 NO".';
+    version === 'v4'
+      ? 'Reply with exactly two tokens: digit (1-4) then HIGH, MED, or LOW (would a child your age know this word?). Example: "2 HIGH" or "3 MED" or "1 LOW".'
+      : 'Reply with exactly two tokens: digit (1-4) then YES or NO (know this word at your age?). Example: "2 YES" or "3 NO".';
   const w = String(transcript ?? '').trim();
   if (!w) return base;
   return `${base} The word is: "${w}".`;
 }
 
+export type VocabConfidence = 'high' | 'med' | 'low';
+
 export type VocabReplyParse = {
   /** Zero-based choice from the model (before any agent-side randomization). */
   index: number | null;
-  /** true = YES, false = NO, null = not stated (digit-only legacy). */
+  /**
+   * true = knows (YES / HIGH / MED), false = does not (NO / LOW),
+   * null = not stated (digit-only legacy).
+   */
   knowsWord: boolean | null;
+  /** Graded confidence when present (v4, or mapped from v3 YES/NO). */
+  confidence: VocabConfidence | null;
 };
 
 /**
- * Parse `DIGIT YES|NO` (order flexible) or legacy digit-only replies.
+ * Parse `DIGIT YES|NO`, `DIGIT HIGH|MED|LOW` (order flexible), or digit-only.
  */
 export function parseVocabReply(raw: string): VocabReplyParse {
   const text = String(raw ?? '').trim();
-  const knowsMatch = text.match(/\b(yes|no)\b/i);
-  const knowsWord = knowsMatch ? knowsMatch[1].toLowerCase() === 'yes' : null;
   const digitMatch = text.match(/[1-4]/);
   const index = digitMatch ? Number(digitMatch[0]) - 1 : null;
-  return { index, knowsWord };
+
+  const graded = text.match(/\b(high|med|medium|mid|low)\b/i);
+  if (graded) {
+    const g = graded[1].toLowerCase();
+    const confidence: VocabConfidence =
+      g === 'high' ? 'high' : g === 'low' ? 'low' : 'med';
+    return {
+      index,
+      confidence,
+      knowsWord: confidence !== 'low',
+    };
+  }
+
+  const knowsMatch = text.match(/\b(yes|no)\b/i);
+  if (knowsMatch) {
+    const yes = knowsMatch[1].toLowerCase() === 'yes';
+    return {
+      index,
+      knowsWord: yes,
+      confidence: yes ? 'high' : 'low',
+    };
+  }
+
+  return { index, knowsWord: null, confidence: null };
 }
 
 /** Parse the model's 1-4 position reply into a zero-based choice index, or null. */
@@ -155,23 +257,44 @@ export function parseChoiceIndex(raw: string): number | null {
 }
 
 /**
- * If the model says it would not know the word at age, replace the choice with
- * a uniform random 0..3. Digit-only / YES keep the model's index.
+ * If the model says LOW / NO (would not know the word at age), replace the
+ * choice with a uniform random 0..3. HIGH / MED / YES / digit-only keep the
+ * model's index.
  */
 export function applyKnowsWordPolicy(
   parsed: VocabReplyParse,
   rng: () => number = Math.random,
-): { index: number | null; randomized: boolean; knowsWord: boolean | null } {
-  if (parsed.knowsWord === false) {
+): {
+  index: number | null;
+  randomized: boolean;
+  knowsWord: boolean | null;
+  confidence: VocabConfidence | null;
+} {
+  const low =
+    parsed.confidence === 'low' ||
+    (parsed.confidence == null && parsed.knowsWord === false);
+  if (low) {
     return {
       index: Math.floor(rng() * 4),
       randomized: true,
       knowsWord: false,
+      confidence: parsed.confidence ?? 'low',
     };
   }
   return {
     index: parsed.index,
     randomized: false,
     knowsWord: parsed.knowsWord,
+    confidence: parsed.confidence,
   };
+}
+
+/** Map confidence (or YES/NO) to a soft easiness in [chance, 1]. */
+export function confidenceToSoftP(
+  confidence: VocabConfidence | null,
+  chance = 0.25,
+): number | null {
+  if (confidence == null) return null;
+  if (confidence === 'low') return chance;
+  return VOCAB_CONFIDENCE_WEIGHT[confidence];
 }

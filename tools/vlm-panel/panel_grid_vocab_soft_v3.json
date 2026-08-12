@@ -1,0 +1,15 @@
+{
+  "task": "vocab",
+  "spec": "cypress/e2e/vocab/vlm_agent.cy.ts",
+  "provider": "gemini",
+  "language": "en-US",
+  "temperatures": [0.5, 1.2],
+  "personaAbility": "irt",
+  "repeats": 1,
+  "models": [
+    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash"
+  ],
+  "ages": [6, 8, 11],
+  "_notes": "Soft-score analysis reuses the v3 ability grid (no new live cells required for first pass). Retro: node tools/vlm-panel/analyze_vocab_soft.mjs --run-id-re 'panel_vocab_en_(35flashlite|36flash)_a(6|8|11)_t(05|12)_r1$'. Future live runs log knowsWord/modelIndex/randomized on trial jsonl. Compare out/REPORT_vocab_soft_v3.md vs hard p_vlm / p_pred."
+}
