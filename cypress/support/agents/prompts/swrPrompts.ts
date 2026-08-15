@@ -7,7 +7,7 @@
  *      Optional QA_SWR_CHILD_PLAY=1: LOW / HARDNESS 5 → coin-flip left/right.
  */
 
-export type SwrPromptVersion = 'v1' | 'v2' | 'v3';
+export type SwrPromptVersion = 'v1' | 'v2' | 'v2strict' | 'v3';
 export type SwrConfidence = 'high' | 'med' | 'low';
 
 /** Soft P(child correct) weights for v2 (same scale as vocab v4). */
@@ -37,6 +37,7 @@ export function resolveSwrPromptVersion(): SwrPromptVersion {
   }
   const v = String(raw ?? 'v1').trim().toLowerCase();
   if (v === 'v3' || v === 'h15' || v === 'hardness') return 'v3';
+  if (v === 'v2strict' || v === 'hml_s' || v === 'v2s') return 'v2strict';
   if (v === 'v2') return 'v2';
   return 'v1';
 }
@@ -91,16 +92,26 @@ function ageLine(ageYears: number | null): string {
   return `Judge how a typical ${Math.round(ageYears)}-year-old child reader would do.`;
 }
 
-function buildSystemV2(ageYears: number | null): string {
+function buildSystemV2(ageYears: number | null, strict = false): string {
   return [
     'You help estimate difficulty for SWR (Single Word Recognition).',
     'Each trial shows one letter string. Decide two things:',
     '  (1) REAL or PSEUDO — is this an English word? (common misspellings / nonsense = PSEUDO)',
-    '  (2) HIGH, MED, or LOW — would a child at the age below usually get (1) correct?',
-    '        HIGH = trivial for that age (very common short words / obvious nonsense)',
-    '        MED  = doable but not automatic for that age (default when unsure)',
-    '        LOW  = hard for that age (rare, long, academic, or subtle pseudowords)',
-    'Do not default to HIGH. Use the full scale; many school-age items should be MED.',
+    '  (2) HIGH, MED, or LOW — probability a child at the age below usually gets (1) correct.',
+    ...(strict
+      ? [
+          '        HIGH = nearly certain (>90%): only ultra-common early words (cat, dog, big) or blatant nonsense (xkq).',
+          '        MED  = plausible but not automatic — DEFAULT. Most grade-level real words and many pseudos.',
+          '        LOW  = often wrong: rare/academic/long words, or pseudos that look like real words.',
+          'CRITICAL: Do NOT use HIGH for ordinary school vocabulary. Prefer MED. For age 10, HIGH should be rare (<20%).',
+          'If the word is longer than 5 letters or uncommon, do not choose HIGH.',
+        ]
+      : [
+          '        HIGH = trivial for that age (very common short words / obvious nonsense)',
+          '        MED  = doable but not automatic for that age (default when unsure)',
+          '        LOW  = hard for that age (rare, long, academic, or subtle pseudowords)',
+          'Do not default to HIGH. Use the full scale; many school-age items should be MED.',
+        ]),
     ageLine(ageYears),
     'Look carefully at every letter. Short common words (cat, open, night) are REAL.',
     'Made-up letter strings (blans, youx, plissars) are PSEUDO.',
@@ -132,7 +143,8 @@ function buildSystemV3(ageYears: number | null): string {
 export function swrSystemPrompt(ageYears: number | null = resolvePersonaAgeYears()): string {
   const v = resolveSwrPromptVersion();
   if (v === 'v3') return buildSystemV3(ageYears);
-  if (v === 'v2') return buildSystemV2(ageYears);
+  if (v === 'v2strict') return buildSystemV2(ageYears, true);
+  if (v === 'v2') return buildSystemV2(ageYears, false);
   return SYSTEM_V1;
 }
 
@@ -173,7 +185,7 @@ export function swrUserText(
     resolveSwrAoaInject() &&
     aoaYears != null &&
     Number.isFinite(aoaYears) &&
-    (v === 'v2' || v === 'v3')
+    (v === 'v2' || v === 'v2strict' || v === 'v3')
   ) {
     msg +=
       ` Kuperman age-of-acquisition for this word (if REAL) is about ${aoaYears.toFixed(1)} years` +

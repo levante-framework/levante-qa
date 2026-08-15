@@ -4,10 +4,12 @@
  *
  * Variants:
  *   hml   — REAL|PSEUDO + HIGH|MED|LOW (current v2)
+ *   hml_s — same scale, stricter HIGH (anti-ceiling)
  *   h15   — REAL|PSEUDO + HARDNESS 1-5 (1=easiest for child)
  * Ages: 6 and 10 (also report age-averaged p).
  *
  *   node tools/vlm-panel/eval_swr_prompt_bakeoff.mjs [--limit 120] [--concurrency 4]
+ *   node tools/vlm-panel/eval_swr_prompt_bakeoff.mjs --source bank --limit 180 --variants hml,hml_s,h15
  *
  * Held-out: 70/30 split by word hash; primary metric = Spearman ρ(b_proxy, b) on test.
  */
@@ -34,6 +36,12 @@ function parseArgs(argv) {
     seed: 42,
     /** If set, use unique item words from this run dir (matched offline diagnosis). */
     fromRun: '',
+    /** langfix (default) | bank — ignore panel words; stratify full EN bank. */
+    source: 'langfix',
+    /** Comma list: hml,hml_s,h15 (default all three). */
+    variants: ['hml', 'hml_s', 'h15'],
+    /** Optional output tag (e.g. full) → swr_prompt_bakeoff_bank_full.csv */
+    tag: '',
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -42,9 +50,16 @@ function parseArgs(argv) {
     else if (a === '--model') out.model = argv[++i];
     else if (a === '--seed') out.seed = Number(argv[++i]);
     else if (a === '--from-run') out.fromRun = String(argv[++i] || '').trim();
-    else if (a === '--help') {
+    else if (a === '--source') out.source = String(argv[++i] || 'langfix').trim().toLowerCase();
+    else if (a === '--tag') out.tag = String(argv[++i] || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    else if (a === '--variants') {
+      out.variants = String(argv[++i] || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    } else if (a === '--help') {
       console.log(
-        'Usage: node tools/vlm-panel/eval_swr_prompt_bakeoff.mjs [--limit N] [--concurrency K] [--model id] [--from-run RUN_ID]',
+        'Usage: node tools/vlm-panel/eval_swr_prompt_bakeoff.mjs [--limit N] [--concurrency K] [--model id] [--from-run RUN_ID] [--source langfix|bank] [--variants hml,hml_s,h15] [--tag name]',
       );
       process.exit(0);
     }
@@ -138,16 +153,27 @@ function ageLine(age) {
 }
 
 function promptsFor(variant, age, word) {
-  if (variant === 'hml') {
+  if (variant === 'hml' || variant === 'hml_s') {
+    const strict = variant === 'hml_s';
     const system = [
       'You help estimate difficulty for SWR (Single Word Recognition).',
       'Each trial shows one letter string. Decide two things:',
       '  (1) REAL or PSEUDO — is this an English word? (common misspellings / nonsense = PSEUDO)',
-      '  (2) HIGH, MED, or LOW — would a child at the age below usually get (1) correct?',
-      '        HIGH = trivial for that age (very common short words / obvious nonsense)',
-      '        MED  = doable but not automatic for that age (default when unsure)',
-      '        LOW  = hard for that age (rare, long, academic, or subtle pseudowords)',
-      'Do not default to HIGH. Use the full scale; many school-age items should be MED.',
+      '  (2) HIGH, MED, or LOW — probability a child at the age below usually gets (1) correct.',
+      ...(strict
+        ? [
+            '        HIGH = nearly certain (>90%): only ultra-common early words (cat, dog, big) or blatant nonsense (xkq).',
+            '        MED  = plausible but not automatic — DEFAULT. Most grade-level real words and many pseudos.',
+            '        LOW  = often wrong: rare/academic/long words, or pseudos that look like real words.',
+            'CRITICAL: Do NOT use HIGH for ordinary school vocabulary. Prefer MED. For age 10, HIGH should be rare (<20%).',
+            'If the word is longer than 5 letters or uncommon, do not choose HIGH.',
+          ]
+        : [
+            '        HIGH = trivial for that age (very common short words / obvious nonsense)',
+            '        MED  = doable but not automatic for that age (default when unsure)',
+            '        LOW  = hard for that age (rare, long, academic, or subtle pseudowords)',
+            'Do not default to HIGH. Use the full scale; many school-age items should be MED.',
+          ]),
       ageLine(age),
       'Look carefully at every letter. Short common words (cat, open, night) are REAL.',
       'Made-up letter strings (blans, youx, plissars) are PSEUDO.',
@@ -168,7 +194,7 @@ function promptsFor(variant, age, word) {
     '        3 = moderate (default when unsure)',
     '        4 = hard (rare, long, or subtle)',
     '        5 = very hard for that age',
-    'Use the full 1-5 scale; do not default to 1 or 3 for everything.',
+    'Use the full 1-5 scale; do not default to 1 or 3 for everything. Prefer 2–4 for ordinary school words.',
     ageLine(age),
     'Look carefully at every letter. Short common words (cat, open, night) are REAL.',
     'Made-up letter strings (blans, youx, plissars) are PSEUDO.',
@@ -187,7 +213,7 @@ function parseReply(variant, raw) {
 
   let pChild = null;
   let scoreRaw = null;
-  if (variant === 'hml') {
+  if (variant === 'hml' || variant === 'hml_s') {
     let conf = null;
     if (/\bHIGH\b/.test(text)) conf = 'high';
     else if (/\bMED\b/.test(text)) conf = 'med';
@@ -340,6 +366,8 @@ function metricsFor(rows) {
   );
   const lexN = rows.filter((r) => r.lexMatch === 0 || r.lexMatch === 1).length;
   const lexHits = rows.filter((r) => r.lexMatch === 1).length;
+  const nCeil = withProxy.filter((r) => r.pChild >= 0.99).length;
+  const nUniqueP = new Set(withProxy.map((r) => r.pChild)).size;
   return {
     n: rows.length,
     scored: withProxy.length,
@@ -350,6 +378,8 @@ function metricsFor(rows) {
     rho_b_proxy_test: rhoTest,
     lex_acc: lexN ? lexHits / lexN : null,
     parse_rate: withProxy.length / Math.max(1, rows.length),
+    frac_ceiling: withProxy.length ? nCeil / withProxy.length : null,
+    n_unique_p: nUniqueP,
   };
 }
 
@@ -388,23 +418,38 @@ async function main() {
       `Matched mode: --from-run ${args.fromRun} → ${words.length} words (jsonl ${panel.file})`,
     );
   } else {
-    const panel = loadLangfixWords();
-    // Stratify by |b| quartiles from panel∩bank, then fill from bank if needed.
-    let candidates = panel.items
-      .map((it) => {
-        const hum = bank.get(it.word.toLowerCase());
-        if (!hum) return null;
-        return { word: it.word, key: it.word.toLowerCase(), b: hum.b, rp: hum.rp, n_panel: it.n };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.b - b.b);
+    let candidates;
+    if (args.source === 'bank') {
+      candidates = [...bank.values()]
+        .map((hum) => ({
+          word: hum.word,
+          key: hum.word.toLowerCase(),
+          b: hum.b,
+          rp: hum.rp,
+          n_panel: 0,
+        }))
+        .sort((a, b) => a.b - b.b);
+      console.error(`Source=bank: ${candidates.length} EN bank words with b`);
+    } else {
+      const panel = loadLangfixWords();
+      // Stratify by |b| quartiles from panel∩bank, then fill from bank if needed.
+      candidates = panel.items
+        .map((it) => {
+          const hum = bank.get(it.word.toLowerCase());
+          if (!hum) return null;
+          return { word: it.word, key: it.word.toLowerCase(), b: hum.b, rp: hum.rp, n_panel: it.n };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.b - b.b);
 
-    if (candidates.length < args.limit) {
-      for (const [key, hum] of bank) {
-        if (candidates.some((c) => c.key === key)) continue;
-        candidates.push({ word: hum.word, key, b: hum.b, rp: hum.rp, n_panel: 0 });
+      if (candidates.length < args.limit) {
+        for (const [key, hum] of bank) {
+          if (candidates.some((c) => c.key === key)) continue;
+          candidates.push({ word: hum.word, key, b: hum.b, rp: hum.rp, n_panel: 0 });
+        }
+        candidates.sort((a, b) => a.b - b.b);
       }
-      candidates.sort((a, b) => a.b - b.b);
+      console.error(`Source=langfix(+bank fill): ${candidates.length} candidates`);
     }
 
     // Even sample across difficulty.
@@ -426,12 +471,17 @@ async function main() {
     }
   }
 
-  const conditions = [
-    { id: 'hml_a6', variant: 'hml', age: 6 },
-    { id: 'hml_a10', variant: 'hml', age: 10 },
-    { id: 'h15_a6', variant: 'h15', age: 6 },
-    { id: 'h15_a10', variant: 'h15', age: 10 },
-  ];
+  const allowed = new Set(args.variants);
+  const conditions = [];
+  for (const variant of ['hml', 'hml_s', 'h15']) {
+    if (!allowed.has(variant)) continue;
+    conditions.push({ id: `${variant}_a6`, variant, age: 6 });
+    conditions.push({ id: `${variant}_a10`, variant, age: 10 });
+  }
+  if (!conditions.length) {
+    console.error('No variants selected');
+    process.exit(1);
+  }
 
   console.error(
     `Bake-off: ${words.length} words × ${conditions.length} conditions · model=${args.model} · concurrency=${args.concurrency}`,
@@ -515,6 +565,7 @@ async function main() {
   }
   const ensembles = {
     hml_age_avg: [],
+    hml_s_age_avg: [],
     h15_age_avg: [],
   };
   for (const row of byWordVar.values()) {
@@ -525,13 +576,15 @@ async function main() {
       lexMatch: row.lexN ? (row.lexHits === row.lexN ? 1 : row.lexHits > 0 ? 0.5 : 0) : '',
     };
     if (row.variant === 'hml') ensembles.hml_age_avg.push(entry);
-    else ensembles.h15_age_avg.push(entry);
+    else if (row.variant === 'hml_s') ensembles.hml_s_age_avg.push(entry);
+    else if (row.variant === 'h15') ensembles.h15_age_avg.push(entry);
   }
 
   const summary = {};
   for (const [id, rows] of byCond) summary[id] = metricsFor(rows);
-  summary.hml_age_avg = metricsFor(ensembles.hml_age_avg);
-  summary.h15_age_avg = metricsFor(ensembles.h15_age_avg);
+  for (const [id, rows] of Object.entries(ensembles)) {
+    if (rows.length) summary[id] = metricsFor(rows);
+  }
 
   let liveVsOffline = null;
   if (matched) {
@@ -586,6 +639,8 @@ async function main() {
       rho_all: m.rho_b_proxy_all,
       lex_acc: m.lex_acc,
       parse_rate: m.parse_rate,
+      frac_ceiling: m.frac_ceiling,
+      n_unique_p: m.n_unique_p,
       n_test: m.n_test,
       score: Number.isFinite(m.rho_b_proxy_test) ? m.rho_b_proxy_test : m.rho_b_proxy_all,
     }))
@@ -594,7 +649,12 @@ async function main() {
   const winner = ranked[0];
 
   mkdirSync(OUT, { recursive: true });
-  const csvPath = join(OUT, matched ? 'swr_prompt_matched_offline.csv' : 'swr_prompt_bakeoff.csv');
+  const csvName = matched
+    ? 'swr_prompt_matched_offline.csv'
+    : args.source === 'bank'
+      ? `swr_prompt_bakeoff_bank${args.tag ? `_${args.tag}` : ''}.csv`
+      : 'swr_prompt_bakeoff.csv';
+  const csvPath = join(OUT, csvName);
   const cols = [
     'condition',
     'variant',
@@ -653,63 +713,74 @@ If offline h15 still beats HML on this set but live ρ is weak, the gap is **liv
 `
       : '';
 
-  const report = `# SWR prompt ${matched ? 'matched offline diagnosis' : 'bake-off (offline)'}
+  const reportName = matched
+    ? 'REPORT_swr_prompt_matched_offline.md'
+    : args.source === 'bank'
+      ? `REPORT_swr_prompt_bakeoff_bank${args.tag ? `_${args.tag}` : ''}.md`
+      : 'REPORT_swr_prompt_bakeoff.md';
+  const summaryName = matched
+    ? 'swr_prompt_matched_offline_summary.json'
+    : args.source === 'bank'
+      ? `swr_prompt_bakeoff_bank${args.tag ? `_${args.tag}` : ''}_summary.json`
+      : 'swr_prompt_bakeoff_summary.json';
+
+  const report = `# SWR prompt ${matched ? 'matched offline diagnosis' : args.source === 'bank' ? 'bank bake-off (ceiling break)' : 'bake-off (offline)'}
 
 **Date:** ${new Date().toISOString().slice(0, 10)}  
 **Model:** \`${args.model}\` · **n words:** ${words.length} · **calls:** ${jobs.length}  
-${matched ? `**Source run:** \`${args.fromRun}\` (all unique item words ∩ bank)` : ''}  
-**Split:** 70/30 by word hash (seed=${args.seed}) · primary = **ρ(b_proxy, b) on test**
+**Source:** ${matched ? `run \`${args.fromRun}\`` : args.source} · **variants:** ${args.variants.join(', ')}  
+**Split:** 70/30 by word hash (seed=${args.seed}) · primary = **ρ(b_proxy, b) on test** · also **ceil%** (p≥0.99)
 
 ## Results
 
-| Condition | n_test | ρ_test (b_proxy) | ρ_all | ρ(p_child,b) all | lex | parse |
-|-----------|-------:|-----------------:|------:|-----------------:|----:|------:|
+| Condition | n_test | ρ_test | ρ_all | ceil% | n_p | lex | parse |
+|-----------|-------:|-------:|------:|------:|----:|----:|------:|
 ${ranked
   .map((r) => {
     const m = summary[r.id];
-    return `| ${r.id} | ${m.n_test} | **${fmt(m.rho_b_proxy_test)}** | ${fmt(m.rho_b_proxy_all)} | ${fmt(m.rho_p_child_all)} | ${fmt(m.lex_acc)} | ${fmt(m.parse_rate)} |`;
+    return `| ${r.id} | ${m.n_test} | **${fmt(m.rho_b_proxy_test)}** | ${fmt(m.rho_b_proxy_all)} | ${fmt(m.frac_ceiling)} | ${m.n_unique_p ?? ''} | ${fmt(m.lex_acc)} | ${fmt(m.parse_rate)} |`;
   })
   .join('\n')}
 ${liveRow}
 
 ## Winner (offline conditions only)
 
-**\`${winner.id}\`** — score ρ≈**${fmt(winner.score)}** (test ${fmt(winner.rho_test)}, all ${fmt(winner.rho_all)}).
+**\`${winner.id}\`** — ρ_test≈**${fmt(winner.rho_test)}**, ceil=${fmt(winner.frac_ceiling)}, n_p=${winner.n_unique_p ?? ''}.
 ${liveBlock}
 ${
-  winner.id.startsWith('h15')
-    ? matched
-      ? 'On this live item set, HARDNESS still wins offline → prefer dual-age live / context fixes over reverting the scale.'
-      : 'Recommend wiring **`QA_SWR_PROMPT=v3`** (HARDNESS 1-5) into `swrPrompts.ts` and live smoke.'
-    : winner.id.includes('age_avg')
-      ? 'Age-averaging helped — for live, run dual-age offline ensemble or pick single best age cell.'
-      : matched
-        ? 'On this live item set, HML wins offline → **keep `QA_SWR_PROMPT=v2`** as live default.'
-        : 'Recommend keeping / defaulting **`QA_SWR_PROMPT=v2`** (HIGH|MED|LOW); optional age from panel persona.'
+  winner.id.includes('hml_s')
+    ? '**GO** — strict HML won; use for bank ranking / wire as `QA_SWR_PROMPT=v2strict`.'
+    : winner.id.startsWith('h15')
+      ? '**LEAN-GO** — HARDNESS 1-5 best on this bank draw; prefer over saturated HML for offline ranking.'
+      : winner.id.includes('age_avg')
+        ? 'Age-averaging helped — keep dual-age ensemble for bank ranking.'
+        : '**ITERATE** — baseline HML still wins; tighten further or add features.'
 }
 
-CSV: \`${matched ? 'out/swr_prompt_matched_offline.csv' : 'out/swr_prompt_bakeoff.csv'}\`
+CSV: \`out/${csvName}\`
 `;
 
-  const reportPath = join(
-    OUT,
-    matched ? 'REPORT_swr_prompt_matched_offline.md' : 'REPORT_swr_prompt_bakeoff.md',
-  );
-  writeFileSync(reportPath, report);
+  writeFileSync(join(OUT, reportName), report);
   writeFileSync(
-    join(OUT, matched ? 'swr_prompt_matched_offline_summary.json' : 'swr_prompt_bakeoff_summary.json'),
-    JSON.stringify({ summary, ranked, winner, liveVsOffline, fromRun: args.fromRun || null }, null, 2),
+    join(OUT, summaryName),
+    JSON.stringify({ summary, ranked, winner, liveVsOffline, args }, null, 2),
   );
 
   console.log(
     JSON.stringify(
       {
-        winner,
-        ranked,
-        liveVsOffline,
-        report: matched
-          ? 'tools/vlm-panel/out/REPORT_swr_prompt_matched_offline.md'
-          : 'tools/vlm-panel/out/REPORT_swr_prompt_bakeoff.md',
+        winner: winner.id,
+        rho_test: winner.rho_test,
+        frac_ceiling: winner.frac_ceiling,
+        report: `tools/vlm-panel/out/${reportName}`,
+        csv: `tools/vlm-panel/out/${csvName}`,
+        top: ranked.slice(0, 8).map((r) => ({
+          id: r.id,
+          rho_test: r.rho_test,
+          rho_all: r.rho_all,
+          ceil: r.frac_ceiling,
+          n_p: r.n_unique_p,
+        })),
       },
       null,
       2,
@@ -717,7 +788,12 @@ CSV: \`${matched ? 'out/swr_prompt_matched_offline.csv' : 'out/swr_prompt_bakeof
   );
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMain =
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

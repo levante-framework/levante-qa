@@ -54,7 +54,7 @@ export const swrVlmAgent = {
     const wordHint = String(letterString || transcript || '').trim() || null;
     // v2/v3 difficulty is text lexicality+score; skip screenshots (Gemini multimodal hangs).
     const image =
-      (version === 'v2' || version === 'v3') && wordHint ? '' : pngBase64;
+      (version === 'v2' || version === 'v2strict' || version === 'v3') && wordHint ? '' : pngBase64;
     return cy.task<number | null>('lookupAoa', { word: wordHint }).then((aoaYears) =>
       cy
         .task<VLMResult>('askVLM', {
@@ -67,7 +67,7 @@ export const swrVlmAgent = {
         .then((result: VLMResult): SwrVlmDecision => {
           const parsed: SwrReplyParse = parseSwrReply(result.raw);
           const applied =
-            (version === 'v2' || version === 'v3') && resolveSwrChildPlay()
+            (version === 'v2' || version === 'v2strict' || version === 'v3') && resolveSwrChildPlay()
               ? applyChildPlayPolicy(parsed)
               : { ...parsed, randomized: false };
           return {
