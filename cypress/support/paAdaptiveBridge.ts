@@ -22,9 +22,22 @@ export function isPaAdaptiveRuntime(): boolean {
   return adaptiveRequested();
 }
 
-/** Pin the flag the TaskPA asset patch reads. Call from onBeforeLoad. */
+function numTestItemsRequested(): number | null {
+  const raw = String(Cypress.expose('QA_PA_NUM_TEST_ITEMS') ?? '').trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+/** Pin flags TaskPA.vue / the asset patch read. Call from onBeforeLoad. */
 export function installPaAdaptiveFlag(win: Window): void {
-  (win as unknown as { __QA_PA_IS_ADAPTIVE?: boolean }).__QA_PA_IS_ADAPTIVE = adaptiveRequested();
+  const w = win as unknown as {
+    __QA_PA_IS_ADAPTIVE?: boolean;
+    __QA_PA_NUM_TEST_ITEMS?: number;
+  };
+  w.__QA_PA_IS_ADAPTIVE = adaptiveRequested();
+  const n = numTestItemsRequested();
+  if (n != null) w.__QA_PA_NUM_TEST_ITEMS = n;
 }
 
 /**
@@ -32,7 +45,12 @@ export function installPaAdaptiveFlag(win: Window): void {
  * Rewrites the dashboard TaskPA chunk so isAdaptive is passed via userParams.
  */
 export function installPaAdaptiveBridge(): void {
-  if (!adaptiveRequested()) return;
+  if (!adaptiveRequested() && numTestItemsRequested() == null) return;
+
+  // /game/pa is often a full document load; signin onBeforeLoad is not enough.
+  Cypress.on('window:before:load', (win) => {
+    installPaAdaptiveFlag(win);
+  });
 
   cy.intercept('**/assets/TaskPA-*.js', (req) => {
     req.continue((res) => {

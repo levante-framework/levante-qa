@@ -87,10 +87,13 @@ export type GeminiReply = { text: string; usage: VLMUsage | null };
 
 export async function askGemini(req: VLMRequest): Promise<GeminiReply> {
   const model = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
-  const contents = [
+  const contents: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
     { text: buildUserText(req.transcript, req.userText) },
-    { inlineData: { mimeType: 'image/png', data: req.pngBase64 } },
   ];
+  // Text-only requests (e.g. SWR prompt v2 with DOM letter-string) omit the image.
+  if (req.pngBase64) {
+    contents.push({ inlineData: { mimeType: 'image/png', data: req.pngBase64 } });
+  }
   const baseConfig = {
     systemInstruction: req.systemPrompt,
     temperature: resolveTemperature(),

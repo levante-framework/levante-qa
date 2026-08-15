@@ -17,6 +17,7 @@
  *   --param isAdaptive=true
  *   --param isAdaptive=false
  *   --param userMode=adaptiveTimingMultiStage   # SWR CAT variant (also set QA_SWR_USER_MODE)
+ *   --variant-id <id>                           # pin tasks/<task>/variants/<id>
  */
 import 'dotenv/config';
 
@@ -44,6 +45,7 @@ function parseArgs(argv) {
     projectId: undefined,
     credential: process.env.LEVANTE_ADMIN_FIREBASE_CREDENTIALS,
     force: false,
+    variantId: undefined,
     /** @type {Record<string, unknown>} */
     paramOverrides: {},
   };
@@ -57,6 +59,7 @@ function parseArgs(argv) {
     else if (a === '--project-id') args.projectId = argv[++i];
     else if (a === '--credential') args.credential = argv[++i];
     else if (a === '--force') args.force = true;
+    else if (a === '--variant-id') args.variantId = argv[++i];
     else if (a === '--param') {
       const raw = argv[++i];
       if (!raw || !raw.includes('=')) {
@@ -129,51 +132,118 @@ async function getOrCreateDistrict(db, siteName) {
   return ref.id;
 }
 
-function pickVariant(docs, languageCode) {
-  const registered = docs.filter((d) => d.data()?.registered === true);
-  const pool = registered.length ? registered : docs;
+/** roar-swr / i18next use languageOnly codes (en, de, es, …). */
+function languageOnly(languageCode) {
+  return String(languageCode || 'en-US').toLowerCase().split('-')[0];
+}
+
+function pickVariant(docs, languageCode, preferUserMode = '') {
   const want = String(languageCode || 'en-US').toLowerCase();
-  const wantBase = want.split('-')[0];
+  const wantBase = languageOnly(want);
+  const wantMode = String(preferUserMode || '').trim();
+  const hasPreferred =
+    Boolean(wantMode) &&
+    docs.some((d) => String(d.data()?.params?.userMode ?? '') === wantMode);
   const score = (d) => {
     const data = d.data() ?? {};
     const lang = String(data.params?.language ?? '').toLowerCase();
     const name = String(data.name ?? '').toLowerCase();
+    const mode = String(data.params?.userMode ?? 'shortRandom');
     let s = 0;
     if (lang === want) s += 200;
     else if (lang === wantBase || lang.startsWith(`${wantBase}-`)) s += 120;
+    // hs-levante-admin-dev SWR English variants use name "en" and language: null.
+    if (name === want || name === wantBase || name.startsWith(`${wantBase}-`)) s += 150;
     else if (lang.startsWith('en') || /english|united states|north america/.test(name)) s += 40;
+    if (hasPreferred && mode === wantMode) s += 100;
+    else if (mode === 'shortRandom') s += 15;
     if (/pilot|experimental/.test(name)) s -= 5;
+    if (data.registered === true) s += 10;
     return s;
   };
-  const sorted = [...pool].sort((a, b) => score(b) - score(a));
+  // Require a real language/name match. Falling back to "any registered" used to
+  // pick German SWR (language: "de") for it-IT / pt-BR when those variants are missing,
+  // and EN with language:null was not enough to pin roar-swr away from host locale.
+  const langMatch = docs.filter((d) => score(d) >= 120);
+  if (!langMatch.length) {
+    const available = docs
+      .map((d) => {
+        const data = d.data() ?? {};
+        return `${data.name ?? d.id}(lang=${data.params?.language ?? 'null'})`;
+      })
+      .join(', ');
+    throw new Error(
+      `No task variant matches language "${languageCode}" (base=${wantBase}). ` +
+        `Available: ${available || '(none)'}`,
+    );
+  }
+  const sorted = [...langMatch].sort((a, b) => score(b) - score(a));
   return sorted[0] ?? null;
 }
 
-async function buildAssessment(db, taskId, languageCode, paramOverrides = {}) {
+async function buildAssessment(db, taskId, languageCode, paramOverrides = {}, preferUserMode = '', variantId = '') {
   const taskDoc = await db.collection('tasks').doc(taskId).get();
   if (!taskDoc.exists) throw new Error(`Task "${taskId}" not found on dev`);
   const variants = await db.collection('tasks').doc(taskId).collection('variants').get();
   if (variants.empty) throw new Error(`Task "${taskId}" has no variants`);
-  const pick = pickVariant(variants.docs, languageCode);
+  const wantId = String(variantId || '').trim();
+  const pick = wantId
+    ? variants.docs.find((d) => d.id === wantId)
+    : pickVariant(variants.docs, languageCode, preferUserMode);
+  if (wantId && !pick) {
+    throw new Error(`Task "${taskId}" has no variant "${wantId}"`);
+  }
   if (!pick) throw new Error(`Task "${taskId}" has no usable variant for ${languageCode}`);
   const data = pick.data() ?? {};
-  const baseParams = data.params ?? { language: languageCode };
+  const baseParams = data.params ?? {};
+  // Do not inject lng/language here: Firekit updateTaskParams rejects unknown keys and
+  // startTask fails. Correct language comes from picking the matching variant
+  // (DE has language:"de"; EN name "en" with language null → roar-swr defaultToEnglish).
+  const params = {
+    ...baseParams,
+    ...paramOverrides,
+  };
   return {
     taskId,
     variantId: pick.id,
     variantName: data.name ?? languageCode,
-    params: { ...baseParams, ...paramOverrides },
+    params,
   };
 }
 
 async function createParticipant(db, { districtId, siteName, email, password, birthYear, birthMonth }) {
   const auth = getAuth();
-  const user = await auth.createUser({
-    email,
-    password,
-    displayName: `QA ${email.split('@')[0]}`,
-    emailVerified: true,
-  });
+  let user;
+  try {
+    user = await auth.createUser({
+      email,
+      password,
+      displayName: `QA ${email.split('@')[0]}`,
+      emailVerified: true,
+    });
+  } catch (err) {
+    // Recollects reuse deterministic qa-<runId> emails; reset the Auth user + continue.
+    if (err?.code !== 'auth/email-already-exists') throw err;
+    const existing = await auth.getUserByEmail(email);
+    await auth.deleteUser(existing.uid);
+    try {
+      await db.collection('users').doc(existing.uid).delete();
+    } catch {
+      /* best-effort */
+    }
+    try {
+      await db.collection('userClaims').doc(existing.uid).delete();
+    } catch {
+      /* best-effort */
+    }
+    console.log(`[qa-provision] recycled existing auth user for ${email}`);
+    user = await auth.createUser({
+      email,
+      password,
+      displayName: `QA ${email.split('@')[0]}`,
+      emailVerified: true,
+    });
+  }
   const uid = user.uid;
   const roles = [{ siteId: districtId, siteName, role: 'participant' }];
   const orgMap = { all: [districtId], current: [districtId], dates: { [districtId]: { from: new Date(), to: null } } };
@@ -412,7 +482,18 @@ async function main() {
         `QA_SWR_USER_MODE=${wantSwrUserMode}.`,
     );
   }
-  const assessment = await buildAssessment(db, args.task, args.language, args.paramOverrides);
+  const assessment = await buildAssessment(
+    db,
+    args.task,
+    args.language,
+    args.paramOverrides,
+    wantSwrUserMode,
+    args.variantId,
+  );
+  // Do not mutate numAdaptive here. English shortRandom variants ship 150.
+  // Deleting the key or writing 84 makes the dashboard fail to start the task
+  // (updateTaskParams / roar-swr validation). ATM therefore inherits 150 until
+  // a Firestore-safe cap exists.
   if (Object.keys(args.paramOverrides).length) {
     console.log(`[qa-provision] param overrides: ${JSON.stringify(args.paramOverrides)}`);
   }
@@ -444,7 +525,16 @@ async function main() {
     dateClosed,
   });
 
-  const result = { email: participant.email, password: participant.password, uid: participant.uid };
+  const result = {
+    email: participant.email,
+    password: participant.password,
+    uid: participant.uid,
+    variantId: assessment.variantId,
+    variantName: assessment.variantName,
+    language: assessment.params?.language ?? args.language,
+    userMode: assessment.params?.userMode ?? null,
+    numAdaptive: assessment.params?.numAdaptive ?? null,
+  };
   console.log(`PROVISION_RESULT=${JSON.stringify(result)}`);
 }
 

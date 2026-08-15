@@ -12,13 +12,14 @@ const LOG_DIR = join(OUT_DIR, 'logs');
 const MANIFEST = join(OUT_DIR, 'manifest.json');
 
 function parseArgs(argv) {
-  const args = { grid: null, limit: Infinity, dryRun: false, lang: null };
+  const args = { grid: null, limit: Infinity, dryRun: false, lang: null, runSuffix: null };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--limit') args.limit = Number(argv[++i]);
     else if (a === '--grid') args.grid = argv[++i];
     else if (a === '--lang') args.lang = argv[++i];
+    else if (a === '--run-suffix') args.runSuffix = String(argv[++i] || '').trim();
   }
   if (!args.grid) throw new Error('Missing --grid <path>');
   return args;
@@ -28,12 +29,13 @@ function shortModel(model) {
   return model.replace(/^gemini-/, '').replace(/[^a-z0-9]/gi, '');
 }
 
-function expand(grid, token, locale) {
+function expand(grid, token, locale, runSuffix = '') {
+  const suffix = runSuffix ? `_${String(runSuffix).replace(/[^a-zA-Z0-9]/g, '')}` : '';
   const out = [];
   for (const model of grid.models) {
     for (const age of grid.ages) {
       for (let rep = 1; rep <= (grid.repeats ?? 1); rep++) {
-        const runId = `panel_${grid.task}_${token}_${shortModel(model)}_a${age}_r${rep}`;
+        const runId = `panel_${grid.task}_${token}_${shortModel(model)}_a${age}_r${rep}${suffix}`;
         out.push({
           runId,
           task: grid.task,
@@ -144,6 +146,7 @@ function runOne(r, byId) {
     PARTICIPANT_PASS: creds.password,
     QA_LANGUAGE: r.qaLanguage,
     QA_RUN_ID: r.runId,
+    QA_PERSONA_AGE_YEARS: String(r.age),
     GEMINI_MODEL: r.model,
     VLM_TEMPERATURE: String(r.temperature),
   };
@@ -187,7 +190,7 @@ function main() {
   const token = locale.split('-')[0].toLowerCase();
 
   mkdirSync(LOG_DIR, { recursive: true });
-  let respondents = expand(grid, token, locale);
+  let respondents = expand(grid, token, locale, args.runSuffix || process.env.QA_PANEL_RUN_SUFFIX || '');
   if (Number.isFinite(args.limit)) respondents = respondents.slice(0, args.limit);
   const byId = loadManifest();
   const pending = respondents.filter((r) => !alreadyDone(r.runId, r.task));
@@ -197,6 +200,9 @@ function main() {
     `ROAR panel: ${respondents.length} respondent(s) [${grid.models.length} models x ${grid.ages.length} ages x ${grid.repeats} repeats]`,
   );
   console.log(`  task=${grid.task} lang=${token} (QA_LANGUAGE=${locale}) temp=${grid.temperature}`);
+  if (args.runSuffix || process.env.QA_PANEL_RUN_SUFFIX) {
+    console.log(`  run-suffix: ${args.runSuffix || process.env.QA_PANEL_RUN_SUFFIX}`);
+  }
   console.log(`  already done: ${skipped} | to run: ${pending.length}`);
 
   if (args.dryRun) {

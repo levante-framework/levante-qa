@@ -64,10 +64,11 @@ function lrFromDirection(value: unknown): CorrectLr | null {
  */
 export function collectStore(win: Window): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  const put = (k: string, v: unknown): void => {
-    if (!(k in out)) out[k] = v;
-  };
-  for (const storage of [win.sessionStorage, win.localStorage]) {
+  const ingest = (storage: Storage, overwriteNull: boolean): void => {
+    const put = (k: string, v: unknown): void => {
+      if (!(k in out)) out[k] = v;
+      else if (overwriteNull && out[k] == null && v != null) out[k] = v;
+    };
     try {
       for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i) ?? '';
@@ -85,7 +86,11 @@ export function collectStore(win: Window): Record<string, unknown> {
     } catch {
       // storage may be inaccessible; ignore
     }
-  }
+  };
+  // Session first; allow a later non-null to replace store2's initial `null`.
+  // LocalStorage must not clobber session with a stale object from a prior run.
+  ingest(win.sessionStorage, true);
+  ingest(win.localStorage, false);
   return out;
 }
 

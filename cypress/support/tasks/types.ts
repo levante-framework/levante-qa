@@ -626,7 +626,7 @@ export const SwrTrialRecordSchema = z.object({
   timestamp: z.string(),
   task: z.string(),
   step: z.number().int().nonnegative(),
-  itemType: z.enum(['intro', 'tutorial', 'item', 'break']),
+  itemType: z.enum(['intro', 'tutorial', 'practice', 'item', 'break']),
   correctLr: z.enum(['left', 'right']).nullable().default(null),
   chosenLr: z.enum(['left', 'right']).nullable().default(null),
   promptText: z.string().nullable().default(null),
@@ -644,6 +644,11 @@ export const SwrTrialRecordSchema = z.object({
   userMode: z.string().nullable().default(null),
   blockIndex: z.number().int().nullable().default(null),
   presentationTime: z.union([z.number(), z.string()]).nullable().default(null),
+  confidence: z.enum(['high', 'med', 'low']).nullable().default(null),
+  /** HARDNESS 1-5 when QA_SWR_PROMPT=v3. */
+  hardness: z.number().int().min(1).max(5).nullable().default(null),
+  pChild: z.number().nullable().default(null),
+  randomized: z.boolean().nullable().default(null),
 });
 export type SwrTrialRecord = z.infer<typeof SwrTrialRecordSchema>;
 

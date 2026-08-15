@@ -71,6 +71,13 @@ function dashboardBase(): string {
   return String(Cypress.expose('DASHBOARD_URL') ?? DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
 }
 
+/** ROAR game URL with i18next `lng` from QA_LANGUAGE (languageOnly). */
+function roarGameUrl(taskId: string): string {
+  const base = `${dashboardBase()}/game/${taskId}`;
+  const lng = qaLocale()?.split('-')[0];
+  return lng ? `${base}?lng=${encodeURIComponent(lng)}` : base;
+}
+
 /** App UI + narration locale for this run (set by the dashboard language picker). */
 function qaLocale(): string {
   return String(Cypress.expose('QA_LANGUAGE') ?? '').trim();
@@ -90,8 +97,16 @@ function withQaLocale(onBeforeLoad: (win: Window) => void): (win: Window) => voi
       try {
         win.sessionStorage.setItem('levantePlatformLocale', locale);
         win.sessionStorage.setItem('roarPlatformLocale', locale);
+        (win as unknown as { __QA_LANGUAGE?: string }).__QA_LANGUAGE = locale;
+        // roar-swr i18next falls back to navigator when gameParams.language is a
+        // full locale (en-US !== 'en'). Pin both so Electron's host locale (often
+        // de-DE on this machine) cannot select German copy / the DE wordlist.
+        const langs = [locale, locale.split('-')[0]].filter(Boolean);
+        Object.defineProperty(win.navigator, 'language', { get: () => locale, configurable: true });
+        Object.defineProperty(win.navigator, 'languages', { get: () => langs, configurable: true });
+        win.document.documentElement.setAttribute('lang', locale.split('-')[0] || locale);
       } catch {
-        // sessionStorage may be unavailable this early; locale pin is best-effort.
+        // sessionStorage / navigator may be unavailable this early; locale pin is best-effort.
       }
     }
     onBeforeLoad(win);
@@ -178,14 +193,14 @@ export function launchRoarTask(taskId: string): void {
       return;
     }
     traceRoar('launchRoarTask:fallback-direct-visit', { taskId });
-    cy.visit(`${dashboardBase()}/game/${taskId}`, { onBeforeLoad: withQaLocale(() => {}) });
+    cy.visit(roarGameUrl(taskId), { onBeforeLoad: withQaLocale(() => {}) });
   });
 
-  // If the card click left us on home (e.g. href="/"), cold-navigate.
+  // If the card click left us on home (e.g. href="/"), cold-navigate with lng.
   cy.location('pathname', { timeout: 30000 }).then((pathname) => {
     if (!String(pathname).includes(`/game/${taskId}`)) {
       traceRoar('launchRoarTask:retry-direct-visit', { taskId, pathname: String(pathname) });
-      cy.visit(`${dashboardBase()}/game/${taskId}`, { onBeforeLoad: withQaLocale(() => {}) });
+      cy.visit(roarGameUrl(taskId), { onBeforeLoad: withQaLocale(() => {}) });
     }
   });
 

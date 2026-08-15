@@ -15,9 +15,8 @@
  */
 
 function requestedUserMode(): string {
-  const fromExpose = String(Cypress.expose('QA_SWR_USER_MODE') ?? '').trim();
-  if (fromExpose) return fromExpose;
-  return String(Cypress.env('QA_SWR_USER_MODE') ?? '').trim();
+  // allowCypressEnv is false — only Cypress.expose works in the browser.
+  return String(Cypress.expose('QA_SWR_USER_MODE') ?? '').trim();
 }
 
 export function swrUserModeRuntime(): string | null {

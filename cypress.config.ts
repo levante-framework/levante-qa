@@ -55,6 +55,7 @@ function scopeLogPath(p: string): string {
 }
 
 import { askVLM as dispatchVLM, parseAction } from './cypress/plugins/vlmClients';
+import { lookupAoaYears } from './cypress/plugins/aoaLookup';
 import type { VLMRequest, VLMResult } from './cypress/plugins/vlmClients';
 import { makeChildPersonaPrompt } from './cypress/support/persona/childPersona';
 import { readMp3Tags } from './cypress/plugins/id3Reader';
@@ -194,7 +195,25 @@ export default defineConfig({
         async askVLM(req: VLMRequest): Promise<VLMResult> {
           const personaReq = applyPersona(req);
           const start = Date.now();
-          const reply = await dispatchVLM(provider, personaReq);
+          const timeoutMs = Math.max(5000, Number(process.env.VLM_TASK_TIMEOUT_MS) || 45000);
+          let reply: Awaited<ReturnType<typeof dispatchVLM>>;
+          try {
+            reply = await Promise.race([
+              dispatchVLM(provider, personaReq),
+              new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error(`askVLM timed out after ${timeoutMs}ms`)), timeoutMs);
+              }),
+            ]);
+          } catch (err) {
+            const latencyMs = Date.now() - start;
+            return {
+              action: 'CONTINUE',
+              raw: '',
+              latencyMs,
+              provider,
+              usage: null,
+            };
+          }
           const latencyMs = Date.now() - start;
           const raw = reply.text;
           // Panel cells set QA_RUN_ID; append Gemini/OpenAI usage per call for cost.
@@ -219,6 +238,11 @@ export default defineConfig({
             );
           }
           return { action: parseAction(raw), raw, latencyMs, provider, usage: reply.usage };
+        },
+
+        /** Kuperman AoA (years) for a letter-string, or null if unknown. */
+        lookupAoa({ word }: { word: string | null }): number | null {
+          return lookupAoaYears(word);
         },
 
         /**
@@ -478,7 +502,11 @@ export default defineConfig({
         'QA_TIMED_AGE_MONTHS',
         'QA_TIMED_SEED',
         'QA_PA_IS_ADAPTIVE',
+        'QA_PA_NUM_TEST_ITEMS',
         'QA_SWR_USER_MODE',
+        'QA_SWR_PROMPT',
+        'QA_SWR_CHILD_PLAY',
+        'QA_SWR_AOA',
         'QA_PERSONA_AGE_YEARS',
         'QA_PERSONA_AGE_MONTHS',
         'QA_PERSONA_ABILITY',
