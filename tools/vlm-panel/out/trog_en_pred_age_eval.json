@@ -1,9 +1,0 @@
-{
-  "generated": "2026-08-07T01:39:28.791Z",
-  "label": "age_eval_a6_a13",
-  "n_age_eval_runs": 7,
-  "mae_p_vlm_age_eval_vs_human": 0.11784415584415582,
-  "n_items_age_eval": 99,
-  "mae_p_vlm_full_screen": 0.10608080808080808,
-  "mae_p_pred_full_screen": 0.05863636363636365
-}
