@@ -205,6 +205,10 @@ dashboard, snapshots the pass/fail matrix to `results/daily/<date>.json`, diffs
 it against the previous day, and posts the current results to Slack (flagging new
 regressions). It reuses the dashboard's HTTP API and autostarts it if needed.
 
+Cypress runs stay **off-screen** by default (via `xvfb-run`) so Electron does not
+paint on your laptop under WSLg. To show the window for debugging:
+`QA_CYPRESS_HEADED=1 pnpm cy:run:…` or `node scripts/cypress-run.mjs --headed …`.
+
 See **[`DAILY_SWEEP.md`](DAILY_SWEEP.md)** for the full operator's guide:
 prerequisites, running it on a fresh machine, config/env, Slack setup, cron, and
 how to tell a real regression from transient `-dev` flakiness.

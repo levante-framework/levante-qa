@@ -22,7 +22,7 @@
  *   node tools/vlm-panel/run_panel.mjs --live --limit 1
  *   node tools/vlm-panel/run_panel.mjs --force                   # re-run successes too
  */
-import { spawnSync, spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -36,6 +36,7 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { spawnCypressRun } from '../../scripts/lib/cypressOffscreen.mjs';
 import { legacyLanguageReplacement } from '../../dashboard/catalog.mjs';
 import { assetDirFor, hasAssets, ensureAssetDir } from './panelAssets.mjs';
 import {
@@ -81,20 +82,7 @@ function parseArgs(argv) {
 
 /** Prefer Xvfb so WSLg DISPLAY=:0 does not paint Electron on the Windows desktop. */
 function spawnCypress(cyArgs, { cwd, env, stdio, headed }) {
-  if (headed) {
-    return spawn('npx', ['cypress', 'run', '--headed', ...cyArgs], { cwd, env, stdio });
-  }
-  const isolated = { ...env };
-  delete isolated.DISPLAY;
-  delete isolated.WAYLAND_DISPLAY;
-  if (existsSync('/usr/bin/xvfb-run')) {
-    return spawn(
-      'xvfb-run',
-      ['-a', '-s', '-screen 0 1280x1024x24', 'npx', 'cypress', 'run', ...cyArgs],
-      { cwd, env: isolated, stdio },
-    );
-  }
-  return spawn('npx', ['cypress', 'run', ...cyArgs], { cwd, env: isolated, stdio });
+  return spawnCypressRun(cyArgs, { cwd, env, stdio, headed });
 }
 
 function countPngs(dir) {

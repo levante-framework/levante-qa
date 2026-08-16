@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
+import { spawnCypressRun } from '../scripts/lib/cypressOffscreen.mjs';
 import {
   CATALOG,
   VLM_PROVIDERS,
@@ -543,22 +544,20 @@ function spawnCypress(run) {
     }
   }
 
-  const args = [
-    'cypress',
-    'run',
+  const cyArgs = [
     '--spec',
     spec,
     '--config',
     `screenshotsFolder=cypress/screenshots/runs/${run.runId}`,
   ];
   if (isVlmBacked && run.meta.provider) {
-    args.push('--env', `provider=${run.meta.provider}`);
+    cyArgs.push('--env', `provider=${run.meta.provider}`);
   }
 
-  appendLog(run, `\n[dashboard] launching: npx ${args.join(' ')}\n`);
+  appendLog(run, `\n[dashboard] launching (off-screen): cypress run ${cyArgs.join(' ')}\n`);
   // detached → its own process group so cancellation can kill the whole tree
-  // (cypress spawns an Electron/browser child of its own).
-  const child = spawn('npx', args, { cwd: REPO_ROOT, env, detached: true });
+  // (cypress / xvfb-run spawn Electron children of their own).
+  const child = spawnCypressRun(cyArgs, { cwd: REPO_ROOT, env, detached: true });
   run.pid = child.pid;
   run.proc = child;
   run.status = 'running';

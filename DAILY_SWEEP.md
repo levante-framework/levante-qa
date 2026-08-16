@@ -10,6 +10,10 @@ maintaining the sweep, including bringing it up on a fresh machine.
 - Run it: `npm run sweep`
 - Output: `results/daily/<YYYY-MM-DD>.json` (machine) + `<YYYY-MM-DD>.md` (human)
 
+Cypress windows stay off-screen (dashboard spawns via `xvfb-run`). Restart the
+local dashboard after pulling this change so sweep picks it up. Opt into a
+visible window only when debugging: `QA_CYPRESS_HEADED=1`.
+
 ---
 
 ## 1. What it does
