@@ -18,7 +18,7 @@ function writePanelStatus(patch: Record<string, unknown>): void {
         /* ignore */
       }
     }
-    const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
+    const next: Record<string, unknown> = { ...prev, ...patch, updatedAt: new Date().toISOString() };
     writeFileSync(PANEL_STATUS_PATH, JSON.stringify(next, null, 2) + '\n');
     const line = [
       next.updatedAt,

@@ -88,8 +88,9 @@ describe(`TROG — VLM agent (${provider})`, () => {
         'finalizePanelAssets',
         { dir: ASSET_DIR, locale: String(Cypress.expose('QA_LANGUAGE') ?? '') },
         { log: false },
-      ).then((res: { n: number }) => {
-        cy.log(`panel assets finalized: ${res?.n ?? 0} items → ${ASSET_DIR}`);
+      ).then((res: unknown) => {
+        const n = res && typeof res === 'object' && 'n' in res ? Number((res as { n: number }).n) : 0;
+        cy.log(`panel assets finalized: ${n} items → ${ASSET_DIR}`);
       });
     }
     const ts = Date.now();
