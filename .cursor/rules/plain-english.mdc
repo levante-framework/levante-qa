@@ -1,0 +1,33 @@
+---
+description: Explain technical terms and variable names in plain English in chat
+alwaysApply: true
+---
+
+# Plain English in chat
+
+When talking to the user, **say what a term means in everyday words** the first time it appears in a reply (and again if the thread has moved on). Do not assume they remember lab jargon.
+
+## How to explain
+
+- Lead with the idea, then the symbol: "guessed difficulty (`b_hat`)", not "`b_hat`".
+- For a metric, say what 0 and 1 (or a typical range) mean.
+- Prefer "made-up words" over "pseudos", "how often kids get it right" over "pass rate", "rank items from easy to hard" over "Spearman ρ vs bank `d`" — then give the symbol.
+- File paths and exact numbers stay; the *sentence around them* should be readable aloud.
+
+## Examples
+
+```
+❌ The separate-track ridge maps p_avg + ortho onto b; held-out ρ(b_hat, b) = 0.589.
+✅ We guess each word's difficulty for kids (`b_hat`) from the AI score plus spelling features. On words we held out, that guess matched the kids' difficulty order reasonably well (ρ = 0.589; 0 = no match, 1 = perfect).
+```
+
+```
+❌ MAE p_pred 0.059; do not ship d_est as CAT ground truth.
+✅ After we stretch the AI's "percent correct" toward real kids (`p_pred`), we are off by about 6 percentage points on average (MAE = 0.059). That ranking is for researchers to sort items — not a final difficulty number for the adaptive test (CAT).
+```
+
+## Do not
+
+- Strip symbols entirely (researchers still need `b`, ρ, MAE).
+- Invent friendlier numbers or hide a NO-GO behind softer wording.
+- Write a glossary dump instead of explaining the terms you actually used.

@@ -10,6 +10,8 @@ description: >-
 
 # VLM panel lab notebook
 
+Write for a mixed audience. **Lead with plain English**, then the symbol or path. First use of `d`, `b`, `ρ`, MAE, CAT, panel, etc. must say what it means (see `.cursor/rules/plain-english.mdc`). Do not delete dated facts or invent metrics.
+
 ## Notebook path
 
 `tools/vlm-panel/lab_notebook_difficulty_estimation.ipynb`
@@ -20,7 +22,7 @@ Edit with the **EditNotebook** tool (preserve markdown cell structure). Do not r
 
 | Idx | Section | Put here |
 |-----|---------|----------|
-| 0 | Title | Rarely touch |
+| 0 | Title + start-here / glossary | Story so far; keep glossary in sync when new symbols appear |
 | 1 | Question & framing | Scope / what “done” means |
 | 2 | Tooling inventory | New scripts, grids, `known_issues.json`, asset/replay modes |
 | 3 | Age gradients track | Age-curve method, expected `acc=` ranges, grid ages |
