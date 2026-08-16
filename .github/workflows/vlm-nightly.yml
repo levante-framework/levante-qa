@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: 'Single provider to run (leave blank / all = full matrix)'
+        description: 'Provider to run (default gemini; all = full matrix)'
         required: false
         type: choice
-        default: all
+        default: gemini
         options:
           - all
           - openai
@@ -48,11 +48,21 @@ jobs:
         id: gate
         run: |
           SELECTED="${{ github.event.inputs.provider }}"
-          if [ -n "$SELECTED" ] && [ "$SELECTED" != "all" ] && [ "$SELECTED" != "${{ matrix.provider }}" ]; then
+          # Schedule / empty input defaults to Gemini (OpenAI and Anthropic keys are often unset).
+          if [ -z "$SELECTED" ]; then
+            SELECTED="gemini"
+          fi
+          if [ "$SELECTED" != "all" ] && [ "$SELECTED" != "${{ matrix.provider }}" ]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # setup-node caches the pnpm store, not ~/.cache/Cypress. On a warm store pnpm
+      # skips cypress's postinstall, so the binary must be fetched explicitly.
+      - name: Ensure Cypress binary
+        if: steps.gate.outputs.run == 'true'
+        run: pnpm exec cypress install
 
       - name: Run VLM specs
         if: steps.gate.outputs.run == 'true'
