@@ -247,6 +247,14 @@ function normalizeWordForm(text: string): string {
     .replace(/[^a-z0-9]+/g, '');
 }
 
+/** Fold ASR/transcript spelling so n2words still matches. German "achtzig"
+ * is often heard/written "achzig" (the t before z is dropped). Longest-match
+ * in choiceWordInTranscript still prefers 87 over 8/80. */
+function foldSpokenCardinal(form: string, lang: string): string {
+  if (lang === 'de') return form.replace(/tz/g, 'z');
+  return form;
+}
+
 /**
  * Index of the choice whose value is named in the narration as a spelled-out
  * NUMBER WORD (the digit-free path: German and other locales narrate "Choose
@@ -264,7 +272,7 @@ export function choiceWordInTranscript(
 ): number {
   const toWords = NUMBER_TO_WORDS[lang];
   if (!transcript || !toWords) return -1;
-  const hay = normalizeWordForm(transcript);
+  const hay = foldSpokenCardinal(normalizeWordForm(transcript), lang);
   if (!hay) return -1;
   const nums = choiceNumbers(choices);
   let bestIdx = -1;
@@ -274,7 +282,7 @@ export function choiceWordInTranscript(
     if (n === null) return;
     let word = '';
     try {
-      word = normalizeWordForm(toWords(n));
+      word = foldSpokenCardinal(normalizeWordForm(toWords(n)), lang);
     } catch {
       word = '';
     }

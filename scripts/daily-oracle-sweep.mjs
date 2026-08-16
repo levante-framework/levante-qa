@@ -4,7 +4,7 @@
  *
  * Runs every task in every language it supports against the dashboard
  * (hs-levante-admin-dev), snapshots the pass/fail matrix, diffs it against the
- * previous snapshot, and posts the current results to Slack #levante-engineering
+ * previous snapshot, and DMs the current results to Slack (default: david_cardinal)
  * every day — the header flags new regressions (🚨), pre-existing failures (⚠️),
  * or all-green (🟢). Intended to run from cron.
  *
@@ -26,9 +26,9 @@
  *   SWEEP_INCLUDE_TESTING     include ar-IL/he-IL (default off; never alarms)
  *   SWEEP_AGE_YEARS / _MONTHS participant age (default 8 / 0)
  *   SWEEP_AUTOSTART           start the dashboard if it's down (default on)
- *   SLACK_WEBHOOK_URL         incoming webhook bound to the channel (preferred)
- *   SLACK_BOT_TOKEN           bot token (xoxb-…) — used if no webhook
- *   SLACK_ALERT_CHANNEL       channel for the bot-token path (default levante-engineering)
+ *   SLACK_BOT_TOKEN           preferred (DM via chat.postMessage)
+ *   SLACK_ALERT_CHANNEL       Slack user id for DM (default W018924DJJV)
+ *   SLACK_WEBHOOK_URL         optional fallback (channel fixed by webhook)
  *
  * Flags: --dry-run  --include-testing  --no-slack
  *        --languages=de-DE,en-US  --tasks=pa,sre  --concurrency=N
@@ -286,17 +286,11 @@ async function postSlack(text) {
   }
   const webhook = process.env.SLACK_WEBHOOK_URL;
   const token = process.env.SLACK_BOT_TOKEN;
-  const channel = process.env.SLACK_ALERT_CHANNEL || 'levante-engineering';
+  // Default: DM david_cardinal (W018924DJJV). Override with SLACK_ALERT_CHANNEL.
+  const channel = process.env.SLACK_ALERT_CHANNEL || 'W018924DJJV';
   try {
-    if (webhook) {
-      const res = await fetch(webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error(`webhook HTTP ${res.status}`);
-      log('posted Slack alert via webhook');
-    } else if (token) {
+    // Prefer bot token so we can DM a user id (webhooks are channel-bound).
+    if (token) {
       const res = await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8', Authorization: `Bearer ${token}` },
@@ -304,9 +298,17 @@ async function postSlack(text) {
       });
       const j = await res.json();
       if (!j.ok) throw new Error(`Slack API: ${j.error}`);
-      log(`posted Slack alert to ${channel}`);
+      log(`posted Slack DM/alert to ${channel}`);
+    } else if (webhook) {
+      const res = await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error(`webhook HTTP ${res.status}`);
+      log('posted Slack alert via webhook');
     } else {
-      log('NOTE: no SLACK_WEBHOOK_URL / SLACK_BOT_TOKEN set — skipping Slack (report written to disk).');
+      log('NOTE: no SLACK_BOT_TOKEN / SLACK_WEBHOOK_URL — skipping Slack (report written to disk).');
     }
   } catch (err) {
     log(`WARNING: Slack post failed: ${err.message}`);

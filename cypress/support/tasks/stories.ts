@@ -133,7 +133,7 @@ export function isComplete(win: TaskWindow): boolean {
   if (!content || content.children.length === 0) return true;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*exit\s*$/i.test(b.textContent ?? ''),
+    /^\s*(exit|salir|beenden|ausgang|terminar|fertig)\s*$/i.test(b.textContent ?? ''),
   );
 }
 

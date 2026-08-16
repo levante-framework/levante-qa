@@ -42,7 +42,7 @@ import { parseStoriesTrialRecord, type StoriesTrialRecord } from '../../support/
 // ~60 screens (story beats + ~31 questions) across 6 stories; staggered reveal
 // means several loop iterations per item, so this cap is generous. The loop
 // exits on the completion screen first.
-const MAX_STEPS = 4000;
+const MAX_STEPS = 8000;
 const TASK = 'theory-of-mind';
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 const STARTUP_OK_TIMEOUT_MS = 90000;

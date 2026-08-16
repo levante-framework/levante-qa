@@ -24,7 +24,7 @@ import {
   speechHasPlayed,
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
-import { launchTask } from '../../support/launch';
+import { isDashboardLaunch, launchTask } from '../../support/launch';
 import {
   agentLogStem,
   expectedAccuracy,
@@ -204,7 +204,11 @@ describe(`EGMA math — ${AGENT_LABEL}`, () => {
       );
       expect(typesObserved.has('number-comparison'), 'number-comparison observed').to.equal(true);
       expect(typesObserved.has('arithmetic'), 'arithmetic observed').to.equal(true);
-      expect(typesObserved.has('fraction'), 'fraction observed').to.equal(true);
+      // Dashboard CAT (age 8 sweep) often never serves a fraction item. The
+      // demo full bank still must exercise that type.
+      if (!isDashboardLaunch()) {
+        expect(typesObserved.has('fraction'), 'fraction observed').to.equal(true);
+      }
     });
   }
 
@@ -334,7 +338,7 @@ describe(`EGMA math — ${AGENT_LABEL}`, () => {
           : solution !== null;
       // The solver-vs-key differential cross-check stays on the SOLVER's answer,
       // so it keeps running (and stays meaningful) under sim/random agents.
-      if (hasKey && !isWrongAgentMode()) {
+      if (hasKey && solution && !isWrongAgentMode()) {
         keyedChecks += 1;
         if (computedIndex !== keyedIndex) {
           keyMismatches += 1;

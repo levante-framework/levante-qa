@@ -136,14 +136,16 @@ npm run sweep -- --concurrency=4
 
 ## 4. Slack
 
-Set **one** of these in `levante-qa/.env` to enable posting (preferred first):
+Set **one** of these in `levante-qa/.env` to enable posting. Bot token is
+preferred so the report can DM a user (default: `W018924DJJV` / david_cardinal).
+A webhook is channel-bound and only used if no bot token is set.
 
 ```bash
-# Incoming webhook bound to the target channel:
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-# Or a bot token (xoxb-…); the app must be a member of the channel:
+# Preferred: bot token DMs SLACK_ALERT_CHANNEL (user id or channel).
 SLACK_BOT_TOKEN=xoxb-...
-SLACK_ALERT_CHANNEL=levante-engineering   # bot-token path only
+SLACK_ALERT_CHANNEL=W018924DJJV
+# Fallback only (posts to whatever channel the webhook is bound to):
+# SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ```
 
 The daily message header reflects current state:

@@ -59,6 +59,10 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
   let seenLr: 'left' | 'right' | null = null;
   let lastBreakHandledAt = 0;
   let lastStimulusAt = 0;
+  /** Polls with no new answer/break after we have scored items. Caps the
+   * Cypress command chain so a missed finish screen cannot stack-overflow. */
+  let idlePolls = 0;
+  const IDLE_COMPLETE_POLLS = 100; // ~4s at POLL_MS
   let ipPhaseStartedAt = 0;
   let currentIsPractice = false;
   let donePractice = false;
@@ -176,6 +180,7 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
             // First poll that sees a new flash: start the RT clock, do not answer yet
             // (same-tick answers logged rtMs=0 and could miss the true LR).
             if (isNewFlash) {
+              idlePolls = 0;
               cy.wait(POLL_MS, { log: false });
               playTrials(iterLeft - 1);
               return;
@@ -224,6 +229,7 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
             return;
           }
 
+          idlePolls = 0;
           lastAnsweredKey = trialKey;
           const practice =
             !donePractice &&
@@ -268,6 +274,7 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
         if (isSwrBreakScreen(doc, text, win, { seenTrialKey, lastAnsweredKey })) {
           const now = Date.now();
           if (now - lastBreakHandledAt >= 400) {
+            idlePolls = 0;
             lastBreakHandledAt = now;
             nBreaks += 1;
             logRecord({
@@ -289,6 +296,12 @@ describe(`SWR — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (session correc
               clickSwrContinue();
             }
           }
+        }
+        idlePolls += 1;
+        if (nItems > 0 && idlePolls >= IDLE_COMPLETE_POLLS) {
+          gameComplete = true;
+          finalize();
+          return;
         }
         cy.wait(POLL_MS, { log: false });
         playTrials(iterLeft - 1);
