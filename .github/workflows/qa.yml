@@ -16,9 +16,6 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          # Pin below 20.19: Node >=20.19 enables require(esm) by default, which makes
-          # Cypress load cypress.config.ts via the sync-ESM path and bypass its ts-node
-          # transpiler ("SyntaxError: Unexpected token ':'").
           node-version: 24
           cache: pnpm
 
@@ -34,13 +31,13 @@ jobs:
         run: pnpm typecheck
 
       - name: Run oracle specs
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           install: false
           command: pnpm cy:run:oracle
 
       - name: Run audio content QA
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           install: false
           command: pnpm cy:run:audio
