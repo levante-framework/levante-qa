@@ -1,3 +1,4 @@
+import { EXIT_LABEL } from './labels';
 import type { EgmaItemType, EgmaSummaryStats, EgmaTrialRecord } from './types';
 import { toCardinal as numToWordsDe } from 'n2words/de-DE';
 import { toCardinal as numToWordsEs } from 'n2words/es-ES';
@@ -94,7 +95,7 @@ export function isComplete(win: TaskWindow): boolean {
   if (!content || content.children.length === 0) return true;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*exit\s*$/i.test(b.textContent ?? ''),
+    EXIT_LABEL.test(b.textContent ?? ''),
   );
 }
 

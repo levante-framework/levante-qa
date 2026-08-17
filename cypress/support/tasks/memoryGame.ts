@@ -1,3 +1,4 @@
+import { EXIT_LABEL } from './labels';
 import type { MemoryGameSummaryStats, MemoryGameTrialRecord } from './types';
 
 /**
@@ -166,7 +167,7 @@ export function isComplete(win: MemoryWindow): boolean {
   if (!content || content.children.length === 0) return true;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*exit\s*$/i.test(b.textContent ?? ''),
+    EXIT_LABEL.test(b.textContent ?? ''),
   );
 }
 

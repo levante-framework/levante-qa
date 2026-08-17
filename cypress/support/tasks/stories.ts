@@ -1,3 +1,4 @@
+import { EXIT_LABEL } from './labels';
 import type { StoriesSummaryStats, StoriesTrialRecord } from './types';
 
 /**
@@ -133,7 +134,7 @@ export function isComplete(win: TaskWindow): boolean {
   if (!content || content.children.length === 0) return true;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*(exit|salir|beenden|ausgang|terminar|fertig)\s*$/i.test(b.textContent ?? ''),
+    EXIT_LABEL.test(b.textContent ?? ''),
   );
 }
 

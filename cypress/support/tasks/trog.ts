@@ -1,3 +1,4 @@
+import { EXIT_LABEL } from './labels';
 import type { TrogSummaryStats, TrogTrialRecord } from './types';
 
 /**
@@ -109,7 +110,7 @@ export function isComplete(win: TaskWindow): boolean {
   const stim = doc.querySelector(STIMULUS_CONTAINER);
   if (stim && stim.querySelector('footer')) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*exit\s*$/i.test(b.textContent ?? ''),
+    EXIT_LABEL.test(b.textContent ?? ''),
   );
 }
 

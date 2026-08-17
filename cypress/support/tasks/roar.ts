@@ -81,9 +81,17 @@ export function waitForParticipantHomeReady(taskId: string, requireTaskLink = tr
   }
 }
 
+function reloadAndRetryWait(reloadLeft: number): void {
+  (Cypress as RoarCypress).__roarStartFailed = undefined;
+  cy.reload();
+  waitForRoarJsPsych(reloadLeft - 1, 0);
+}
+
 /**
  * Poll until roar-* leaves the fullscreen spinner (mirrors roar-dashboard
- * `waitForAssessmentReadyState`). Retries one full page reload if still stuck.
+ * `waitForAssessmentReadyState`). Retries one full page reload if still stuck
+ * or if the dashboard alerts "failed to start" (its own copy says to refresh;
+ * this often flakes when two ROAR games boot at once).
  */
 export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
   const MAX_ATTEMPTS = 150;
@@ -91,8 +99,7 @@ export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
 
   if (attempt >= MAX_ATTEMPTS) {
     if (reloadLeft > 0) {
-      cy.reload();
-      waitForRoarJsPsych(reloadLeft - 1, 0);
+      reloadAndRetryWait(reloadLeft);
       return;
     }
     cy.get(ROAR_READY_SELECTORS, { timeout: 1000 }).should('exist');
@@ -119,9 +126,15 @@ export function waitForRoarJsPsych(reloadLeft = 1, attempt = 0): void {
       traceWait({
         stage: 'waitForRoarJsPsych:start-failed',
         attempt,
+        reloadLeft,
         path: win.location?.pathname ?? null,
         bodySnippet: (alertFail || bodyText).replace(/\s+/g, ' ').trim().slice(0, 400),
       });
+      if (reloadLeft > 0) {
+        cy.wait(2000, { log: false });
+        reloadAndRetryWait(reloadLeft);
+        return;
+      }
       throw new Error(
         `Dashboard reported the ROAR task failed to start: ${alertFail || 'alert/body text visible'}`,
       );

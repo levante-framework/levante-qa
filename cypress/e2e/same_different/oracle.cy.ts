@@ -8,6 +8,7 @@ import {
   dismissSdsStartup,
   isMultiSelectReady,
   isSingleSelectReady,
+  isUnkeyedSingleSelect,
   isSomethingSameScreen,
   isSomethingSameItem,
   readReferenceAlt,
@@ -65,6 +66,8 @@ const MATCH_STALL_LIMIT = 15;
 // instead of running until the Cypress command-chain stack overflows.
 const SCREEN_STUCK_LOG = 'cypress/logs/_sds_screen_stuck.jsonl';
 const SCREEN_STALL_LIMIT = 40;
+/** How long to wait for `.correct` on a 4-card test-dimensions screen. */
+const SINGLE_KEY_WAIT_MS = 20_000;
 
 const AGENT_LABEL = isWrongAgentMode()
   ? 'wrong agent'
@@ -145,6 +148,38 @@ describe(`Same-Different Selection — ${AGENT_LABEL}`, () => {
         return;
       }
       waitChangedThenStep(i, prevSig, attemptsLeft - 1);
+    });
+  }
+
+  /** Poll until `.correct` appears on an unkeyed 4-card screen, then handleSingle. */
+  function waitForSingleKeyThenHandle(i: number, win: TaskWindow): void {
+    const sig = screenSig(win);
+    cy.wrap(null, { log: false }).then(() => {
+      const deadline = Date.now() + SINGLE_KEY_WAIT_MS;
+      const poll = (): void => {
+        cy.window({ log: false }).then((w) => {
+          const next = w as unknown as TaskWindow;
+          if (finished(next) || isComplete(next)) {
+            step(i + 1);
+            return;
+          }
+          if (isSingleSelectReady(next)) {
+            handleSingle(i, next);
+            return;
+          }
+          if (screenSig(next) !== sig) {
+            step(i + 1);
+            return;
+          }
+          if (Date.now() >= deadline) {
+            handleSingle(i, next);
+            return;
+          }
+          cy.wait(250, { log: false });
+          poll();
+        });
+      };
+      poll();
     });
   }
 
@@ -435,7 +470,18 @@ describe(`Same-Different Selection — ${AGENT_LABEL}`, () => {
         matchLayoutSig = '';
         lastMatchStallSig = '';
         matchStallCount = 0;
+        screenStallCount = 0;
         handleSingle(i, win);
+        return;
+      }
+      // Same 4-card layout, key not painted yet (audio-gated / first item).
+      // Wait for `.correct` so we don't stall at 5s; click anyway if it never comes.
+      if (isUnkeyedSingleSelect(win)) {
+        matchLayoutSig = '';
+        lastMatchStallSig = '';
+        matchStallCount = 0;
+        screenStallCount = 0;
+        waitForSingleKeyThenHandle(i, win);
         return;
       }
       if (isMultiSelectReady(win)) {

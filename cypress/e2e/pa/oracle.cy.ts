@@ -23,10 +23,11 @@ import {
   advancePaScreen,
   clickAllPaChoices,
   clickPaContinue,
+  findVisiblePaAdvance,
+  findVisiblePaContinue,
   clickCorrectPaImage,
   clickWrongPaImage,
   goalResponseImagePresent,
-  CONTINUE,
   FULLSCREEN_BTN,
   INTRO_CANVAS,
   hasPaChoices,
@@ -227,7 +228,7 @@ describe(`PA — ${agentLabel()}`, () => {
 
         const goal = readGoalFromWindow(win);
         const choices = hasPaChoices(doc);
-        const continueVisible = $b.find(CONTINUE).filter(':visible').length > 0;
+        const continueVisible = findVisiblePaContinue($b).length > 0;
 
         // No-progress guard: if the screen's shape is unchanged for STALL_LIMIT
         // passes the loop is wedged on a screen no branch advances. Dump it and
@@ -284,7 +285,7 @@ describe(`PA — ${agentLabel()}`, () => {
         }
         // Any visible advance affordance (Continue or jsPsych button) marks a
         // non-trial pause; used only to tally break screens for the summary.
-        const advanceVisible = $b.find(ADVANCE_BTN).filter(':visible').length > 0;
+        const advanceVisible = findVisiblePaAdvance($b).length > 0;
 
         // Real AFC response phase: jsPsych choice buttons + answer key, no Continue.
         // Cue/audio previews show the same .webp images in prompt HTML without

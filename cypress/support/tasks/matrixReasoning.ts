@@ -1,3 +1,4 @@
+import { EXIT_LABEL, START_CONTINUE_LABEL } from './labels';
 import type { MatrixReasoningSummaryStats, MatrixReasoningTrialRecord } from './types';
 
 /**
@@ -109,7 +110,7 @@ export function isComplete(win: TaskWindow): boolean {
   const stim = doc.querySelector(STIMULUS_CONTAINER);
   if (stim && stim.querySelector('footer')) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*exit\s*$/i.test(b.textContent ?? ''),
+    EXIT_LABEL.test(b.textContent ?? ''),
   );
 }
 
@@ -128,9 +129,6 @@ export function isInstructionScreen(win: TaskWindow): boolean {
   const primary = doc.querySelector(CONTINUE_BUTTON);
   return !!primary && isInteractable(primary);
 }
-
-/** Labels used on fullscreen / intro screens (not the literal text "OK"). */
-const START_CONTINUE_LABEL = /^(ok|continue|next)$/i;
 
 function findEnabledStartButton(doc: Document): HTMLElement | null {
   const fullscreen = doc.querySelector(
@@ -213,9 +211,32 @@ export function waitForMatrixTaskResilient(
         return;
       }
       if (attempt >= STALL_POLLS) {
-        // Reloads exhausted: fall back to the plain long wait so a real stall
-        // still ends in a clear, single assertion failure.
-        waitForMatrixTask();
+        const doc = win.document;
+        cy.task(
+          'writeJsonl',
+          {
+            path: 'cypress/logs/_matrix_startup_stuck.jsonl',
+            records: [
+              {
+                buttons: [...doc.querySelectorAll('button')]
+                  .filter((el) => (el as HTMLElement).offsetParent !== null)
+                  .map((el) => ({
+                    cls: (el as HTMLElement).className,
+                    text: (el.textContent ?? '').trim().slice(0, 60),
+                  }))
+                  .slice(0, 12),
+                bodyText: (doc.body?.innerText ?? '').trim().slice(0, 600),
+              },
+            ],
+          },
+          { log: false },
+        );
+        cy.wrap(null).then(() => {
+          expect(
+            false,
+            'matrix never left preload after reloads — see cypress/logs/_matrix_startup_stuck.jsonl',
+          ).to.equal(true);
+        });
         return;
       }
       cy.wait(1000, { log: false });

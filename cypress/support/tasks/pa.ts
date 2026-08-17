@@ -6,6 +6,7 @@
  * roar-dashboard `cypress/support/helper-functions/roar-pa/paHelpers.js`.
  */
 
+import { START_CONTINUE_LABEL } from './labels';
 import type { PaSummaryStats, PaTrialRecord } from './types';
 
 export const PA_ROUTE = '/game/pa';
@@ -173,12 +174,28 @@ export function waitForPaReady(): void {
  * take up to 120s) burns the whole budget before this even runs, and it would
  * poll zero times and silently skip the click.
  */
+/** Visible Continue / Continuar — `.continue` class first, then button label. */
+export function findVisiblePaContinue($b: JQuery<HTMLElement>): JQuery<HTMLElement> {
+  const $classed = $b.find(CONTINUE).filter(':visible');
+  if ($classed.length) return $classed as JQuery<HTMLElement>;
+  return $b.find('button').filter(':visible').filter((_, el) =>
+    START_CONTINUE_LABEL.test((el.textContent ?? '').trim()),
+  ) as JQuery<HTMLElement>;
+}
+
+/** Any advance affordance: Continue class, jsPsych button, or labeled continue. */
+export function findVisiblePaAdvance($b: JQuery<HTMLElement>): JQuery<HTMLElement> {
+  const $classed = $b.find(ADVANCE_BTN).filter(':visible');
+  if ($classed.length) return $classed as JQuery<HTMLElement>;
+  return findVisiblePaContinue($b);
+}
+
 function clickVisibleContinue(maxMs = 30_000): void {
   cy.wrap(null, { log: false }).then(() => {
     const deadline = Date.now() + maxMs;
     const attempt = (): void => {
       cy.get('body', { log: false }).then(($b) => {
-        const $continue = $b.find(CONTINUE).filter(':visible');
+        const $continue = findVisiblePaContinue($b);
         if ($continue.length) {
           cy.wrap($continue.first()).click({ force: true });
           return;
@@ -231,9 +248,13 @@ export function advancePaScreen(): void {
     // screen" intro has a canvas with no button. Clicking the animating canvas
     // when a button exists both mis-targets and detaches mid-render.
     let target: string | null = null;
+    const $labeled = findVisiblePaAdvance($b);
     if (visible(FULLSCREEN_BTN)) target = FULLSCREEN_BTN;
     else if (visible(ADVANCE_BTN)) target = ADVANCE_BTN;
-    else if (visible(INTRO_CANVAS)) target = INTRO_CANVAS;
+    else if ($labeled.length) {
+      cy.wrap($labeled.first()).click({ force: true });
+      return;
+    } else if (visible(INTRO_CANVAS)) target = INTRO_CANVAS;
     if (!target) return;
 
     // Click via a FRESH `cy.get` (never a captured node): these screens animate /

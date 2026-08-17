@@ -1,4 +1,5 @@
 import { applyQaTaskParams, resolveDemoBase } from '../demoUrl';
+import { EXIT_LABEL, START_CONTINUE_LABEL } from './labels';
 import type { SdsSummaryStats, SdsTrialRecord } from './types';
 
 /**
@@ -129,7 +130,7 @@ export function isComplete(win: TaskWindow): boolean {
   const stim = doc.querySelector(STIMULUS_CONTAINER);
   if (stim && stim.querySelector('footer')) return true;
   return Array.from(doc.querySelectorAll('button')).some((b) =>
-    /^\s*exit\s*$/i.test(b.textContent ?? ''),
+    EXIT_LABEL.test(b.textContent ?? ''),
   );
 }
 
@@ -153,9 +154,6 @@ export function isMatchConfirmReady(win: TaskWindow): boolean {
   const btn = win.document.querySelector(MATCH_CONFIRM_BUTTON) as HTMLButtonElement | null;
   return !!btn && isInteractable(btn) && !btn.disabled;
 }
-
-/** Fullscreen / preload / intro labels (not always the literal "OK"). */
-const START_CONTINUE_LABEL = /^(ok|continue|next)$/i;
 
 function findEnabledStartButton(doc: Document): HTMLElement | null {
   const fullscreen = doc.querySelector(
@@ -353,6 +351,17 @@ export function isSomethingSameItem(win: TaskWindow): boolean {
   if (isSingleSelectReady(win) || isMultiSelectReady(win)) return false;
   if (win.document.querySelectorAll(SINGLE_CHOICE).length < 2) return false;
   return readReferenceAlt(win) !== null;
+}
+
+/**
+ * Four-card test-dimensions screen whose `.correct` key has not painted yet
+ * (audio-gated, or the first item after boot). Distinct from a legacy
+ * something-same item, which has a reference card and no key by design.
+ */
+export function isUnkeyedSingleSelect(win: TaskWindow): boolean {
+  if (isSingleSelectReady(win) || isMultiSelectReady(win)) return false;
+  if (isSomethingSameItem(win)) return false;
+  return win.document.querySelectorAll(SINGLE_CHOICE).length >= 2;
 }
 
 const SIZE_TOKENS = new Set(['sm', 'med', 'lg', 'small', 'medium', 'large']);

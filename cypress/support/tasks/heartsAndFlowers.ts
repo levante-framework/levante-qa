@@ -1,3 +1,4 @@
+import { EXIT_LABEL } from './labels';
 import type {
   BlockType,
   Congruency,
@@ -254,7 +255,7 @@ export function hasExitScreen(win: TaskWindow): boolean {
   const doc = win.document;
   if (doc.querySelector(EXIT_BUTTON)) return true;
   const buttons = Array.from(doc.querySelectorAll('button'));
-  return buttons.some((b) => /^\s*exit\s*$/i.test(b.textContent ?? ''));
+  return buttons.some((b) => EXIT_LABEL.test(b.textContent ?? ''));
 }
 
 /** True on an instructions / finished screen: a visible `.primary` (OK/Exit)

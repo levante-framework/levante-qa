@@ -8,6 +8,7 @@ import {
   dismissSdsStartup,
   isMultiSelectReady,
   isSingleSelectReady,
+  isUnkeyedSingleSelect,
   isSomethingSameScreen,
   commitMatchPair,
   matchLayoutKey,
@@ -112,6 +113,37 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
         }
         step(i + 1);
       });
+  }
+
+  function waitForSingleKeyThenHandle(i: number, win: TaskWindow): void {
+    const sig = screenSig(win);
+    cy.wrap(null, { log: false }).then(() => {
+      const deadline = Date.now() + 20_000;
+      const poll = (): void => {
+        cy.window({ log: false }).then((w) => {
+          const next = w as unknown as TaskWindow;
+          if (finished(next) || isComplete(next)) {
+            step(i + 1);
+            return;
+          }
+          if (isSingleSelectReady(next)) {
+            handleSingle(i, next);
+            return;
+          }
+          if (screenSig(next) !== sig) {
+            step(i + 1);
+            return;
+          }
+          if (Date.now() >= deadline) {
+            handleSingle(i, next);
+            return;
+          }
+          cy.wait(250, { log: false });
+          poll();
+        });
+      };
+      poll();
+    });
   }
 
   function finalize(): void {
@@ -304,6 +336,13 @@ describe(`Same-Different Selection — VLM agent (${provider})`, () => {
         lastMatchStallSig = '';
         matchStallCount = 0;
         handleSingle(i, win);
+        return;
+      }
+      if (isUnkeyedSingleSelect(win)) {
+        matchLayoutSig = '';
+        lastMatchStallSig = '';
+        matchStallCount = 0;
+        waitForSingleKeyThenHandle(i, win);
         return;
       }
       if (isMultiSelectReady(win)) {
