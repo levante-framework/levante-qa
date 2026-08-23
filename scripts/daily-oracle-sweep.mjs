@@ -428,6 +428,11 @@ async function main() {
   await writeFile(join(SNAPSHOT_DIR, `${date}.md`), report.text + '\n', 'utf-8');
   console.log('\n' + report.text + '\n');
   log(`snapshot → results/daily/${todayFile}`);
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (summaryPath) {
+    await writeFile(summaryPath, report.text + '\n', { flag: 'a' });
+    log('wrote GitHub Actions job summary');
+  }
 
   // Post the current results every day (green or not).
   await postSlack(slackMessage(report, previous));
