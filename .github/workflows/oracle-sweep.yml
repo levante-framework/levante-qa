@@ -1,0 +1,107 @@
+name: Daily oracle sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Optional locales (e.g. de-DE,es-AR). Blank = full matrix.'
+        required: false
+        type: string
+        default: ''
+      tasks:
+        description: 'Optional catalog task ids (e.g. vocab,stories). Blank = all.'
+        required: false
+        type: string
+        default: ''
+      no_slack:
+        description: 'Write snapshot only; do not DM Slack'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # 11:00 UTC = 04:00 PT in PDT / 03:00 PT in PST.
+    - cron: '0 11 * * *'
+
+concurrency:
+  group: oracle-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Task × language oracle
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      QA_BROWSER: chrome
+      SWEEP_CONCURRENCY: '3'
+      SWEEP_AGENT: oracle
+      LEVANTE_ADMIN_FIREBASE_CREDENTIALS: ${{ github.workspace }}/.credentials/firebase.json
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-sa.json
+      QA_GCS_PROJECT: hs-levante-admin-dev
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_ALERT_CHANNEL: W018924DJJV
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure Cypress binary
+        run: pnpm exec cypress install
+
+      - name: Write service-account credentials
+        env:
+          FIREBASE_ADMIN_SA_JSON: ${{ secrets.FIREBASE_ADMIN_SA_JSON }}
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$FIREBASE_ADMIN_SA_JSON" ]; then echo "::error::FIREBASE_ADMIN_SA_JSON secret is not set"; exit 1; fi
+          if [ -z "$GCP_SERVICE_ACCOUNT_JSON" ]; then echo "::error::GCP_SERVICE_ACCOUNT_JSON secret is not set"; exit 1; fi
+          mkdir -p .credentials
+          printf '%s' "$FIREBASE_ADMIN_SA_JSON" > .credentials/firebase.json
+          printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > gcp-sa.json
+          node -e "require('./.credentials/firebase.json'); require('./gcp-sa.json'); console.log('service-account JSON parsed OK')"
+
+      - name: Restore previous daily snapshots
+        uses: actions/cache@v6
+        with:
+          path: results/daily
+          key: oracle-sweep-daily-${{ github.run_id }}
+          restore-keys: |
+            oracle-sweep-daily-
+
+      - name: Run oracle sweep
+        env:
+          NO_SLACK_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.no_slack || false }}
+          LANGUAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.languages || '' }}
+          TASKS: ${{ github.event_name == 'workflow_dispatch' && inputs.tasks || '' }}
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ "${NO_SLACK_INPUT}" = "true" ]; then ARGS+=(--no-slack); fi
+          if [ -n "${LANGUAGES}" ]; then ARGS+=(--languages="${LANGUAGES}"); fi
+          if [ -n "${TASKS}" ]; then ARGS+=(--tasks="${TASKS}"); fi
+          pnpm run sweep -- "${ARGS[@]}"
+
+      - name: Upload daily snapshot
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: oracle-sweep-${{ github.run_id }}
+          path: results/daily
+          if-no-files-found: ignore
+
+      - name: Upload trial logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: oracle-sweep-logs
+          path: cypress/logs
+          if-no-files-found: ignore

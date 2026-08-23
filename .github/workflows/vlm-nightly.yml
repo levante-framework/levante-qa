@@ -1,4 +1,4 @@
-name: VLM nightly
+name: VLM agent
 
 on:
   workflow_dispatch:
@@ -13,9 +13,6 @@ on:
           - openai
           - anthropic
           - gemini
-  schedule:
-    # 11:00 UTC = 04:00 PT in PDT / 03:00 PT in PST.
-    - cron: '0 11 * * *'
 
 jobs:
   vlm:

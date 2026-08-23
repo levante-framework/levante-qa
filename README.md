@@ -210,8 +210,9 @@ your laptop under WSLg. Override with `QA_BROWSER=electron`. To show the window:
 `QA_CYPRESS_HEADED=1 pnpm cy:run:…` or `node scripts/cypress-run.mjs --headed …`.
 
 See **[`DAILY_SWEEP.md`](DAILY_SWEEP.md)** for the full operator's guide:
-prerequisites, running it on a fresh machine, config/env, Slack setup, cron, and
-how to tell a real regression from transient `-dev` flakiness.
+prerequisites, running it on a fresh machine, config/env, Slack setup, the
+GitHub nightly, and how to tell a real regression from transient `-dev`
+flakiness.
 
 ## Daily translation screen
 
@@ -899,7 +900,7 @@ cypress/
 scripts/                    score.ts, score_egma.ts, score_vocab.ts, score_stories.ts, score_sds.ts, score_mr.ts, score_matrix.ts, summarize_runs.ts, sync_persona.mjs
 dashboard/                  server.mjs (run orchestration backend), catalog.mjs (task→spec map), storage.mjs (GCS run-history mirror)
   public/                   index.html, app.js, styles.css (Pitwall-styled UI: Launch + Results tabs)
-.github/workflows/          qa.yml (oracle + audio on PR), vlm-nightly.yml (scheduled matrix)
+.github/workflows/          qa.yml (oracle + audio on PR), oracle-sweep.yml (nightly task × language), vlm-nightly.yml (manual VLM)
 ```
 
 The dashboard's per-run provisioner lives in the sibling repo at
@@ -1043,4 +1044,5 @@ All three ROAR literacy tasks (PA, SRE, SWR) are now in the dashboard catalog as
   CI has no secrets for. Run them locally via `pnpm cy:run:pa:oracle` / `:sre:` /
   `:swr:`. When adding a new demo-hosted task, add its folder to that `--spec` brace
   list in `package.json`.
-- **`vlm-nightly.yml`** — `workflow_dispatch` + nightly cron (`11:00` UTC ≈ 04:00 PT). Matrix over `[openai, anthropic, gemini]` (schedule defaults to Gemini), reading `*_API_KEY` from repo secrets. Runs the VLM specs, then `pnpm score`, uploads logs + `results/`, and DMs a summary to Slack (`SLACK_ALERT_CHANNEL`, default david_cardinal).
+- **`oracle-sweep.yml`** — nightly cron (`11:00` UTC ≈ 04:00 PT) plus `workflow_dispatch`. Runs the 48-cell `-dev` oracle matrix (`pnpm run sweep`), diffs vs the cached previous snapshot, DMs Slack, uploads `results/daily`.
+- **`vlm-nightly.yml`** — `workflow_dispatch` only (no schedule). Matrix over `[openai, anthropic, gemini]` (default Gemini), reading `*_API_KEY` from repo secrets. Runs the VLM specs, then `pnpm score`, uploads logs + `results/`, and DMs a summary to Slack (`SLACK_ALERT_CHANNEL`, default david_cardinal).

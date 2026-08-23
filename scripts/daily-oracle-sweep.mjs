@@ -6,7 +6,8 @@
  * (hs-levante-admin-dev), snapshots the pass/fail matrix, diffs it against the
  * previous snapshot, and DMs the current results to Slack (default: david_cardinal)
  * every day — the header flags new regressions (🚨), pre-existing failures (⚠️),
- * or all-green (🟢). Intended to run from cron.
+ * or all-green (🟢). Scheduled on GitHub at 04:00 PT (`oracle-sweep.yml`);
+ * also fine from a local cron.
  *
  * It reuses the running dashboard end-to-end:
  *   - GET  /api/tasks          → the task × language support matrix
@@ -394,6 +395,7 @@ export function slackMessage(report, previous) {
     parts.push(`:large_white_circle: *Still failing:*`);
     for (const c of report.stillFail) parts.push(`• ${c.label} — \`${c.language}\`${c.failureSummary ? `: ${c.failureSummary}` : ''}`);
   }
+  if (process.env.GITHUB_RUN_URL) parts.push(`\n${process.env.GITHUB_RUN_URL}`);
   return parts.join('\n');
 }
 

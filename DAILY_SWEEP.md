@@ -173,10 +173,14 @@ GCS run-history bucket the dashboard uses for `results/runs.json`.
 
 ---
 
-## 6. Cron
+## 6. Schedule
 
-Run from the repo root with a login shell so `.env`, `node`, and `gcloud` ADC
-resolve. Example — 06:00 local, log to a dated file:
+The nightly run is **GitHub Actions** (`.github/workflows/oracle-sweep.yml`):
+`0 11 * * *` UTC (04:00 PT in PDT / 03:00 PT in PST). It DMs Slack, caches
+`results/daily/` so the next night has a baseline, and can be triggered by hand
+(optional language/task subset). GitHub uses `SWEEP_CONCURRENCY=3`.
+
+Local cron is optional if you want a second copy on a laptop:
 
 ```cron
 0 6 * * *  cd /abs/path/to/levante-qa && /usr/bin/env bash -lc 'npm run sweep' >> /abs/path/to/levante-qa/results/daily/cron.log 2>&1
@@ -185,7 +189,7 @@ resolve. Example — 06:00 local, log to a dated file:
 Notes:
 - The sweep autostarts the dashboard, so no separate service is required — but a
   long-lived `npm run dashboard` is fine too (the sweep reuses it).
-- Give the job enough headroom: full matrix × 30-min per-run timeout ÷
+- Give a local job enough headroom: full matrix × 30-min per-run timeout ÷
   concurrency. At concurrency 6 a full green sweep is typically well under an hour.
 - ADC tokens expire; for an unattended box prefer a service-account key
   (`GOOGLE_APPLICATION_CREDENTIALS`) over `gcloud auth ... login`.
