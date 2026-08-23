@@ -490,6 +490,7 @@ export default defineConfig({
         'QA_AUDIO_FALLBACK_LANGUAGE',
         'QA_AUDIO_BUCKET',
         'QA_AUDIO_PLACEHOLDER',
+        'QA_AUDIO_OVERLAP_MS',
         'QA_VIEWPORT_WIDTH',
         'QA_VIEWPORT_HEIGHT',
         'QA_AGENT_MODE',

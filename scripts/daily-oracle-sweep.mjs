@@ -452,7 +452,7 @@ export function slackMessage(report, previous) {
   };
   slackSection(':red_circle: New failures (regressions)', report.newFails, true);
   slackSection(':white_check_mark: Recovered', report.recovered, false);
-  slackSection(':large_white_circle: Still failing', report.stillFail, true);
+  slackSection(':white_circle: Still failing', report.stillFail, true);
   slackSection(':white_check_mark: Passed', report.passed || [], false);
   if (process.env.GITHUB_RUN_URL) parts.push(`\n${process.env.GITHUB_RUN_URL}`);
   return parts.join('\n');

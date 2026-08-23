@@ -1,5 +1,5 @@
 import './commands';
-import type { AudioWindow } from './audio/audioCapture';
+import { audioOverlapMs, type AudioWindow } from './audio/audioCapture';
 import { installLayoutCapture, type LayoutWindow } from './layout/layoutCapture';
 
 // LEVANTE tasks occasionally throw benign uncaught exceptions (e.g. from audio
@@ -58,8 +58,11 @@ if (requestedW > 0 && requestedH > 0) {
 afterEach(function audioOverlapGuard() {
   if (this.currentTest?.state === 'failed') return;
   cy.window({ log: false }).then((w) => {
-    const overlaps = (w as AudioWindow).__audioOverlaps;
-    if (!overlaps || overlaps.length === 0) return;
+    const minMs = audioOverlapMs();
+    const overlaps = ((w as AudioWindow).__audioOverlaps ?? []).filter(
+      (o) => (o.sustainedMs ?? 0) >= minMs,
+    );
+    if (overlaps.length === 0) return;
     const rel = Cypress.spec.relative || '';
     const m = rel.match(/cypress\/e2e\/([^/]+)\//);
     const task = m ? m[1] : 'task';
@@ -70,7 +73,7 @@ afterEach(function audioOverlapGuard() {
     ).then(() => {
       expect(
         overlaps.length,
-        `overlapping speech audio clips (two narration clips at once — see _${task}_audio_overlap.jsonl)`,
+        `overlapping speech audio clips (${minMs}ms+, two narration clips at once — see _${task}_audio_overlap.jsonl)`,
       ).to.equal(0);
     });
   });

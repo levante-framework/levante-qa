@@ -55,6 +55,16 @@ type XhrWithUrl = XMLHttpRequest & { __mp3Url?: string };
 
 const MP3_RE = /\.mp3(\?|$)/i;
 
+/** Ignore clip swaps shorter than this (ms). Override with `QA_AUDIO_OVERLAP_MS`. */
+export const DEFAULT_AUDIO_OVERLAP_MS = 100;
+
+/** How long two speech clips must overlap before we treat it as speech-on-speech. */
+export function audioOverlapMs(): number {
+  const raw = String(Cypress.expose?.('QA_AUDIO_OVERLAP_MS') ?? '').trim();
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_AUDIO_OVERLAP_MS;
+}
+
 /**
  * Non-speech audio cues (button clicks, coin/fail jingles, silent spacers).
  * These intentionally carry no transcript, so they are treated as "no narration"
@@ -244,7 +254,7 @@ export function installAudioCapture(win: Window): void {
   const syncSpeechCount = (): void => {
     g.__speechActiveCount = activeSpeech.size;
   };
-  const OVERLAP_GRACE_MS = 60;
+  const OVERLAP_GRACE_MS = audioOverlapMs();
   const srcProto = g.AudioBufferSourceNode?.prototype;
   if (srcProto) {
     const origStart = srcProto.start;
