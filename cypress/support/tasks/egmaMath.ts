@@ -87,16 +87,30 @@ function isInteractable(el: Element | null): boolean {
   return rect.width > 0 && rect.height > 0;
 }
 
+const COMPLETED_GAME =
+  /you've completed the game|has completado|du hast das spiel/i;
+
+/** True on the thank-you / Exit screen — not a blank between-section flash. */
+export function isFinishedScreen(win: TaskWindow): boolean {
+  const doc = win.document;
+  if (doc.querySelector(EXIT_BUTTON)) return true;
+  if (
+    Array.from(doc.querySelectorAll('button')).some((b) =>
+      EXIT_LABEL.test(b.textContent ?? ''),
+    )
+  ) {
+    return true;
+  }
+  return COMPLETED_GAME.test((doc.body?.innerText ?? '').replace(/\s+/g, ' '));
+}
+
 /** True when the jsPsych timeline has ended (content root emptied, or a
  * task-finished Exit button is present). */
 export function isComplete(win: TaskWindow): boolean {
   const doc = win.document;
   const content = doc.querySelector(JSPSYCH_CONTENT);
   if (!content || content.children.length === 0) return true;
-  if (doc.querySelector(EXIT_BUTTON)) return true;
-  return Array.from(doc.querySelectorAll('button')).some((b) =>
-    EXIT_LABEL.test(b.textContent ?? ''),
-  );
+  return isFinishedScreen(win);
 }
 
 /** True on an instruction / section / finished screen: a visible `.primary`

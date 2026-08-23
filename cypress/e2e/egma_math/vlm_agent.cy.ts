@@ -6,6 +6,7 @@ import {
   classifyItem,
   fractionChoiceIndexForValue,
   isComplete,
+  isFinishedScreen,
   isFractionItem,
   isInstructionScreen,
   isItemReady,
@@ -31,7 +32,7 @@ const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
 // Live, append-as-you-go log (so a long/killed run still yields partial data).
 const LIVE_LOG = 'cypress/logs/_egma_vlm_live.jsonl';
 
-const MAX_STEPS = 4500;
+const MAX_STEPS = 6000;
 const TASK = 'egma-math';
 const TIMEOUT_MS = 8000;
 // Normalized number-line placement error (fraction of the line length) within
@@ -294,11 +295,11 @@ describe(`EGMA math — VLM agent (${provider})`, () => {
           step(i + 1);
           return;
         }
-        emptyStreak += 1;
-        if (emptyStreak >= EMPTY_DONE) {
+        if (isFinishedScreen(win) || emptyStreak + 1 >= EMPTY_DONE) {
           finalize();
           return;
         }
+        emptyStreak += 1;
         cy.wait(200, { log: false });
         step(i + 1);
         return;

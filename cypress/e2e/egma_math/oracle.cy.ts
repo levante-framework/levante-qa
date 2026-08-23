@@ -3,6 +3,7 @@ import {
   buildUrl,
   classifyItem,
   isComplete,
+  isFinishedScreen,
   isFractionItem,
   isInstructionScreen,
   isItemReady,
@@ -53,10 +54,11 @@ import {
 
 // Safety cap on loop iterations. The task is long (~90+ items across 7 sections)
 // so this is generous; the loop normally exits on the completion screen first.
-// The full task is ~320 items across 7 sections, and feedback/transition frames
-// mean ~10 loop iterations per item, so the cap is generous. The loop exits
-// early on real completion (sustained empty content); this only guards a stall.
-const MAX_STEPS = 4500;
+// The full task is ~360 recorded events across 7 sections, and feedback /
+// transition frames mean ~10 loop iterations per item. CI 2026-08-23 hit
+// step 4492 still on fractions, then the thank-you screen — 4500 was too tight.
+// The loop exits early on the Exit / "completed the game" screen.
+const MAX_STEPS = 6000;
 const TASK = 'egma-math';
 // Polls for the item's narration to start before solving. Audio-only types
 // (number identification, comparison) carry the question only in the clip.
@@ -494,12 +496,14 @@ describe(`EGMA math — ${AGENT_LABEL}`, () => {
           step(i + 1);
           return;
         }
-        emptyStreak += 1;
-        if (emptyStreak >= EMPTY_DONE) {
+        // Thank-you / Exit is done now. Empty jspsych between sections is not —
+        // wait for a sustained blank before treating that as completion.
+        if (isFinishedScreen(win) || emptyStreak + 1 >= EMPTY_DONE) {
           taskComplete = true;
           finalize();
           return;
         }
+        emptyStreak += 1;
         cy.wait(200, { log: false });
         step(i + 1);
         return;
