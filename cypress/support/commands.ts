@@ -40,6 +40,7 @@ import {
   BLOCK as MEMORY_BLOCK,
   CONTINUE_BUTTON as MEMORY_CONTINUE_BUTTON,
 } from './tasks/memoryGame';
+import { waitUntilSpeechIdle } from './audio/audioCapture';
 import type { Action } from './tasks/types';
 
 /**
@@ -162,12 +163,17 @@ Cypress.Commands.add('chooseStoriesOption', (index: number) => {
   cy.get(STORIES_CHOICE_BUTTON).eq(index).click({ force: true });
 });
 
-/** Advance past a Stories story-beat / instruction screen via its OK button. */
+/** Advance past a Stories story-beat / instruction screen via its OK button.
+ * Wait for narration to finish and for OK to unlock — force-clicking a still-
+ * disabled button starts the next clip while the previous one is playing. */
 Cypress.Commands.add('continueStories', () => {
+  waitUntilSpeechIdle({ startGraceMs: 0 });
   cy.get('body').then(($body) => {
-    if ($body.find(STORIES_CONTINUE_BUTTON).length > 0) {
-      cy.get(STORIES_CONTINUE_BUTTON).first().click({ force: true });
-    }
+    if ($body.find(STORIES_CONTINUE_BUTTON).length === 0) return;
+    cy.get(STORIES_CONTINUE_BUTTON)
+      .first()
+      .should('not.be.disabled', { timeout: 60_000 })
+      .click({ force: true });
   });
 });
 

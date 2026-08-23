@@ -8,6 +8,8 @@ jobs:
   oracle:
     name: Oracle regression
     runs-on: ubuntu-latest
+    env:
+      QA_BROWSER: chrome
     steps:
       - uses: actions/checkout@v7
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * CLI wrapper: `node scripts/cypress-run.mjs …` ≡ off-screen `cypress run …`.
- * Pass `--headed` or set QA_CYPRESS_HEADED=1 to show the Electron window.
+ * Pass `--headed` or set QA_CYPRESS_HEADED=1 to show the Chrome window.
  */
 import { spawnCypressRun, wantCypressHeaded } from './lib/cypressOffscreen.mjs';
 

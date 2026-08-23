@@ -205,8 +205,8 @@ dashboard, snapshots the pass/fail matrix to `results/daily/<date>.json`, diffs
 it against the previous day, and posts the current results to Slack (flagging new
 regressions). It reuses the dashboard's HTTP API and autostarts it if needed.
 
-Cypress runs stay **off-screen** by default (via `xvfb-run`) so Electron does not
-paint on your laptop under WSLg. To show the window for debugging:
+Cypress runs use **Chrome** off-screen (via `xvfb-run`) so they do not paint on
+your laptop under WSLg. Override with `QA_BROWSER=electron`. To show the window:
 `QA_CYPRESS_HEADED=1 pnpm cy:run:…` or `node scripts/cypress-run.mjs --headed …`.
 
 See **[`DAILY_SWEEP.md`](DAILY_SWEEP.md)** for the full operator's guide:
@@ -1043,4 +1043,4 @@ All three ROAR literacy tasks (PA, SRE, SWR) are now in the dashboard catalog as
   CI has no secrets for. Run them locally via `pnpm cy:run:pa:oracle` / `:sre:` /
   `:swr:`. When adding a new demo-hosted task, add its folder to that `--spec` brace
   list in `package.json`.
-- **`vlm-nightly.yml`** — `workflow_dispatch` + nightly cron. Matrix over `[openai, anthropic, gemini]`, reading `*_API_KEY` from repo secrets. Runs the VLM specs, then `pnpm score`, and uploads logs + `results/`.
+- **`vlm-nightly.yml`** — `workflow_dispatch` + nightly cron (`11:00` UTC ≈ 04:00 PT). Matrix over `[openai, anthropic, gemini]` (schedule defaults to Gemini), reading `*_API_KEY` from repo secrets. Runs the VLM specs, then `pnpm score`, uploads logs + `results/`, and DMs a summary to Slack (`SLACK_ALERT_CHANNEL`, default david_cardinal).

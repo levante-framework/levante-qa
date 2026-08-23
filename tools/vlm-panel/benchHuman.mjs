@@ -6,6 +6,8 @@
  *   - trials.csv aggregated to age × item pass-rates
  *
  * Override root with LEVANTE_BENCH_ROOT (default: ../levante-bench from repo).
+ * Default local folder is v2 = Redivis levante-data-latest (internal QA).
+ * Public research (levante-bench) defaults to pilots v3.0 → local v3.
  */
 import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -27,7 +29,7 @@ export function benchRoot() {
   return process.env.LEVANTE_BENCH_ROOT || join(REPO, '..', 'levante-bench');
 }
 
-export function proportionsPath(taskName, version = 'v1') {
+export function proportionsPath(taskName, version = 'v2') {
   const benchTask = TASK_TO_BENCH[taskName];
   if (!benchTask) return null;
   return join(
@@ -40,7 +42,7 @@ export function proportionsPath(taskName, version = 'v1') {
   );
 }
 
-export function trialsPath(version = 'v1') {
+export function trialsPath(version = 'v2') {
   return join(benchRoot(), 'data', 'responses', version, 'trials.csv');
 }
 
@@ -80,7 +82,7 @@ function parseCsvLine(line) {
  * Map normalized item_uid → P(correct) from bench proportions (image1).
  * @returns {Map<string, number>}
  */
-export function loadBenchProportions(taskName, version = 'v1') {
+export function loadBenchProportions(taskName, version = 'v2') {
   const path = proportionsPath(taskName, version);
   const out = new Map();
   if (!path || !existsSync(path)) return out;
@@ -113,7 +115,7 @@ function parseCorrect(v) {
  * Prefer this over proportions.csv image1 (vocab option columns are not reliably
  * keyed with target in image1).
  */
-export async function loadBenchTrialStats(taskName, version = 'v1', { minN = 5, minAgeN = 5 } = {}) {
+export async function loadBenchTrialStats(taskName, version = 'v2', { minN = 5, minAgeN = 5 } = {}) {
   const benchTask = TASK_TO_BENCH[taskName];
   const path = trialsPath(version);
   /** @type {Map<string, { n: number, c: number }>} */
@@ -200,7 +202,7 @@ export async function loadBenchTrialStats(taskName, version = 'v1', { minN = 5, 
  * Stream trials.csv → { [item_uid]: { [ageYears]: rate } } for one task.
  * @deprecated prefer loadBenchTrialStats
  */
-export async function loadBenchAgeItemRates(taskName, version = 'v1', { minN = 5 } = {}) {
+export async function loadBenchAgeItemRates(taskName, version = 'v2', { minN = 5 } = {}) {
   const stats = await loadBenchTrialStats(taskName, version, { minN: 5, minAgeN: minN });
   return stats.ageItem;
 }

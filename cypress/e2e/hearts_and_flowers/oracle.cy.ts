@@ -37,9 +37,7 @@ function hfAgent() {
   return isWrongAgentMode() ? wrongHeartsAgent : oracleAgent;
 }
 
-describe(
-  `Hearts & Flowers — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`,
-  () => {
+describe(`Hearts & Flowers — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (deterministic)'}`, () => {
   const records: TrialRecord[] = [];
   let gameComplete = false;
   // Flips true once a non-empty task screen has been seen, so that an empty
@@ -211,8 +209,7 @@ describe(
     // Wait for the app to load, then dismiss the fullscreen prompt. This also
     // guarantees the jsPsych timeline has started before the loop treats an
     // empty content root as "finished".
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible').click({ force: true });
     step(0);
   });
-  },
-);
+});

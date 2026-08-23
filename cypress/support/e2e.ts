@@ -5,8 +5,17 @@ import { installLayoutCapture, type LayoutWindow } from './layout/layoutCapture'
 // LEVANTE tasks occasionally throw benign uncaught exceptions (e.g. from audio
 // autoplay or third-party libs) that should not fail the QA run. We swallow
 // those here so the agent loop can keep driving the task to completion.
-Cypress.on('uncaught:exception', () => {
+// Log them first: a thrown init (empty GCS list, startAssessment) otherwise
+// looks like a silent LEVANTE splash because Cypress also auto-dismisses
+// the dashboard's "error occurred while starting the task" alert.
+Cypress.on('uncaught:exception', (err) => {
+  // eslint-disable-next-line no-console
+  console.error('[qa-uncaught]', err?.message, err?.stack);
   return false;
+});
+Cypress.on('window:alert', (text) => {
+  // eslint-disable-next-line no-console
+  console.error('[qa-alert]', text);
 });
 
 // Visual layout overlap capture. Installed for *every* cy.visit (no per-spec
@@ -58,11 +67,12 @@ afterEach(function audioOverlapGuard() {
       'writeJsonl',
       { path: `cypress/logs/_${task}_audio_overlap.jsonl`, records: overlaps },
       { log: false },
-    );
-    expect(
-      overlaps.length,
-      `overlapping speech audio clips (two narration clips at once — see _${task}_audio_overlap.jsonl)`,
-    ).to.equal(0);
+    ).then(() => {
+      expect(
+        overlaps.length,
+        `overlapping speech audio clips (two narration clips at once — see _${task}_audio_overlap.jsonl)`,
+      ).to.equal(0);
+    });
   });
 });
 

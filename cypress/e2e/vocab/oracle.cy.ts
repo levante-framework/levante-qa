@@ -11,6 +11,7 @@ import {
   type TaskWindow,
 } from '../../support/tasks/vocab';
 import { installAudioCapture, type AudioWindow } from '../../support/audio/audioCapture';
+import { dumpPreloadProbe, installPreloadProbe } from '../../support/preloadProbe';
 import {
   currentAudioTranscript,
   resetAudioCapture,
@@ -43,14 +44,11 @@ import { parseVocabTrialRecord, type VocabTrialRecord } from '../../support/task
 // The loop normally exits on the completion screen first.
 const MAX_STEPS = 4000;
 const TASK = 'vocab';
-// Boot gate: wait for vocab's first interactive screen after launch. 300 s is
-// ample for a healthy boot (when it mounts, it does so in well under this).
-// NOTE: raising this to 600 s was tested and did NOT help — when vocab fails to
-// launch on `-dev` it stalls indefinitely on the LEVANTE splash at
-// /game/core-tasks/vocab (logged in, Firestore polling, task never mounts), so
-// the failure is an intermittent app-side boot stall, not harness impatience.
+// Boot gate: wait for vocab's first interactive screen after launch. 300 s and
+// 180 s were tested; when vocab fails on `-dev` it stalls on the LEVANTE splash
+// (task never mounts), so a longer gate only wastes sweep time.
 // See docs/known-issues/vocab-en-US-slow-boot.md.
-const BOOT_TIMEOUT_MS = 300_000;
+const BOOT_TIMEOUT_MS = 60_000;
 // The target word is delivered only by narration, so poll for the clip to start
 // before solving (same as EGMA number-identification).
 const PROMPT_POLLS = 14;
@@ -109,6 +107,19 @@ describe(`Vocab — ${AGENT_LABEL}`, () => {
   // no speech plays the items are unsolvable. Check once, fail fast.
   let audioHealthChecked = false;
   const AUDIO_HEALTH_MIN_RECORDS = 3;
+  const PRELOAD_PROBE_LOG = 'cypress/logs/_vocab_preload_probe.jsonl';
+
+  afterEach(function () {
+    if (this.currentTest?.state !== 'failed') return;
+    cy.window({ log: false }).then((win) => {
+      const dump = dumpPreloadProbe(win);
+      cy.task('writeJsonl', { path: PRELOAD_PROBE_LOG, records: [dump] }, { log: false });
+      cy.log(
+        `preload probe inFlight=${dump.inFlightN} done=${dump.doneN} errors=${dump.errorN}` +
+          (dump.inFlight[0] ? ` oldest=${dump.inFlight[0].url}` : ''),
+      );
+    });
+  });
 
   function logRecord(input: Parameters<typeof parseVocabTrialRecord>[0]): void {
     const rec = parseVocabTrialRecord(input);
@@ -390,8 +401,16 @@ describe(`Vocab — ${AGENT_LABEL}`, () => {
       );
     }
     resetAudioCapture();
-    launchTask({ taskId: 'vocab', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.contains('OK', { timeout: BOOT_TIMEOUT_MS }).should('be.visible').click({ force: true });
+    launchTask({
+      taskId: 'vocab',
+      demoUrl: buildUrl(),
+      onBeforeLoad: (win) => {
+        installPreloadProbe(win);
+        installAudioCapture(win);
+      },
+    });
+    // Fullscreen continue label is locale-specific (es-CO: "Continuar.", not "OK").
+    cy.get('button.primary', { timeout: BOOT_TIMEOUT_MS }).should('be.visible').click({ force: true });
     step(0);
   });
 });

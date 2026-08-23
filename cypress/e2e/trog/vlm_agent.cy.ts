@@ -287,7 +287,7 @@ describe(`TROG — VLM agent (${provider})`, () => {
       onBeforeLoad: installAudioCapture,
     });
     // TROG preloads a sizeable image bank; allow extra time before first continue.
-    cy.get('button.primary', { timeout: 300000 }).should('be.visible');
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible');
     cy.continueTrog();
     step(0);
   });

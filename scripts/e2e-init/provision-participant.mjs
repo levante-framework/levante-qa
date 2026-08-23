@@ -137,6 +137,32 @@ function languageOnly(languageCode) {
   return String(languageCode || 'en-US').toLowerCase().split('-')[0];
 }
 
+/**
+ * GCS audio folders are case-sensitive (`audio/en-US/`, `audio/es-CO/`).
+ * Several registered variants store `en-us` / `es-co` / `es-Ar`. core-tasks
+ * lists that exact string, gets an empty folder, and never hides the splash —
+ * the oracle then waits 5 minutes for a continue button that never mounts.
+ * Bare codes (`en`, `es`, `de`) are left alone; the task remaps those.
+ */
+function canonicalizeLanguageTag(lang) {
+  if (lang == null || lang === '') return lang;
+  const raw = String(lang);
+  const lower = raw.toLowerCase();
+  if (!lower.includes('-')) return raw;
+  const [primary, region] = lower.split('-');
+  if (!primary || !region) return raw;
+  return `${primary}-${region.toUpperCase()}`;
+}
+
+/** Exact locale, or ROAR/TROG bare `en`/`es`/`de`. Sibling regions (`en-GB` for `en-US`) do not match. */
+function nameMatchesWant(name, want, wantBase) {
+  const n = String(name || '').toLowerCase();
+  if (!n) return false;
+  if (n === want || n === wantBase) return true;
+  if (n.startsWith(`${want}-`) || n.startsWith(`${want} `)) return true;
+  return n.startsWith(`${wantBase} `);
+}
+
 function pickVariant(docs, languageCode, preferUserMode = '') {
   const want = String(languageCode || 'en-US').toLowerCase();
   const wantBase = languageOnly(want);
@@ -151,9 +177,9 @@ function pickVariant(docs, languageCode, preferUserMode = '') {
     const mode = String(data.params?.userMode ?? 'shortRandom');
     let s = 0;
     if (lang === want) s += 200;
-    else if (lang === wantBase || lang.startsWith(`${wantBase}-`)) s += 120;
+    else if (lang === wantBase) s += 120;
     // hs-levante-admin-dev SWR English variants use name "en" and language: null.
-    if (name === want || name === wantBase || name.startsWith(`${wantBase}-`)) s += 150;
+    if (nameMatchesWant(name, want, wantBase)) s += 150;
     else if (lang.startsWith('en') || /english|united states|north america/.test(name)) s += 40;
     if (hasPreferred && mode === wantMode) s += 100;
     else if (mode === 'shortRandom') s += 15;
@@ -161,23 +187,39 @@ function pickVariant(docs, languageCode, preferUserMode = '') {
     if (data.registered === true) s += 10;
     return s;
   };
+  const describe = (d) => {
+    const data = d.data() ?? {};
+    return `${data.name ?? d.id}(lang=${data.params?.language ?? 'null'}, registered=${data.registered === true})`;
+  };
   // Require a real language/name match. Falling back to "any registered" used to
   // pick German SWR (language: "de") for it-IT / pt-BR when those variants are missing,
   // and EN with language:null was not enough to pin roar-swr away from host locale.
   const langMatch = docs.filter((d) => score(d) >= 120);
   if (!langMatch.length) {
-    const available = docs
-      .map((d) => {
-        const data = d.data() ?? {};
-        return `${data.name ?? d.id}(lang=${data.params?.language ?? 'null'})`;
-      })
-      .join(', ');
     throw new Error(
       `No task variant matches language "${languageCode}" (base=${wantBase}). ` +
-        `Available: ${available || '(none)'}`,
+        `Available: ${docs.map(describe).join(', ') || '(none)'}`,
     );
   }
-  const sorted = [...langMatch].sort((a, b) => score(b) - score(a));
+  const langOf = (d) => String(d.data()?.params?.language ?? '').toLowerCase();
+  const isRegistered = (d) => d.data()?.registered === true;
+  const registered = langMatch.filter(isRegistered);
+  if (!registered.length) {
+    throw new Error(
+      `No registered task variant matches language "${languageCode}" (base=${wantBase}). ` +
+        `Refusing unregistered fallback. Matches: ${langMatch.map(describe).join(', ') || '(none)'}`,
+    );
+  }
+  // Exact locale first (en-US, es-AR). Else bare `en`/`es`/`de` for ROAR/TROG.
+  // Never fall through to a sibling region (en-GB for en-US, es-CO for es-AR).
+  const registeredExact = registered.filter((d) => langOf(d) === want);
+  const registeredBare = registered.filter((d) => langOf(d) === wantBase);
+  const pool = registeredExact.length
+    ? registeredExact
+    : registeredBare.length
+      ? registeredBare
+      : registered;
+  const sorted = [...pool].sort((a, b) => score(b) - score(a));
   return sorted[0] ?? null;
 }
 
@@ -203,6 +245,9 @@ async function buildAssessment(db, taskId, languageCode, paramOverrides = {}, pr
     ...baseParams,
     ...paramOverrides,
   };
+  if (Object.prototype.hasOwnProperty.call(params, 'language')) {
+    params.language = canonicalizeLanguageTag(params.language);
+  }
   return {
     taskId,
     variantId: pick.id,

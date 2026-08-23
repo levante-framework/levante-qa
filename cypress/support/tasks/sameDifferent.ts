@@ -219,7 +219,7 @@ export function dismissSdsStartup(attempt = 0): void {
   if (attempt >= MAX) return;
 
   if (attempt === 0) {
-    cy.get('.jspsych-content-wrapper, .jspsych-content', { timeout: 300000 }).should('exist');
+    cy.get('.jspsych-content-wrapper, .jspsych-content', { timeout: 60_000 }).should('exist');
   }
 
   cy.window({ log: false }).then((w) => {

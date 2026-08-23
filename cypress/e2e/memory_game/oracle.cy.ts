@@ -318,8 +318,8 @@ describe(`Memory Game — ${isWrongAgentMode() ? 'wrong agent' : 'oracle (observ
     resetAudioCapture();
     launchTask({ taskId: 'memory-game', demoUrl: buildUrl(), onBeforeLoad: composedOnBeforeLoad });
     // Memory Game preloads its audio/asset bank; allow extra time for the loading
-    // screen before the fullscreen "OK".
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    // screen before the fullscreen continue (label is locale-specific).
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });

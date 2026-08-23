@@ -166,7 +166,7 @@ describe(`Hearts & Flowers — VLM agent (${provider})`, () => {
     resetAudioCapture();
     launchTask({ taskId: 'hearts-and-flowers', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     // Wait for the app to load, then dismiss the fullscreen prompt.
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });

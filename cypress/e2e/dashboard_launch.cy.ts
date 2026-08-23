@@ -29,7 +29,7 @@ const dashboardConfigured = isDashboardLaunch() && !!Cypress.expose('PARTICIPANT
     launchCoreTask('egma-math');
     cy.location('pathname', { timeout: 30000 }).should('contain', '/game/core-tasks/egma-math');
 
-    // The core-tasks launcher renders its fullscreen prompt with an OK button.
-    cy.contains('OK', { timeout: 300000 }).should('be.visible');
+    // Fullscreen continue — label is locale-specific (not always "OK").
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible');
   });
 });

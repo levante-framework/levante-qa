@@ -45,7 +45,7 @@ import { parseStoriesTrialRecord, type StoriesTrialRecord } from '../../support/
 const MAX_STEPS = 8000;
 const TASK = 'theory-of-mind';
 const NO_AUDIO: CurrentAudio = { url: null, transcript: null, source: null };
-const STARTUP_OK_TIMEOUT_MS = 90000;
+const STARTUP_OK_TIMEOUT_MS = 60_000;
 const MAX_STARTUP_EMPTY_TICKS = 300; // ~45s at 150ms polls before first screen appears
 const MAX_IDLE_TICKS = 600; // ~72s at 120ms polls with no actionable screen state
 const STARTUP_ERROR_PATTERNS: RegExp[] = [

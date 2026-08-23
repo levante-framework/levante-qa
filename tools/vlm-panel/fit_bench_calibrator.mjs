@@ -117,7 +117,7 @@ function cvBlock(label, cv) {
 async function main() {
   const task = parseArg(process.argv, 'task', 'vocab');
   const lang = parseArg(process.argv, 'lang', 'en');
-  const version = parseArg(process.argv, 'version', 'v1');
+  const version = parseArg(process.argv, 'version', 'v2');
   const chance = Number(parseArg(process.argv, 'chance', task === 'stories' ? '0.5' : '0.25'));
 
   if (!TASK_TO_BENCH[task]) {

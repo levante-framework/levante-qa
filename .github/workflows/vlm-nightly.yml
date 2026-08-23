@@ -13,9 +13,9 @@ on:
           - openai
           - anthropic
           - gemini
-  # schedule:
-  #   # 07:00 UTC nightly.
-  #   - cron: '0 7 * * *'
+  schedule:
+    # 11:00 UTC = 04:00 PT in PDT / 03:00 PT in PST.
+    - cron: '0 11 * * *'
 
 jobs:
   vlm:
@@ -26,6 +26,7 @@ jobs:
       matrix:
         provider: [openai, anthropic, gemini]
     env:
+      QA_BROWSER: chrome
       VLM_PROVIDER: ${{ matrix.provider }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -83,6 +84,16 @@ jobs:
           path: cypress/logs
           if-no-files-found: ignore
 
+      - name: Write job status
+        if: always()
+        env:
+          PROVIDER: ${{ matrix.provider }}
+          RAN: ${{ steps.gate.outputs.run }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          mkdir -p results
+          node -e 'const fs=require("fs");fs.writeFileSync("results/vlm-nightly-status.json",JSON.stringify({provider:process.env.PROVIDER,ran:process.env.RAN==="true",outcome:process.env.JOB_STATUS})+"\n")'
+
       - name: Upload scores
         if: always()
         uses: actions/upload-artifact@v7
@@ -90,3 +101,25 @@ jobs:
           name: vlm-results-${{ matrix.provider }}
           path: results
           if-no-files-found: ignore
+
+  notify:
+    name: Slack DM
+    needs: vlm
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_ALERT_CHANNEL: W018924DJJV
+      VLM_MATRIX_RESULT: ${{ needs.vlm.result }}
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          pattern: vlm-results-*
+          path: artifacts
+
+      - name: Post Slack DM
+        run: node scripts/vlm-nightly-slack.mjs

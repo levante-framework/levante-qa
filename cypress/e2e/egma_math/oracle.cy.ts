@@ -574,7 +574,7 @@ describe(`EGMA math — ${AGENT_LABEL}`, () => {
     }
     resetAudioCapture();
     launchTask({ taskId: 'egma-math', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });

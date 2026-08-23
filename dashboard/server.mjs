@@ -544,6 +544,9 @@ function spawnCypress(run) {
     }
   }
 
+  // spawnCypressRun defaults to Chrome (Electron hangs on picture preload).
+  env.QA_BROWSER = env.QA_BROWSER || 'chrome';
+
   const cyArgs = [
     '--spec',
     spec,
@@ -554,7 +557,7 @@ function spawnCypress(run) {
     cyArgs.push('--env', `provider=${run.meta.provider}`);
   }
 
-  appendLog(run, `\n[dashboard] launching (off-screen): cypress run ${cyArgs.join(' ')}\n`);
+  appendLog(run, `\n[dashboard] launching (off-screen): cypress run --browser ${env.QA_BROWSER} ${cyArgs.join(' ')}\n`);
   // detached → its own process group so cancellation can kill the whole tree
   // (cypress / xvfb-run spawn Electron children of their own).
   const child = spawnCypressRun(cyArgs, { cwd: REPO_ROOT, env, detached: true });

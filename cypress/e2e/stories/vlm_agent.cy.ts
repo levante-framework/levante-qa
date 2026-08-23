@@ -240,7 +240,7 @@ describe(`Stories (Theory of Mind) — VLM agent (${provider})`, () => {
     initVlmIrtGateIfEnabled('stories');
     resetAudioCapture();
     launchTask({ taskId: 'theory-of-mind', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    cy.get('button.primary', { timeout: 300000 }).should('be.visible');
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible');
     cy.continueStories();
     step(0);
   });

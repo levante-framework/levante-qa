@@ -299,8 +299,8 @@ describe(`TROG — ${AGENT_LABEL}`, () => {
     resetAudioCapture();
     launchTask({ taskId: 'trog', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
     // TROG preloads a sizeable image bank; allow extra time for the loading
-    // screen before the fullscreen "OK".
-    cy.contains('OK', { timeout: 300000 }).should('be.visible').click({ force: true });
+    // screen before the fullscreen continue (label is locale-specific).
+    cy.get('button.primary', { timeout: 60_000 }).should('be.visible').click({ force: true });
     step(0);
   });
 });
