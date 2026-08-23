@@ -33,8 +33,12 @@ function bucket(win: ProbeWin) {
   return win.__qaPreload;
 }
 
+function asDom(win: ProbeWin): typeof globalThis {
+  return win as unknown as typeof globalThis;
+}
+
 function trackXhr(win: ProbeWin) {
-  const proto = win.XMLHttpRequest?.prototype;
+  const proto = asDom(win).XMLHttpRequest?.prototype;
   if (!proto) return;
   const origOpen = proto.open;
   proto.open = function patchedOpen(
@@ -46,7 +50,7 @@ function trackXhr(win: ProbeWin) {
     password?: string | null,
   ) {
     this.__qaUrl = String(url);
-    return origOpen.call(this, method, url, async, username, password);
+    return origOpen.call(this, method, url, async ?? true, username, password);
   };
   const origSend = proto.send;
   proto.send = function patchedSend(this: XMLHttpRequest & { __qaUrl?: string }, body?: Document | XMLHttpRequestBodyInit | null) {
@@ -72,7 +76,7 @@ function trackXhr(win: ProbeWin) {
 }
 
 function trackImages(win: ProbeWin) {
-  const proto = win.HTMLImageElement?.prototype;
+  const proto = asDom(win).HTMLImageElement?.prototype;
   if (!proto) return;
   const desc = Object.getOwnPropertyDescriptor(proto, 'src');
   if (!desc?.set || !desc.get) return;
