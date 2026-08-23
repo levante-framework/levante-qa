@@ -161,7 +161,7 @@ recovered cells, and still-failing cells (each with the first error line).
 
 ## 5. Output & snapshots
 
-- `results/daily/<date>.json` — full classified matrix (the next day's baseline).
+- `results/daily/<date>.json` — full classified matrix (the next day's baseline). Dates are the Pacific calendar day.
   Each cell: `{ key, taskId, label, language, status, pass, errors,
   failureSummary, accuracy, nTrials, durationMs, state, prevPass, hadBaseline }`.
 - `results/daily/<date>.md` — the human report (same content as the console dump).

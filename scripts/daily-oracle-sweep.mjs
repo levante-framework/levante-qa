@@ -73,7 +73,50 @@ const NO_SLACK = hasFlag('no-slack');
 const ONLY_LANGS = csv(flagVal('languages'));
 const ONLY_TASKS = csv(flagVal('tasks'));
 
-const log = (...a) => console.log(`[sweep ${new Date().toISOString()}]`, ...a);
+const PT = 'America/Los_Angeles';
+
+function todayStr(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: PT,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function formatPtStamp(date = new Date()) {
+  const when = date instanceof Date ? date : new Date(date);
+  const clock = new Intl.DateTimeFormat('en-US', {
+    timeZone: PT,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  }).format(when);
+  return `${todayStr(when)} ${clock}`;
+}
+
+function formatDuration(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  if (m < 60) return rem ? `${m}m ${rem}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return min ? `${h}h ${min}m` : `${h}h`;
+}
+
+function cellDetail(c, withSummary) {
+  const dur = formatDuration(c.durationMs);
+  const time = dur ? ` (${dur})` : '';
+  const extra = withSummary && c.failureSummary ? `: ${c.failureSummary}` : '';
+  return `${c.label} — ${c.language}${time}${extra}`;
+}
+
+const log = (...a) => console.log(`[sweep ${formatPtStamp()}]`, ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // --- dashboard HTTP --------------------------------------------------------
@@ -239,10 +282,6 @@ async function runPool(cells, concurrency) {
 }
 
 // --- snapshots + diff ------------------------------------------------------
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 async function loadPreviousSnapshot(todayFile) {
   let files = [];
   try {
@@ -250,7 +289,7 @@ async function loadPreviousSnapshot(todayFile) {
   } catch {
     return null;
   }
-  const prior = files.filter((f) => f !== todayFile);
+  const prior = files.filter((f) => f < todayFile);
   if (!prior.length) return null;
   try {
     return JSON.parse(await readFile(join(SNAPSHOT_DIR, prior[prior.length - 1]), 'utf-8'));
@@ -317,14 +356,22 @@ async function postSlack(text) {
 }
 
 // --- reporting -------------------------------------------------------------
-export function buildReport(classified, previous) {
+export function buildReport(classified, previous, timing = {}) {
   const date = todayStr();
   const prod = classified.filter((c) => !c.testing);
   const testing = classified.filter((c) => c.testing);
   const newFails = prod.filter((c) => c.state === 'NEW_FAIL');
   const recovered = prod.filter((c) => c.state === 'NEW_PASS');
   const stillFail = prod.filter((c) => c.state === 'STILL_FAIL');
-  const passing = prod.filter((c) => c.pass).length;
+  const passed = prod.filter((c) => c.pass);
+  const passing = passed.length;
+  const startedPt = timing.startedAt ? formatPtStamp(timing.startedAt) : '';
+  const finishedPt = timing.finishedAt ? formatPtStamp(timing.finishedAt) : '';
+  const elapsedMs =
+    timing.startedAt && timing.finishedAt
+      ? new Date(timing.finishedAt) - new Date(timing.startedAt)
+      : null;
+  const durationStr = elapsedMs != null ? formatDuration(elapsedMs) : '';
 
   // Per-language tally for the daily "current results" line.
   const byLang = [];
@@ -340,24 +387,37 @@ export function buildReport(classified, previous) {
   const byLangStr = byLang.map((r) => `${r.language} ${r.pass}/${r.total}`).join(' · ');
 
   const lines = [];
-  lines.push(`# Daily -dev oracle sweep — ${date}`);
+  lines.push(`# Daily -dev oracle sweep — ${date} PT`);
   lines.push('');
   lines.push(`Agent: ${AGENT} · ${prod.length} runs · ${passing} passing · ${prod.length - passing} failing` + (previous ? ` · baseline ${previous.date}` : ' · no baseline (first run)'));
+  if (startedPt) lines.push(`Started: ${startedPt}`);
+  if (finishedPt) lines.push(`Finished: ${finishedPt}${durationStr ? ` · ${durationStr}` : ''}`);
   lines.push(`By language: ${byLangStr}`);
   lines.push('');
   const section = (title, cells, withSummary) => {
     if (!cells.length) return;
     lines.push(`## ${title} (${cells.length})`);
-    for (const c of cells) {
-      lines.push(`- ${c.label} — ${c.language}` + (withSummary && c.failureSummary ? `: ${c.failureSummary}` : ''));
-    }
+    for (const c of cells) lines.push(`- ${cellDetail(c, withSummary)}`);
     lines.push('');
   };
   section('🔴 NEW failures (regressions)', newFails, true);
   section('🟢 Recovered', recovered, false);
   section('⚪ Still failing', stillFail, true);
+  section('✅ Passed', passed, false);
   if (testing.length) section('🧪 Testing locales (not alarmed)', testing.filter((c) => !c.pass), true);
-  return { text: lines.join('\n'), newFails, recovered, stillFail, passing, prodCount: prod.length, byLangStr };
+  return {
+    text: lines.join('\n'),
+    newFails,
+    recovered,
+    stillFail,
+    passed,
+    passing,
+    prodCount: prod.length,
+    byLangStr,
+    startedPt,
+    finishedPt,
+    durationStr,
+  };
 }
 
 export function slackMessage(report, previous) {
@@ -379,22 +439,21 @@ export function slackMessage(report, previous) {
   }
 
   const parts = [];
-  parts.push(`${emoji} *Daily -dev oracle sweep — ${date}*: ${headline}`);
-  parts.push(`By language: ${report.byLangStr}` + (previous ? ` · baseline ${previous.date}` : ' · no baseline'));
-  if (report.newFails.length) {
+  parts.push(`${emoji} *Daily -dev oracle sweep — ${date} PT*: ${headline}`);
+  parts.push(`Agent: ${AGENT} · ${report.prodCount} runs` + (previous ? ` · baseline ${previous.date}` : ' · no baseline'));
+  if (report.startedPt) parts.push(`Started: ${report.startedPt}`);
+  if (report.finishedPt) parts.push(`Finished: ${report.finishedPt}${report.durationStr ? ` · ${report.durationStr}` : ''}`);
+  parts.push(`By language: ${report.byLangStr}`);
+  const slackSection = (title, cells, withSummary) => {
+    if (!cells.length) return;
     parts.push('');
-    parts.push('*:red_circle: New failures (regressions):*');
-    for (const c of report.newFails) parts.push(`• *${c.label}* — \`${c.language}\`${c.failureSummary ? `: ${c.failureSummary}` : ''}`);
-  }
-  if (report.recovered.length) {
-    parts.push('');
-    parts.push(`:white_check_mark: *Recovered:* ${report.recovered.map((c) => `${c.label} (${c.language})`).join(', ')}`);
-  }
-  if (report.stillFail.length) {
-    parts.push('');
-    parts.push(`:large_white_circle: *Still failing:*`);
-    for (const c of report.stillFail) parts.push(`• ${c.label} — \`${c.language}\`${c.failureSummary ? `: ${c.failureSummary}` : ''}`);
-  }
+    parts.push(`*${title} (${cells.length}):*`);
+    for (const c of cells) parts.push(`• ${cellDetail(c, withSummary)}`);
+  };
+  slackSection(':red_circle: New failures (regressions)', report.newFails, true);
+  slackSection(':white_check_mark: Recovered', report.recovered, false);
+  slackSection(':large_white_circle: Still failing', report.stillFail, true);
+  slackSection(':white_check_mark: Passed', report.passed || [], false);
   if (process.env.GITHUB_RUN_URL) parts.push(`\n${process.env.GITHUB_RUN_URL}`);
   return parts.join('\n');
 }
@@ -424,7 +483,7 @@ async function main() {
   const snapshot = { date, startedAt, finishedAt, dashboard: DASHBOARD, agent: AGENT, cells: classified };
   await writeFile(join(SNAPSHOT_DIR, todayFile), JSON.stringify(snapshot, null, 2) + '\n', 'utf-8');
 
-  const report = buildReport(classified, previous);
+  const report = buildReport(classified, previous, { startedAt, finishedAt });
   await writeFile(join(SNAPSHOT_DIR, `${date}.md`), report.text + '\n', 'utf-8');
   console.log('\n' + report.text + '\n');
   log(`snapshot → results/daily/${todayFile}`);
