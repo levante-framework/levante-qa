@@ -61,6 +61,7 @@ export const DEFAULT_AUDIO_OVERLAP_MS = 100;
 /** How long two speech clips must overlap before we treat it as speech-on-speech. */
 export function audioOverlapMs(): number {
   const raw = String(Cypress.expose?.('QA_AUDIO_OVERLAP_MS') ?? '').trim();
+  if (!raw) return DEFAULT_AUDIO_OVERLAP_MS;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_AUDIO_OVERLAP_MS;
 }
