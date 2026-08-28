@@ -1,7 +1,6 @@
 import {
   appKeyedCorrectIndex,
   buildUrl,
-  CONTINUE_BUTTON,
   isComplete,
   isInstructionScreen,
   isItemReady,
@@ -19,6 +18,7 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import { waitForFirstContinue } from '../../support/waitForFirstContinue';
 import {
   agentLogStem,
   expectedAccuracy,
@@ -335,11 +335,9 @@ describe(`Stories (Theory of Mind) — ${AGENT_LABEL}`, () => {
     }
     resetAudioCapture();
     launchTask({ taskId: 'theory-of-mind', demoUrl: buildUrl(), onBeforeLoad: installAudioCapture });
-    // Fail fast when intro narration never unlocks the first continue button.
-    cy.get(CONTINUE_BUTTON, { timeout: STARTUP_OK_TIMEOUT_MS })
-      .should('be.visible')
-      .should('not.be.disabled')
-      .click({ force: true });
+    // Fail fast when the task never mounts (start alert / splash), not just when
+    // the Continue selector is missing.
+    waitForFirstContinue({ timeoutMs: STARTUP_OK_TIMEOUT_MS });
     step(0);
   });
 });

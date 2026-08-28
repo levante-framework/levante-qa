@@ -1,6 +1,7 @@
 import './commands';
 import { audioOverlapMs, type AudioWindow } from './audio/audioCapture';
 import { installLayoutCapture, type LayoutWindow } from './layout/layoutCapture';
+import { clearStartAlert, recordStartAlert } from './waitForFirstContinue';
 
 // LEVANTE tasks occasionally throw benign uncaught exceptions (e.g. from audio
 // autoplay or third-party libs) that should not fail the QA run. We swallow
@@ -16,6 +17,11 @@ Cypress.on('uncaught:exception', (err) => {
 Cypress.on('window:alert', (text) => {
   // eslint-disable-next-line no-console
   console.error('[qa-alert]', text);
+  recordStartAlert(String(text ?? ''));
+});
+
+beforeEach(() => {
+  clearStartAlert();
 });
 
 // Visual layout overlap capture. Installed for *every* cy.visit (no per-spec

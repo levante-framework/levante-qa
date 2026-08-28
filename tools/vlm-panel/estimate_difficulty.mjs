@@ -5,9 +5,10 @@
  * Hybrid model (v2):
  *   z = logit( clip( (p − c) / (1 − c) ) )   from p_pred_child (fallback p_vlm)
  *   d_est = X β   via standardized ridge + Huber IRLS
- * Features: z; TROG construction tags; vocab Zipf + rare flag.
+ * Features: z; TROG construction tags; vocab Kuperman AoA (not Zipf).
  *
- * Held-out CV scores recovery of deployed-bank d. Reports p-only Spearman
+ * Held-out CV scores recovery of the fit referee (TROG: bank `d`;
+ * vocab: kids IRT `difficulty`, not old CAT `d`). Reports p-only Spearman
  * ceiling so multivariate gains are explicit.
  *
  * Usage:
@@ -21,11 +22,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tagResidual } from './audit_residuals.mjs';
+import { vocabIrtD, vocabCorpusFile } from './vocab_bank_d.mjs';
+import { lookupAoa } from './lib/aoa.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(HERE, 'out');
 const CALIBRATION_DIR = join(HERE, 'calibration');
 const CACHE_DIR = join(HERE, '..', '..', 'cypress', 'cache');
+const VOCAB_CORPORA_DIR = join(HERE, 'corpora', 'vocab');
 const LEXICON_PATH = join(HERE, 'vocab_lexicon.json');
 const BENCH_IRT = join(
   HERE,
@@ -68,6 +72,7 @@ const TASK_CFG = {
   },
   vocab: {
     bankFile: 'sim-item-bank-vocab.csv',
+    bankPath: (lang) => join(VOCAB_CORPORA_DIR, vocabCorpusFile(lang)),
     defaultScreen: (lang) => `screen_vocab_${lang}.csv`,
     passRates: 'item_pass_rates_vocab.json',
     benchParams: 'vocab_item_params.csv',
@@ -399,24 +404,38 @@ function predictMultivar(model, featRow) {
   return y;
 }
 
-function loadBank(task, cfg) {
-  const path = join(CACHE_DIR, cfg.bankFile);
+function aliasVocabUids(uid) {
+  const out = [uid];
+  const word = /^vocab_word_(.+)$/.exec(uid);
+  const bare = /^vocab__(.+)$/.exec(uid);
+  if (word) out.push(`vocab__${word[1]}`);
+  if (bare) out.push(`vocab_word_${bare[1]}`);
+  return out;
+}
+
+function loadBank(task, cfg, lang) {
+  const path =
+    typeof cfg.bankPath === 'function' ? cfg.bankPath(lang) : join(CACHE_DIR, cfg.bankFile);
   if (!existsSync(path)) {
     throw new Error(`Missing item bank cache: ${path}`);
   }
   const byUid = new Map();
+  let nRows = 0;
   for (const r of readCsv(path)) {
     const uid = (r.item_uid || '').trim();
     if (!uid) continue;
-    const d = parseBankD(r.d) ?? parseBankD(r.difficulty);
+    nRows += 1;
+    const d = task === 'vocab' ? vocabIrtD(r) : parseBankD(r.d) ?? parseBankD(r.difficulty);
     const chance = num(r.chance_level);
-    byUid.set(uid, {
+    const rec = {
       d_bank: d,
       chance: chance != null ? chance : DEFAULT_CHANCE,
       answer: (r.answer || '').trim(),
-    });
+    };
+    const keys = task === 'vocab' ? aliasVocabUids(uid) : [uid];
+    for (const k of keys) byUid.set(k, rec);
   }
-  return { path, byUid };
+  return { path, byUid, nRows };
 }
 
 function loadBenchParams(cfg) {
@@ -478,6 +497,36 @@ function loadZipfLexicon() {
   return { path: LEXICON_PATH, byUid, median };
 }
 
+function aoaFromWord(word) {
+  const w = String(word || '')
+    .replace(/^the\s+/i, '')
+    .trim()
+    .toLowerCase();
+  if (!w) return null;
+  const direct = lookupAoa(w);
+  if (direct != null) return direct;
+  const last = w.split(/\s+/).pop();
+  return last && last !== w ? lookupAoa(last) : null;
+}
+
+/** Kuperman 2012 AoA (years; higher = learned later). Median-fill misses. */
+function loadAoaLexicon() {
+  const byUid = new Map();
+  const vals = [];
+  if (existsSync(LEXICON_PATH)) {
+    const raw = JSON.parse(readFileSync(LEXICON_PATH, 'utf-8'));
+    for (const [word, info] of Object.entries(raw.words || {})) {
+      const aoa = aoaFromWord(word);
+      if (aoa == null) continue;
+      vals.push(aoa);
+      for (const uid of info.item_uids || []) byUid.set(uid, aoa);
+    }
+  }
+  vals.sort((a, b) => a - b);
+  const median = vals.length ? vals[Math.floor(vals.length / 2)] : 6;
+  return { path: 'data/aoa_kuperman.csv', byUid, median, n: vals.length };
+}
+
 function resolveHuman(screenP, passRates, bankUid, screenUid) {
   if (screenP != null) return screenP;
   return passRates.get(screenUid) ?? passRates.get(bankUid) ?? null;
@@ -486,10 +535,10 @@ function resolveHuman(screenP, passRates, bankUid, screenUid) {
 function featureNamesFor(task) {
   if (task === 'trog') return ['z', ...TROG_TAG_FEATURES];
   if (task === 'stories' || task === 'matrix') return ['z']; // pass-rate → difficulty
-  return ['z', 'zipf', 'rare'];
+  return ['z', 'aoa'];
 }
 
-function buildFeatureRow(task, row, zipfLex) {
+function buildFeatureRow(task, row, extraLex) {
   const names = featureNamesFor(task);
   const feats = [];
   feats.push(row.z);
@@ -499,9 +548,9 @@ function buildFeatureRow(task, row, zipfLex) {
   } else if (task === 'stories' || task === 'matrix') {
     // z only
   } else {
-    const zf = zipfLex.byUid.get(row.item_uid) ?? zipfLex.median;
-    feats.push(zf);
-    feats.push(zf < 3 ? 1 : 0);
+    const fromUid = extraLex.byUid.get(row.item_uid);
+    const fromText = aoaFromWord(row.transcript);
+    feats.push(fromUid ?? fromText ?? extraLex.median);
   }
   return { names, feats };
 }
@@ -537,7 +586,7 @@ function main() {
     process.exit(1);
   }
 
-  const bank = loadBank(task, cfg);
+  const bank = loadBank(task, cfg, lang);
   const bench = loadBenchParams(cfg);
   const seedInfo = seedBankAnchorsFromBench(bank, bench, cfg);
   if (cfg.seedAnchorsFromBench) {
@@ -548,6 +597,7 @@ function main() {
   }
   const passRates = loadPassRates(cfg);
   const zipfLex = task === 'vocab' ? loadZipfLexicon() : { path: null, byUid: new Map(), median: 3.5 };
+  const aoaLex = task === 'vocab' ? loadAoaLexicon() : { path: null, byUid: new Map(), median: 6 };
 
   const featNames = featureNamesFor(task);
   const rows = [];
@@ -580,13 +630,14 @@ function main() {
       tags: tagResidual(item_uid, r.transcript || '').join('+'),
     };
     if (z != null) {
-      const { feats } = buildFeatureRow(task, base, zipfLex);
+      const { feats } = buildFeatureRow(task, base, task === 'vocab' ? aoaLex : zipfLex);
       base.feats = feats;
     } else {
       base.feats = null;
     }
     if (task === 'vocab') {
       base.zipf = zipfLex.byUid.get(item_uid) ?? zipfLex.median;
+      base.aoa = aoaLex.byUid.get(item_uid) ?? aoaFromWord(base.transcript) ?? aoaLex.median;
     }
     rows.push(base);
   }
@@ -759,6 +810,7 @@ function main() {
     'anchor',
     'tags',
     'zipf',
+    'aoa',
     'flag',
     'transcript',
   ];
@@ -780,6 +832,7 @@ function main() {
         r.anchor ? 'true' : 'false',
         r.tags,
         r.zipf == null ? '' : fmt(r.zipf, 3),
+        r.aoa == null ? '' : fmt(r.aoa, 2),
         r.flag,
         r.transcript,
       ]
@@ -798,13 +851,16 @@ function main() {
   lines.push('## Inputs');
   lines.push('');
   lines.push(`- Screen: \`${screenPath}\` (${rows.length} items)`);
-  lines.push(`- Bank: \`${bank.path}\` (${bank.byUid.size} rows)`);
+  lines.push(`- Bank: \`${bank.path}\` (${bank.nRows ?? bank.byUid.size} rows)`);
   lines.push(
     `- Bench item_params: ${bench.path ? `\`${bench.path}\` (${bench.byUid.size} d)` : 'not found (optional)'}`,
   );
   if (task === 'vocab') {
     lines.push(
-      `- Zipf lexicon: ${zipfLex.path ? `\`${zipfLex.path}\` (median fill ${fmt(zipfLex.median, 2)})` : 'missing'}`,
+      `- Kuperman AoA: ${aoaLex.n} lexicon hits, median fill ${fmt(aoaLex.median, 2)} (Zipf kept in CSV only).`,
+    );
+    lines.push(
+      '- Referee: kids IRT `difficulty` (skip exact ±5 placeholders). Not old CAT `d`. Locale bank, not `sim-item-bank-vocab.csv`.',
     );
   }
   lines.push('');
@@ -828,10 +884,16 @@ function main() {
     `Anchors: **${anchors.length}** / ${rows.length}. Held-out: **${foldMode}**.`,
   );
   lines.push('');
-  lines.push('## Held-out recovery of bank `d`');
+  lines.push(
+    task === 'vocab'
+      ? '## Held-out recovery of kids IRT (`difficulty`)'
+      : '## Held-out recovery of bank `d`',
+  );
   lines.push('');
   lines.push(
-    'Bank `d` is difficulty-coded (higher = harder). `−p_*` columns are the p-only ranking ceiling.',
+    task === 'vocab'
+      ? 'Fit target is locale-bank `difficulty` (higher = harder; skip ±5). `−p_*` columns are the p-only ranking ceiling.'
+      : 'Bank `d` is difficulty-coded (higher = harder). `−p_*` columns are the p-only ranking ceiling.',
   );
   lines.push('');
   lines.push('| Metric | multivar d_est_cv | p-only affine CV | mean baseline | −p_vlm | −p_pred_child |');
@@ -932,11 +994,18 @@ function main() {
   lines.push('## How to read this');
   lines.push('');
   lines.push(
-    '- **Spearman(d_est_cv, d_bank)** vs **−p_pred_child**: multivar should beat the p-only ceiling when construction/Zipf features help.',
+    task === 'vocab'
+      ? '- **Spearman(d_est_cv, kids IRT)** vs **−p_pred_child**: AoA should help when YES|NO is flat (CEILING / blanks).'
+      : '- **Spearman(d_est_cv, d_bank)** vs **−p_pred_child**: multivar should beat the p-only ceiling when construction features help.',
   );
   lines.push(
     '- Prompt changes only move the ceiling after an ungated panel recollect + re-analyze.',
   );
+  if (task === 'vocab') {
+    lines.push(
+      '- **Do not overwrite live CAT `d`.** `d_est` is a research prior for words with no real kids IRT (`difficulty` blank or ±5).',
+    );
+  }
 
   writeFileSync(reportPath, lines.join('\n') + '\n');
   // Always refresh the latest metrics json next to the report

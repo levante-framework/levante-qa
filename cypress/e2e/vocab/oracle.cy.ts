@@ -19,6 +19,7 @@ import {
   type CurrentAudio,
 } from '../../support/audio/audioOracle';
 import { launchTask } from '../../support/launch';
+import { waitForFirstContinue } from '../../support/waitForFirstContinue';
 import {
   agentLogStem,
   expectedAccuracy,
@@ -409,8 +410,8 @@ describe(`Vocab — ${AGENT_LABEL}`, () => {
         installAudioCapture(win);
       },
     });
-    // Fullscreen continue label is locale-specific (es-CO: "Continuar.", not "OK").
-    cy.get('button.primary', { timeout: BOOT_TIMEOUT_MS }).should('be.visible').click({ force: true });
+    // Locale label varies ("OK" / "Continuar."); fail with splash/alert if the task never mounts.
+    waitForFirstContinue({ timeoutMs: BOOT_TIMEOUT_MS });
     step(0);
   });
 });

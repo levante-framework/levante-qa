@@ -20,6 +20,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { catVocabD, vocabCorpusFile } from './vocab_bank_d.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..', '..');
@@ -36,6 +37,7 @@ const TASK_CFG = {
   },
   vocab: {
     bankFile: 'sim-item-bank-vocab.csv',
+    bankPath: (lang) => join(HERE, 'corpora', 'vocab', vocabCorpusFile(lang)),
     dEstFile: (lang) => `d_est_vocab_${lang}.csv`,
     fillColumn: 'd',
   },
@@ -119,7 +121,8 @@ function num(v) {
 }
 
 /** Established difficulty from bank row (trog/vocab use `d`; some CAT banks use `difficulty`). */
-function establishedD(row) {
+function establishedD(row, task) {
+  if (task === 'vocab') return catVocabD(row);
   const dStr = String(row.d ?? '').trim() || String(row.difficulty ?? '').trim();
   if (!dStr || /^nan$/i.test(dStr) || dStr === 'NA' || dStr === 'None' || dStr === 'null') {
     return null;
@@ -131,12 +134,12 @@ function rowUid(row) {
   return String(row.item_uid || row.bank_uid || row.item_id || '').trim();
 }
 
-function isScoredBlankCandidate(row) {
+function isScoredBlankCandidate(row, task) {
   const answer = String(row.answer ?? '').trim();
   if (!answer) return false;
   const stage = String(row.assessment_stage || row.trial_type || '').toLowerCase();
   if (stage.includes('instruction')) return false;
-  return establishedD(row) == null;
+  return establishedD(row, task) == null;
 }
 
 function loadKnownIssueUids(task) {
@@ -184,7 +187,11 @@ function main() {
   }
 
   const bankPath = resolve(
-    parseArg(argv, 'bank', join(CACHE_DIR, cfg.bankFile)),
+    parseArg(
+      argv,
+      'bank',
+      typeof cfg.bankPath === 'function' ? cfg.bankPath(lang) : join(CACHE_DIR, cfg.bankFile),
+    ),
   );
   const dEstPath = resolve(parseArg(argv, 'd-est', join(OUT_DIR, cfg.dEstFile(lang))));
 
@@ -235,7 +242,7 @@ function main() {
 
   const outRows = rows.map((row) => {
     const next = { ...row };
-    const est = establishedD(row);
+    const est = establishedD(row, task);
     if (est != null) {
       preserved += 1;
       return next;
@@ -250,7 +257,7 @@ function main() {
     const uid = rowUid(row);
     const prior = uid ? byUid.get(uid) : null;
     if (!prior) {
-      if (isScoredBlankCandidate(row)) {
+      if (isScoredBlankCandidate(row, task)) {
         blankNoMatch += 1;
         unmatchedBlanks.push(uid || `(answer=${answer})`);
       }
