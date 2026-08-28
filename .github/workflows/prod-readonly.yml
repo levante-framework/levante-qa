@@ -1,0 +1,81 @@
+name: Prod read-only check
+
+on:
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Optional locales (e.g. es-AR,nl-NL). Blank = sweep locales.'
+        required: false
+        type: string
+        default: ''
+      tasks:
+        description: 'Optional catalog task ids (e.g. stories,vocab). Blank = all.'
+        required: false
+        type: string
+        default: ''
+      no_slack:
+        description: 'Write snapshot only; do not DM Slack'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # 10:30 UTC = 03:30 PT in PDT / 02:30 PT in PST — before the 04:00 oracle sweep.
+    - cron: '30 10 * * *'
+
+concurrency:
+  group: prod-readonly
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Packs + audio inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_ALERT_CHANNEL: W018924DJJV
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-sa.json
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Write GCP credentials (Firestore list; optional)
+        env:
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$GCP_SERVICE_ACCOUNT_JSON" ]; then
+            printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > gcp-sa.json
+          else
+            echo "No GCP_SERVICE_ACCOUNT_JSON — registered-pack list may be skipped; GCS audio still runs."
+          fi
+
+      - name: Run prod read-only check
+        env:
+          NO_SLACK_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.no_slack || false }}
+          LANGUAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.languages || '' }}
+          TASKS: ${{ github.event_name == 'workflow_dispatch' && inputs.tasks || '' }}
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ "${NO_SLACK_INPUT}" = "true" ]; then ARGS+=(--no-slack); fi
+          if [ -n "${LANGUAGES}" ]; then ARGS+=(--languages="${LANGUAGES}"); fi
+          if [ -n "${TASKS}" ]; then ARGS+=(--tasks="${TASKS}"); fi
+          pnpm run prod-check -- "${ARGS[@]}"
+
+      - name: Upload snapshot
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-readonly-${{ github.run_id }}
+          path: results/prod-readonly
+          if-no-files-found: ignore
