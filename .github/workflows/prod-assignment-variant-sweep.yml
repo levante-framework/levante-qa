@@ -1,0 +1,114 @@
+name: Prod open-assignment variant sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_oracle:
+        description: 'Replay stale leftover packs with the oracle (writes qa-tests kids on -dev). Inventory is field sites only.'
+        required: false
+        type: boolean
+        default: true
+      oracle_all:
+        description: 'Oracle every unique catalog pack in open assignments, not only stale/missing.'
+        required: false
+        type: boolean
+        default: false
+      tasks:
+        description: 'Optional kebab task ids (e.g. vocab,trog). Blank = all.'
+        required: false
+        type: string
+        default: ''
+      no_slack:
+        description: 'Write snapshot only; do not DM Slack'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # 12:00 UTC = 05:00 PT in PDT / 04:00 PT in PST — after the 04:00 -dev oracle sweep.
+    - cron: '0 12 * * *'
+
+concurrency:
+  group: prod-assignment-variant-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Open-assignment packs
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      QA_BROWSER: chrome
+      SWEEP_CONCURRENCY: '3'
+      SWEEP_AGENT: oracle
+      LEVANTE_ADMIN_FIREBASE_CREDENTIALS: ${{ github.workspace }}/.credentials/firebase.json
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-sa.json
+      QA_GCS_PROJECT: hs-levante-admin-dev
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_ALERT_CHANNEL: W018924DJJV
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure Cypress binary
+        run: pnpm exec cypress install
+
+      - name: Write service-account credentials
+        env:
+          FIREBASE_ADMIN_SA_JSON: ${{ secrets.FIREBASE_ADMIN_SA_JSON }}
+          GCP_SERVICE_ACCOUNT_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$FIREBASE_ADMIN_SA_JSON" ]; then echo "::error::FIREBASE_ADMIN_SA_JSON secret is not set"; exit 1; fi
+          if [ -z "$GCP_SERVICE_ACCOUNT_JSON" ]; then echo "::error::GCP_SERVICE_ACCOUNT_JSON secret is not set"; exit 1; fi
+          mkdir -p .credentials
+          printf '%s' "$FIREBASE_ADMIN_SA_JSON" > .credentials/firebase.json
+          printf '%s' "$GCP_SERVICE_ACCOUNT_JSON" > gcp-sa.json
+          node -e "require('./.credentials/firebase.json'); require('./gcp-sa.json'); console.log('service-account JSON parsed OK')"
+
+      - name: Restore previous snapshots
+        uses: actions/cache@v6
+        with:
+          path: results/prod-assignment-variants
+          key: prod-assignment-variants-${{ github.run_id }}
+          restore-keys: |
+            prod-assignment-variants-
+
+      - name: Run open-assignment variant sweep
+        env:
+          NO_SLACK_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.no_slack || false }}
+          RUN_ORACLE_INPUT: ${{ github.event_name != 'workflow_dispatch' && 'true' || inputs.run_oracle }}
+          ORACLE_ALL_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.oracle_all || false }}
+          TASKS: ${{ github.event_name == 'workflow_dispatch' && inputs.tasks || '' }}
+        run: |
+          set -euo pipefail
+          ARGS=()
+          if [ "${NO_SLACK_INPUT}" = "true" ]; then ARGS+=(--no-slack); fi
+          if [ "${ORACLE_ALL_INPUT}" = "true" ]; then ARGS+=(--oracle-all); fi
+          if [ "${RUN_ORACLE_INPUT}" = "true" ] || [ "${ORACLE_ALL_INPUT}" = "true" ]; then ARGS+=(--run-oracle); fi
+          if [ -n "${TASKS}" ]; then ARGS+=(--tasks="${TASKS}"); fi
+          pnpm run prod-variant-sweep -- "${ARGS[@]}"
+
+      - name: Upload snapshot
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-assignment-variants-${{ github.run_id }}
+          path: results/prod-assignment-variants
+          if-no-files-found: ignore
+
+      - name: Upload trial logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-assignment-variants-logs
+          path: cypress/logs
+          if-no-files-found: ignore

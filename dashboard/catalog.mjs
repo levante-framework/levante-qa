@@ -148,6 +148,36 @@ export function findTask(id) {
   return CATALOG.find((t) => t.id === id) ?? null;
 }
 
+/** Catalog entry whose kebab `taskId` matches (e.g. "egma-math"), or null. */
+export function findTaskByTaskId(taskId) {
+  return CATALOG.find((t) => t.taskId === taskId) ?? null;
+}
+
+/**
+ * Map a pack / assignment language tag onto a dashboard locale so Cypress
+ * audio checks have a real folder (`es` → Colombian Spanish, `es-Ar` →
+ * Argentine Spanish). Returns null when we cannot guess.
+ */
+export function canonicalQaLocale(code) {
+  const raw = String(code || '').trim();
+  if (!raw) return null;
+  if (isSupportedLanguage(raw)) return raw;
+  const legacy = legacyLanguageReplacement(raw);
+  if (legacy) return legacy;
+  const lower = raw.toLowerCase();
+  const [primary, region] = lower.split(/[-_]/);
+  if (primary === 'en') return 'en-US';
+  if (primary === 'de') return 'de-DE';
+  if (primary === 'nl') return 'nl-NL';
+  if (primary === 'ar') return 'ar-IL';
+  if (primary === 'he') return 'he-IL';
+  if (primary === 'es') {
+    if (region === 'ar') return 'es-AR';
+    return 'es-CO';
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Per-language task support
 //

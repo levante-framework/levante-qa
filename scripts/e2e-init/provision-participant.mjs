@@ -18,6 +18,8 @@
  *   --param isAdaptive=false
  *   --param userMode=adaptiveTimingMultiStage   # SWR CAT variant (also set QA_SWR_USER_MODE)
  *   --variant-id <id>                           # pin tasks/<task>/variants/<id>
+ *   --variant-name <name>                       # label when using --params-json
+ *   --params-json '{...}'                       # use these params (skip -dev catalog lookup)
  */
 import 'dotenv/config';
 
@@ -46,6 +48,8 @@ function parseArgs(argv) {
     credential: process.env.LEVANTE_ADMIN_FIREBASE_CREDENTIALS,
     force: false,
     variantId: undefined,
+    variantName: undefined,
+    paramsJson: undefined,
     /** @type {Record<string, unknown>} */
     paramOverrides: {},
   };
@@ -60,6 +64,8 @@ function parseArgs(argv) {
     else if (a === '--credential') args.credential = argv[++i];
     else if (a === '--force') args.force = true;
     else if (a === '--variant-id') args.variantId = argv[++i];
+    else if (a === '--variant-name') args.variantName = argv[++i];
+    else if (a === '--params-json') args.paramsJson = argv[++i];
     else if (a === '--param') {
       const raw = argv[++i];
       if (!raw || !raw.includes('=')) {
@@ -223,9 +229,44 @@ function pickVariant(docs, languageCode, preferUserMode = '') {
   return sorted[0] ?? null;
 }
 
-async function buildAssessment(db, taskId, languageCode, paramOverrides = {}, preferUserMode = '', variantId = '') {
+function sanitizeWrittenParams(params) {
+  const out = { ...params };
+  // Runtime-only flags: writing these into assignment params makes
+  // updateTaskParams hit permission-denied on admin-dev (PA / SWR).
+  delete out.isAdaptive;
+  delete out.userMode;
+  if (Object.prototype.hasOwnProperty.call(out, 'language')) {
+    out.language = canonicalizeLanguageTag(out.language);
+  }
+  return out;
+}
+
+async function buildAssessment(
+  db,
+  taskId,
+  languageCode,
+  paramOverrides = {},
+  preferUserMode = '',
+  variantId = '',
+  snapshot = null,
+) {
   const taskDoc = await db.collection('tasks').doc(taskId).get();
   if (!taskDoc.exists) throw new Error(`Task "${taskId}" not found on dev`);
+
+  // Replay a pack that lives on -prod (or was deleted from the -dev catalog)
+  // by writing the snapshot params onto the assignment. Firekit starts from
+  // those stored params; we do not clone the variant doc onto -dev.
+  if (snapshot && snapshot.params && typeof snapshot.params === 'object') {
+    const params = sanitizeWrittenParams({ ...snapshot.params, ...paramOverrides });
+    const id = String(variantId || snapshot.id || '').trim() || 'snapshot';
+    return {
+      taskId,
+      variantId: id,
+      variantName: snapshot.name ?? languageCode,
+      params,
+    };
+  }
+
   const variants = await db.collection('tasks').doc(taskId).collection('variants').get();
   if (variants.empty) throw new Error(`Task "${taskId}" has no variants`);
   const wantId = String(variantId || '').trim();
@@ -241,13 +282,10 @@ async function buildAssessment(db, taskId, languageCode, paramOverrides = {}, pr
   // Do not inject lng/language here: Firekit updateTaskParams rejects unknown keys and
   // startTask fails. Correct language comes from picking the matching variant
   // (DE has language:"de"; EN name "en" with language null → roar-swr defaultToEnglish).
-  const params = {
+  const params = sanitizeWrittenParams({
     ...baseParams,
     ...paramOverrides,
-  };
-  if (Object.prototype.hasOwnProperty.call(params, 'language')) {
-    params.language = canonicalizeLanguageTag(params.language);
-  }
+  });
   return {
     taskId,
     variantId: pick.id,
@@ -467,8 +505,20 @@ async function main() {
   const viteProject = process.env.VITE_FIREBASE_PROJECT;
   const projectId = args.projectId || envProject || 'hs-levante-admin-dev';
   const isDev = viteProject === 'DEV' || projectId === 'hs-levante-admin-dev';
+  const isProd = projectId === 'hs-levante-admin-prod';
   if (!args.force && !isDev) {
     throw new Error('Refusing to run outside DEV. Set VITE_FIREBASE_PROJECT=DEV or --project-id hs-levante-admin-dev (or --force).');
+  }
+  if (isProd) {
+    if (SITE_NAME !== 'qa-tests') {
+      throw new Error('Prod writes are limited to site qa-tests.');
+    }
+    const credPath = String(args.credential || '');
+    if (/admin-dev/i.test(credPath)) {
+      throw new Error(
+        'Refusing prod write with a -dev service-account path. Unset LEVANTE_ADMIN_FIREBASE_CREDENTIALS and use ADC, or pass a prod admin SA.',
+      );
+    }
   }
 
   const credential = await getCredentials(args.credential);
@@ -527,6 +577,22 @@ async function main() {
         `QA_SWR_USER_MODE=${wantSwrUserMode}.`,
     );
   }
+  let snapshot = null;
+  if (args.paramsJson) {
+    try {
+      const parsed = JSON.parse(args.paramsJson);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('expected a JSON object');
+      }
+      snapshot = {
+        id: args.variantId,
+        name: args.variantName,
+        params: parsed,
+      };
+    } catch (err) {
+      throw new Error(`Invalid --params-json: ${err?.message || err}`);
+    }
+  }
   const assessment = await buildAssessment(
     db,
     args.task,
@@ -534,6 +600,7 @@ async function main() {
     args.paramOverrides,
     wantSwrUserMode,
     args.variantId,
+    snapshot,
   );
   // Do not mutate numAdaptive here. English shortRandom variants ship 150.
   // Deleting the key or writing 84 makes the dashboard fail to start the task

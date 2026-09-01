@@ -35,6 +35,8 @@ import {
   isSupportedLanguage,
   legacyLanguageReplacement,
   findTask,
+  findTaskByTaskId,
+  canonicalQaLocale,
   isTaskSupportedInLanguage,
   buildTaskSupport,
   FALLBACK_TASK_OPTIONS,
@@ -499,7 +501,7 @@ function spawnCypress(run) {
   env.TEMP = cypressTmp;
   env.TMP = cypressTmp;
   env.LAUNCH = 'dashboard';
-  env.DASHBOARD_URL = DASHBOARD_URL;
+  env.DASHBOARD_URL = run.meta.dashboardUrl || DASHBOARD_URL;
   env.PARTICIPANT_USER = run.creds.email;
   env.PARTICIPANT_PASS = run.creds.password;
   env.QA_RUN_ID = run.runId;
@@ -542,6 +544,13 @@ function spawnCypress(run) {
     if (run.meta.isAdaptive != null) {
       env.QA_PA_IS_ADAPTIVE = run.meta.isAdaptive ? 'true' : 'false';
     }
+  }
+  const pinnedParams = run.meta.variantParams && typeof run.meta.variantParams === 'object' ? run.meta.variantParams : null;
+  if (pinnedParams?.userMode && !env.QA_SWR_USER_MODE) {
+    env.QA_SWR_USER_MODE = String(pinnedParams.userMode);
+  }
+  if (pinnedParams && pinnedParams.isAdaptive != null && env.QA_PA_IS_ADAPTIVE == null) {
+    env.QA_PA_IS_ADAPTIVE = pinnedParams.isAdaptive ? 'true' : 'false';
   }
 
   // spawnCypressRun defaults to Chrome (Electron hangs on picture preload).
@@ -595,15 +604,32 @@ function provisionThenRun(run) {
     // Do not pass --param isAdaptive=true: Firestore variantParams write is
     // permission-denied. Cypress enables adaptive via QA_PA_IS_ADAPTIVE + bridge.
   }
+  if (run.meta.variantId) provisionArgs.push('--variant-id', String(run.meta.variantId));
+  if (run.meta.variantName) provisionArgs.push('--variant-name', String(run.meta.variantName));
+  if (run.meta.variantParams && typeof run.meta.variantParams === 'object') {
+    provisionArgs.push('--params-json', JSON.stringify(run.meta.variantParams));
+  }
+  if (run.meta.firebaseProject) {
+    provisionArgs.push('--project-id', String(run.meta.firebaseProject));
+    if (run.meta.firebaseProject !== 'hs-levante-admin-dev') {
+      provisionArgs.push('--force');
+    }
+  }
   // Fixed mode: omit isAdaptive (roar-pa default).
   const launch = scriptCommand(PROVISIONER, provisionArgs);
   appendLog(
     run,
     `[dashboard] provisioning participant (age ${run.meta.ageYears}y ${run.meta.ageMonths}m` +
-      `${run.meta.isAdaptive != null ? `, isAdaptive=${run.meta.isAdaptive}` : ''})...\n`,
+      `${run.meta.isAdaptive != null ? `, isAdaptive=${run.meta.isAdaptive}` : ''}` +
+      `${run.meta.firebaseProject ? `, project=${run.meta.firebaseProject}` : ''})...\n`,
   );
 
-  const child = spawn(launch.command, launch.args, { cwd: E2E_CWD, env: { ...process.env }, detached: true });
+  const provisionEnv = { ...process.env };
+  if (run.meta.firebaseProject && run.meta.firebaseProject !== 'hs-levante-admin-dev') {
+    // cwd is levante-support so dotenv would reload the -dev SA. Blank it so ADC is used.
+    provisionEnv.LEVANTE_ADMIN_FIREBASE_CREDENTIALS = '';
+  }
+  const child = spawn(launch.command, launch.args, { cwd: E2E_CWD, env: provisionEnv, detached: true });
   run.proc = child;
   let stdout = '';
   child.stdout.on('data', (c) => {
@@ -690,11 +716,6 @@ function listQaAssignments() {
       }
     });
   });
-}
-
-/** Catalog entry whose kebab `taskId` matches (e.g. "egma-math"), or null. */
-function findTaskByTaskId(taskId) {
-  return CATALOG.find((t) => t.taskId === taskId) ?? null;
 }
 
 /**
@@ -895,14 +916,23 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 400, { error: `${task.label} has no VLM agent (oracle only).` });
         }
         const provider = isVlmBacked ? String(p.provider || VLM_PROVIDERS[0]) : null;
+        const variantId = typeof p.variantId === 'string' ? p.variantId.trim() : '';
+        const variantName = typeof p.variantName === 'string' ? p.variantName.trim() : '';
+        const variantParams =
+          p.variantParams && typeof p.variantParams === 'object' && !Array.isArray(p.variantParams)
+            ? p.variantParams
+            : null;
+        const pinned = Boolean(variantId || variantParams);
         const legacyLang = legacyLanguageReplacement(p.language);
-        if (legacyLang) {
+        if (legacyLang && !pinned) {
           return sendJson(res, 400, {
             error: `Locale "${p.language}" is legacy; use "${legacyLang}" instead.`,
           });
         }
-        const language = isSupportedLanguage(p.language) ? p.language : DEFAULT_LANGUAGE;
-        if (!isTaskSupportedInLanguage(task, language, taskOptionsByLang)) {
+        const language =
+          canonicalQaLocale(p.language) ||
+          (isSupportedLanguage(p.language) ? p.language : DEFAULT_LANGUAGE);
+        if (!pinned && !isTaskSupportedInLanguage(task, language, taskOptionsByLang)) {
           return sendJson(res, 400, {
             error: `${task.label} is not supported in ${language}.`,
           });
@@ -931,6 +961,11 @@ const server = http.createServer(async (req, res) => {
           ageYears,
           ageMonths,
           isAdaptive,
+          variantId: variantId || null,
+          variantName: variantName || null,
+          variantParams,
+          firebaseProject: typeof p.firebaseProject === 'string' ? p.firebaseProject.trim() : null,
+          dashboardUrl: typeof p.dashboardUrl === 'string' ? p.dashboardUrl.trim() : null,
           spec: specForAgent(task, agent),
         });
         sendJson(res, 200, { runId });

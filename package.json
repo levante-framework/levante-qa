@@ -70,6 +70,7 @@
     "dashboard": "node dashboard/server.mjs",
     "sweep": "node scripts/daily-oracle-sweep.mjs",
     "prod-check": "node scripts/prod-readonly-check.mjs",
+    "prod-variant-sweep": "node scripts/prod-assignment-variant-sweep.mjs",
     "translation-screen": "node scripts/daily-translation-screen.mjs",
     "run:assignment": "node scripts/run-assignment.mjs",
     "publish:assignments": "node scripts/publish-assignments.mjs",

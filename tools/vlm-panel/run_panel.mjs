@@ -222,8 +222,14 @@ function loadManifest() {
   }
 }
 
-function saveManifest(byId) {
-  const arr = Object.values(byId).sort((a, b) => a.runId.localeCompare(b.runId));
+/** Merge only `ownedIds` so two live panels can run at once without clobbering. */
+function saveManifest(byId, ownedIds) {
+  const disk = loadManifest();
+  const ids = ownedIds?.length ? ownedIds : Object.keys(byId);
+  for (const id of ids) {
+    if (byId[id]) disk[id] = byId[id];
+  }
+  const arr = Object.values(disk).sort((a, b) => a.runId.localeCompare(b.runId));
   writeFileSync(MANIFEST, JSON.stringify(arr, null, 2) + '\n');
 }
 
@@ -256,7 +262,7 @@ async function runCypress(r, byId, extraEnv = {}, { headed = false, assetDir = n
     startedAt: new Date().toISOString(),
     logFile: logFile.replace(REPO + '/', ''),
   };
-  saveManifest(byId);
+  saveManifest(byId, [r.runId]);
 
   writeStatus({
     phase: extraEnv.QA_PANEL_CAPTURE ? 'capture' : 'live',
@@ -286,7 +292,7 @@ async function runCypress(r, byId, extraEnv = {}, { headed = false, assetDir = n
     exitCode: res.status,
     elapsedMs,
   };
-  saveManifest(byId);
+  saveManifest(byId, [r.runId]);
   writeStatus({
     phase: extraEnv.QA_PANEL_CAPTURE ? 'capture' : 'live',
     runId: r.runId,
