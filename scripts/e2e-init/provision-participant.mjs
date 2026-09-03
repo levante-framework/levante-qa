@@ -231,10 +231,11 @@ function pickVariant(docs, languageCode, preferUserMode = '') {
 
 function sanitizeWrittenParams(params) {
   const out = { ...params };
-  // Runtime-only flags: writing these into assignment params makes
-  // updateTaskParams hit permission-denied on admin-dev (PA / SWR).
-  delete out.isAdaptive;
-  delete out.userMode;
+  // Keep the pack's own userMode / isAdaptive (PA fixed, SRE 3min1Block, SWR
+  // adaptiveTimingMultiStage). Env/CLI overrides are stripped before merge —
+  // writing those extras makes updateTaskParams permission-denied on admin-dev.
+  // Do not delete pack-owned keys here: that left ROAR assignments without
+  // userMode and every PA/SRE/SWR cell failed to start (2026-09-02).
   if (Object.prototype.hasOwnProperty.call(out, 'language')) {
     out.language = canonicalizeLanguageTag(out.language);
   }
